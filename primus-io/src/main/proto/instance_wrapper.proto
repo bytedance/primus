@@ -1,0 +1,11 @@
+syntax = "proto3";
+option java_package = "com.bytedance.primus.proto";
+option java_generate_equals_and_hash = true;
+package primus;
+
+message InstanceWrapper {
+  // Serialized "Instance" message
+  bytes instance = 1;
+  // Which data source this Instance comes from
+  string data_source = 2;
+}

@@ -1,0 +1,28 @@
+# This yaml serves as the tool for verifying whether primus containers are connected to other
+# environment dependencies after installation.
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: primus-base-test
+spec:
+  containers:
+    - name: primus-base-test
+      image: primus-baseline-base:latest
+      imagePullPolicy: Never
+      volumeMounts:
+        - name: java
+          mountPath: /usr/lib/jvm/java-8-openjdk-amd64
+        - name: hadoop
+          mountPath: /usr/lib/hadoop
+      command: [ 'bash', '-c' ]
+      args: [ 'while true; do sleep 900; done' ]
+  volumes:
+    - name: java
+      hostPath:
+        path: /usr/lib/jvm/java-8-openjdk-amd64
+        type: "Directory"
+    - name: hadoop
+      hostPath:
+        path: /usr/lib/hadoop
+        type: "Directory"

@@ -1,0 +1,11 @@
+[Unit]
+Description=Kafka server
+After=zookeeper.service
+
+[Service]
+ExecStart=/usr/lib/kafka/bin/kafka-server-start.sh /usr/lib/kafka/config/server.properties
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,119 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file may have been modified by Bytedance Inc.
+ */
+
+syntax = "proto3";
+
+option java_outer_classname = "ResourceProto";
+option java_package = "com.bytedance.primus.apiserver.proto";
+option java_generate_equals_and_hash = true;
+
+import "google/protobuf/any.proto";
+import "google/protobuf/wrappers.proto";
+import "utils.proto";
+
+message JobSpec {
+  map<string, RoleSpec> roleSpecs = 1;
+}
+
+message JobStatus {
+  int64 startTime = 1;
+  int64 completionTime = 2;
+  map<string, RoleStatus> roleStatuses = 3;
+  repeated Condition conditions = 5;
+}
+
+message RoleSpec {
+  int32 replicas = 1;
+  int32 minReplicas = 2;
+  ExecutorSpec executorSpecTemplate = 3;
+  SchedulePolicy schedulePolicy = 4;
+  FailoverPolicy failoverPolicy = 5;
+  SuccessPolicy successPolicy = 6;
+  YarnScheduler role_scheduler = 8;
+  ScheduleStrategy schedule_strategy = 9;
+}
+
+message RoleStatus {
+  int32 activeNum = 1;
+  int32 succeedNum = 2;
+  int32 failedNum = 3;
+}
+
+
+message ExecutorSpec {
+  // System provided
+  int32 roleIndex = 1;
+
+  // User provided
+  repeated ResourceRequest resourceRequests = 2;
+  string javaOpts = 3;
+  string command = 4;
+  map<string, string> envs = 5;
+  InputPolicy inputPolicy = 6;
+
+  // Forward compatibility, may be deprecated in future
+  bool isEvaluation = 8;
+
+  WorkerSpec worker_spec_template = 10;
+  ConsulConfig consul_config = 11;
+  PluginConfig plugin_config = 12;
+
+}
+
+message ConsulConfig {
+  google.protobuf.Int32Value port_register_num = 1;
+}
+
+message PluginConfig {
+  repeated Plugin basic_plugins = 1;
+  repeated Plugin extend_plugins = 2;
+  repeated Plugin disabled_plugins = 3;
+}
+
+message Plugin {
+  string name = 1;
+  string version = 2;
+  map<string, string > parameter = 3;
+}
+
+message ExecutorStatus {
+  int64 startTime = 1;
+  int64 completionTime = 2;
+  string state = 3;
+  int32 exitStatus = 4;
+  string diagnostics = 5;
+  repeated string networkSockets = 6;
+  map<string, string> metrics = 7;
+  string hostname = 8;
+}
+
+message WorkerSpec {
+  map<string, google.protobuf.Any> specs = 1;
+}
+
+message WorkerStatus {
+}
+
+message NodeAttributeSpec {
+  map<string, int64> black_list = 1;
+}
+
+message NodeAttributeStatus {
+  bool is_black_list_updated = 1;
+}

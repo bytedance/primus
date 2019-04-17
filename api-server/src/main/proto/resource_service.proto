@@ -1,0 +1,219 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file may have been modified by Bytedance Inc.
+ */
+
+syntax = "proto3";
+
+option java_outer_classname = "ResourceServiceProto";
+option java_package = "com.bytedance.primus.apiserver.proto";
+option java_generate_equals_and_hash = true;
+
+import "google/protobuf/any.proto";
+
+message OwnerRef {
+  // Resource kind.
+  string kind = 1;
+  // Resource name, that is name in Meta.
+  string name = 2;
+  // Resource uid, that is uid in Meta.
+  int64 uid = 3;
+}
+
+message Meta {
+  // Name must be unique within a resource. Is required when creating resources.
+  // E.g. ps/worker/chief if Role is a resource.
+  string name = 1;
+  // An opaque value that represents the internal version of this object that can be used
+  // by clients to determine when objects have changed. May be used for optimistic concurrency,
+  // change detection, and the watch operation on a resource or set of resources.
+  int64 version = 2;
+  int64 creationTime = 3;
+  int64 deletionTime = 4;
+  int64 uid = 5;
+  // List of objects depended by this object.
+  repeated OwnerRef ownerRefs = 6;
+}
+
+message Resource {
+  // Kind is a string value representing the resource this object represents.
+  // Servers may infer this from the endpoint the client submits requests to.
+  // Different resource kind has different spec/status message type.
+  // Cannot be updated. In CamelCase.
+  string kind = 1;
+  Meta meta = 2;
+  google.protobuf.Any spec = 3;
+  google.protobuf.Any status = 4;
+}
+
+enum ResourceVersionMatch {
+  LATEST = 0;
+  EXACT = 1;
+}
+
+message ReadOptions {
+  ResourceVersionMatch resourceVersionMatch = 1;
+  int64 resourceVersion = 2;
+}
+
+message CreateRequest {
+  Resource resource = 1;
+}
+
+message CreateResponse {
+  Resource resource = 1;
+}
+
+message DeleteRequest {
+  string resourceKind = 1;
+  string resourceName = 2;
+}
+
+message DeleteResponse {
+}
+
+message DeleteListRequest {
+  string resourceKind = 1;
+}
+
+message DeleteListResponse {
+}
+
+message ReplaceRequest {
+  Resource resource = 1;
+  int64 resourceVersion = 2;
+}
+
+message ReplaceResponse {
+  Resource resource = 1;
+}
+
+message PatchRequest {
+  Resource resource = 1;
+  int64 resourceVersion = 2;
+}
+
+message PatchResponse {
+  Resource resource = 1;
+}
+
+message GetRequest {
+  string resourceKind = 1;
+  string resourceName = 2;
+  ReadOptions options = 3;
+}
+
+message GetResponse {
+  Resource resource = 1;
+}
+
+message ListRequest {
+  string resourceKind = 1;
+  ReadOptions options = 2;
+  map<string,string> queryParameters = 3;
+}
+
+message ListResponse {
+  repeated Resource resources = 1;
+}
+
+enum WatchOp {
+  CREATE = 0;
+  CANCEL = 1;
+}
+
+message WatchEvent {
+  enum Type {
+    ADDED = 0;
+    DELETED = 1;
+    MODIFIED = 2;
+  }
+
+  Type type = 1;
+
+  // Resource is:
+  //   the old state of the resource for Type of MODIFIED
+  //   the new state of the resource for Type of ADDED, DELETED, MODIFIED
+  Resource oldResource = 2;
+  Resource newResource = 3;
+}
+
+message WatchRequest {
+  WatchOp watchOp = 1;
+  string resourceKind = 2;
+  string resourceName = 3;
+}
+
+message WatchResponse {
+  WatchEvent watchEvent = 1;
+}
+
+message WatchListRequest {
+  WatchOp watchOp = 1;
+  string resourceKind = 2;
+}
+
+message WatchListResponse {
+  WatchEvent watchEvent = 1;
+}
+
+message GetStatusRequest {
+  string resourceKind = 1;
+  string resourceName = 2;
+  ReadOptions options = 3;
+}
+
+message GetStatusResponse {
+  Resource resource = 1;
+}
+
+message ReplaceStatusRequest {
+  Resource resource = 1;
+  int64 resourceVersion = 2;
+}
+
+message ReplaceStatusResponse {
+  Resource resource = 1;
+}
+
+message PatchStatusRequest {
+  Resource resource = 1;
+  int64 resourceVersion = 2;
+}
+
+message PatchStatusResponse {
+  Resource resource = 1;
+}
+
+service ResourceService {
+  rpc Create (CreateRequest) returns (CreateResponse);
+  rpc Delete (DeleteRequest) returns (DeleteResponse);
+  rpc DeleteList (DeleteListRequest) returns (DeleteListResponse);
+  rpc Replace (ReplaceRequest) returns (ReplaceResponse);
+  rpc Patch (PatchRequest) returns (PatchResponse);
+
+  rpc Get (GetRequest) returns (GetResponse);
+  rpc List (ListRequest) returns (ListResponse);
+  rpc ListByFilter (ListRequest) returns (ListResponse);
+  rpc ListByFilterNot (ListRequest) returns (ListResponse);
+  rpc Watch (stream WatchRequest) returns (stream WatchResponse);
+  rpc WatchList (stream WatchListRequest) returns (stream WatchListResponse);
+
+  rpc GetStatus (GetStatusRequest) returns (GetStatusResponse);
+  rpc ReplaceStatus (ReplaceStatusRequest) returns (ReplaceStatusResponse);
+  rpc PatchStatus (PatchStatusRequest) returns (PatchStatusResponse);
+}

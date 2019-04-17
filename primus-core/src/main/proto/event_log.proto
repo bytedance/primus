@@ -1,0 +1,108 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file may have been modified by Bytedance Inc.
+ */
+
+syntax = "proto3";
+
+option java_package = "com.bytedance.primus.proto";
+option java_generate_equals_and_hash = true;
+package primus;
+
+message PrimusMetaInfo {
+  string Name = 1;
+  string Version = 2;
+  int64 CreationTime = 3;
+  int64 DeletionTime = 4;
+}
+
+message PrimusEventMsg {
+  string YarnApplicationId = 1;
+  int64 SendTime = 2; //时间戳，发消息的
+  PrimusMetaInfo Meta = 3;
+  oneof MsgData{// MsgData，json 格式字符串
+    MsgDataPrimusJobStateChange JobStateData = 4;
+    MsgDataWorkerStateChange WorkerStateData = 5;
+    MsgDataTaskStateChange TaskStateData = 6;
+    MsgDataTaskProcessChange TaskProcess = 7;
+  }
+}
+
+message MsgDataPrimusJobStateChange {
+  enum AppState {
+    UNKNOWN = 0;
+    NEW = 1;
+    SUCCEEDED = 2;
+    FAILED = 3;
+    KILLED = 4;
+  }
+  string Name = 1;
+  int64 TimeStamp = 2; //时间戳
+  float Progress = 3; //0.1123423
+  AppState State = 4; //
+  int32 ExitCode = 5;
+  string Diagnosis = 6;
+  string PrimusConf = 7;
+}
+
+
+
+message MsgDataWorkerStateChange {
+  enum WorkerState {
+    NEW = 0;
+    STARTING = 1;
+    RUNNING = 2;
+    EXPIRED = 3;
+    FAILED = 4;
+    COMPLETED = 5;
+    RELEASED = 6;
+    KILLING = 7;
+    KILLED = 8;
+  }
+  int64 Id = 1;
+  string WorkerName = 2;
+  int64 TimeStamp = 3; //启动时间
+  WorkerState State = 4; //更新后的状态
+  int32 ExitCode = 5;
+  string Diagnosis = 6; //
+  string RoleName = 7; //
+}
+
+message MsgDataTaskStateChange {
+  enum TaskState {
+    PENDING = 0;
+    RUNNING = 1;
+    SUCCEEDED = 2;
+    FAILED = 3;
+  }
+  int64 Id = 1;
+  string WorkerName = 2;
+  int32 Attempt = 3;
+  float Progress = 4; //0.1123423
+  int64 LastAssignTime = 5;
+  int64 FinishTime = 6;
+  string URI = 7;
+  TaskState State = 8;
+}
+
+message MsgDataTaskProcessChange {
+  int64 Id = 1;
+  string WorkerName = 2;
+  float Progress = 3; //0.1123423
+  string URI = 4;
+  int64 Length = 5;
+}

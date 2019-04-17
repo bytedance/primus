@@ -1,0 +1,278 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file may have been modified by Bytedance Inc.
+ */
+
+syntax = "proto3";
+
+option java_outer_classname = "UtilsProto";
+option java_package = "com.bytedance.primus.apiserver.proto";
+option java_generate_equals_and_hash = true;
+
+message Condition {
+  // Type of condition.
+  string type = 1;
+  // The reason for the condition's last transition.
+  string reason = 2;
+  // A human readable message indicating details about the transition.
+  string message = 3;
+  // Last time the condition transitioned from one status to another.
+  int64 lastTransitionTime = 4;
+  // The last time this condition was updated.
+  int64 lastUpdateTime = 5;
+}
+
+message SchedulePolicy {
+  oneof schedulePolicy {
+    GangSchedulePolicy gangSchedulePolicy = 1;
+    DynamicSchedulePolicy dynamicSchedulePolicy = 2;
+  }
+}
+
+message GangSchedulePolicy {
+  UpdatePolicy updatePolicy = 1;
+}
+
+message DynamicSchedulePolicy {
+  UpdatePolicy updatePolicy = 1;
+}
+
+message UpdatePolicy {
+  oneof updatePolicy {
+    RollingUpdatePolicy rollingUpdatePolicy = 1;
+    KillFirstUpdatePolicy killFirstUpdatePolicy = 2;
+    CreateFirstUpdatePolicy createFirstUpdatePolicy = 3;
+  }
+}
+
+message RollingUpdatePolicy {
+}
+
+message KillFirstUpdatePolicy {
+}
+
+message CreateFirstUpdatePolicy {
+}
+
+message FailoverPolicy {
+  oneof failoverPolicy {
+    CommonFailoverPolicy commonFailoverPolicy = 1;
+    ExitCodeFailoverPolicy exitCodeFailoverPolicy = 2;
+  }
+}
+
+message CommonFailoverPolicy {
+  RestartType restartType = 1;
+  MaxFailurePolicy maxFailurePolicy = 2;
+  int32 maxFailureTimes = 3;
+}
+
+message ExitCodeFailoverPolicy {
+  repeated int32 retryableExitCodes = 1;
+  CommonFailoverPolicy commonFailoverPolicy = 2;
+}
+
+enum RestartType {
+  ON_FAILURE = 0;
+  NEVER = 1;
+  ALWAYS = 2;
+}
+
+enum MaxFailurePolicy {
+  FAIL_APP = 0;
+  FAIL_ATTEMPT = 1;
+  NONE = 2;
+}
+
+message SuccessPolicy {
+  float successPercent = 1;
+}
+
+message NodeInterAppSameRoleToleranceContent {
+  // {roleName: tolerance number}
+  map<string, int32> inter_app_roles_tolerance = 1;
+}
+
+message NodeInnerAppSameRoleToleranceContent {
+  // {roleName: tolerance number}
+  map<string, int32> inner_app_roles_tolerance = 1;
+}
+
+message ConstraintContent {
+  NodeSkipHighLoadContent nodeSkipHighLoadContent = 1;
+  NodeSatisfyAttributesContent nodeSatisfyAttributesContent = 2;
+  NodeQuotaUsageAverageContent nodeQuotaUsageAverageContent = 3;
+  // NodeLocalityContent nodeLocalityContent = 4;
+  NodeGpuAffinityContent nodeGpuAffinityContent = 5;
+  NodeNicPolicyContent nodeNicPolicyContent = 6;
+  NodeInterAppSameRoleToleranceContent nodeInterAppSameRoleToleranceContent = 7;
+  NodeInnerAppSameRoleToleranceContent nodeInnerAppSameRoleToleranceContent = 8;
+}
+
+message NodeNicPolicyContent {
+  enum NicPolicy {
+    NIC_HOST = 0;
+    NIC_FAST = 1;
+    NIC_NUMA = 2;
+    NIC_ALL = 3;
+  }
+  NicPolicy nicPolicy = 1;
+}
+
+message NodeSkipHighLoadContent {
+  float load = 1;
+}
+
+message NodeGpuAffinityContent {
+  enum GPUAllocationType {
+    // random allocate
+    ALL_INSERTABLE_POSITIONS = 0;
+    // continuous position allocate
+    CONTINUOUS_POSITIONS = 1;
+    // network card affinity, not support yet
+    MAXIMUM_DATA_TRANSMISSION_RATE = 2;
+  }
+  GPUAllocationType gpuAllocationType = 1;
+  string affinityRequirement = 2;
+}
+
+message NodeSatisfyAttributesContent {
+  string nodeAttributeExpression = 1;
+}
+
+message NodeQuotaUsageAverageContent {
+  string resourceInformation = 1;
+}
+
+message ScheduleStrategy {
+  enum RoleCategory {
+    UNKNOWN = 0;
+    PS = 1;
+    WORKER = 2;
+  }
+  int32 max_replicas_per_node = 1;
+  int32 executor_delay_start_seconds = 2;
+  ElasticResource elastic_resource = 3;
+  RoleCategory role_category = 4;
+}
+
+message ElasticResource {
+  float extend_mem_ratio = 1;
+  int64 extend_mem_size = 2;
+  int64 max_mem_size = 3;
+  int64 min_mem_size = 4;
+}
+
+message InputPolicy {
+  oneof inputPolicy {
+    EnvInputPolicy envInputPolicy = 1;
+    StreamingInputPolicy streamingInputPolicy = 2;
+  }
+}
+
+message EnvInputPolicy {
+}
+
+message StreamingInputPolicy {
+  enum StreamingMode {
+    PUSH = 0;
+    PULL = 1;
+  }
+
+  // Forward compatibility, may be deprecated in future
+  StreamingMode streamingMode = 1;
+  string dataStream = 2;
+}
+
+message ResourceRequest {
+  ResourceType resourceType = 1;
+  int32 value = 2;
+  repeated ValueRange valueRanges = 3;
+}
+
+enum ResourceType {
+  VCORES = 0;
+  MEMORY_MB = 1;
+  GPU = 2;
+  PORT = 3;
+  TPU_V3_BASE = 4;
+  TPU_V3_POD = 5;
+}
+
+message ValueRange {
+  int32 begin = 1;
+  int32 end = 2;
+}
+
+message YarnScheduler {
+  message FairScheduler {
+  }
+
+  message BatchScheduler {
+    bool set_resource_type_by_hard_constraint = 1;
+  }
+
+  message GangScheduler {
+    int32 max_retry_num = 1;
+    int64 max_wait_seconds = 2;
+  }
+
+  oneof scheduler {
+    FairScheduler fair_scheduler = 1;
+    GangScheduler gang_scheduler = 2;
+    BatchScheduler batch_scheduler = 3;
+  }
+
+  YarnResourceType resource_type = 4;
+  YarnSchedulingType scheduling_type = 5;
+  YarnGlobalConstraintType global_constraint_type = 6;
+  YarnNeedGlobalNodesView need_global_nodes_view = 7;
+
+  NetworkConfig network_config = 8;
+
+  enum YarnResourceType {
+    NR_NORMAL = 0;
+    NR_GUARANTEED = 1;
+    NR_BEST_EFFORT = 2;
+  }
+
+  enum YarnGlobalConstraintType {
+    SOFT_CONSTRAINT = 0;
+    HARD_CONSTRAINT = 1;
+  }
+
+  enum YarnSchedulingType {
+    ASYNC = 0;
+    SYNC = 1;
+  }
+
+  enum YarnNeedGlobalNodesView {
+    FALSE = 0;
+    TRUE = 1;
+  }
+
+  enum NetworkType {
+    DEFAULT = 0;
+    OVERLAY = 1;
+  }
+
+  message NetworkConfig {
+    NetworkType network_type = 1;
+    bool keep_ip_port_under_overlay = 2;
+  }
+
+}

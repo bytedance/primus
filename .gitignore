@@ -1,0 +1,14 @@
+*.swp
+*.iml
+*.DS_Store
+*rocksdb
+.idea
+*.pyc
+*target
+*/__primus_state__/
+**/.classpath
+**/.project
+**/.settings
+**/.factorypath
+
+output/

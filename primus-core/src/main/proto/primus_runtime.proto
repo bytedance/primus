@@ -1,0 +1,177 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file may have been modified by Bytedance Inc.
+ */
+
+syntax = "proto3";
+package primus;
+
+option java_package = "com.bytedance.primus.proto";
+option java_generate_equals_and_hash = true;
+
+import "primus_common.proto";
+
+message RuntimeConf {
+  // Orchestrator
+  message KubernetesNativeConf {
+    KubernetesContainerConf init_container_conf = 1;
+    KubernetesContainerConf driver_container_conf = 2;
+    KubernetesContainerConf executor_container_conf = 3;
+
+    repeated Protocol kubernetes_api_protocols = 10;
+
+    /**
+     * url_formats are the string templates to build the corresponding urls,
+     * where supported key-value pairs are listed below.
+     * - {{PrimusAppName}}       => Primus application name
+     * - {{KubernetesNamespace}} => Kubernetes namespace
+     * - {{KubernetesPodName}}   => Kubernetes pod name
+     *
+     * Example: "http://primus.log/?namespace={{KubernetesNamespace}}&pod={{KubernetesPodName}}"
+     */
+    string am_tracking_url_format = 20;
+    string history_tracking_url_format = 21;
+    string container_log_url_format = 25;
+    string container_history_log_url_format = 26;
+  }
+  message YarnCommunityConf {
+    /**
+     * url_formats are the string templates to build the corresponding urls,
+     * where supported key-value pairs are listed below.
+     * - {{YarnApplicationId}} => The YARN application ID
+     * - {{YarnUsername}}      => The username submitting the Primus application
+     * - {{YarnNodeHostname}}  => The hostname of the hosting YARN name node
+     * - {{YarnNodeHttpPort}}  => The http port of the hosting YARN name node
+     * - {{YarnNodeId}}        => The id of the hosting YARN node
+     * - {{YarnContainerId}}   => The id of the hosting YARN container
+     *
+     * Example: "http://localhost:{{YarnNodePort}}/node/containerlogs/{{YarnContainerId}}/{{YarnUsername}}
+     */
+    string history_tracking_url_format = 21;
+    string container_log_url_format = 25;
+    string container_history_log_url_format = 26;
+  }
+  oneof orchestrator_conf {
+    KubernetesNativeConf kubernetes_native_conf = 1;
+    YarnCommunityConf yarn_community_conf = 2;
+  }
+
+  // Metrics
+  message PrometheusPushGatewayConf {
+    string host = 1;
+    int32 port = 2;
+  }
+  oneof metrics_conf {
+    PrometheusPushGatewayConf prometheus_push_gateway_conf = 21;
+  }
+
+  // Logs, where runtime specific settings are encapsulated in their
+  // orchestrator_conf and corresponding log4j2.xml in deployment.
+  message LoggerConf {
+    bool redirect_child_process_logs = 1;
+  }
+  LoggerConf logger_conf = 31;
+}
+
+message KubernetesContainerConf {
+  string image_name = 1;
+  string image_pull_policy = 2; // Defaults to "Always"
+  repeated string command = 3;
+  repeated string args = 4;
+
+  // User defined pod annotations, supported value templates are listed below
+  // {{AppName}}   => kubernetes application name
+  // {{QueueName}} => kubernetes queue name
+  map<string, string> annotations = 10;
+
+  // HostPath to MountPath
+  map<string, string> mounts = 20;
+}
+
+message NetworkConfig {
+  enum NetworkType {
+    DEFAULT = 0;
+    OVERLAY = 1;
+  }
+  NetworkType network_type = 1;
+  bool keep_ip_port_under_overlay = 2;
+}
+
+// TODO: Combine with the new runtime config
+message KubernetesScheduler {
+  KubernetesSchedulerRuntimeConfig runtime_config = 1;
+  string namespace = 2;
+  string service_account_name = 3;
+  string scheduler_name = 4;
+  string queue = 5;
+  NetworkConfig network_config = 6;
+
+  string driver_pod_name_override = 10;
+}
+
+message KubernetesSchedulerRuntimeConfig {
+  int32 sleep_seconds_before_pod_exit = 1;
+}
+
+// TODO: Combine with the new runtime config
+message YarnScheduler {
+  message FairScheduler {
+  }
+
+  message BatchScheduler {
+    bool set_resource_type_by_hard_constraint = 1;
+  }
+
+  message GangScheduler {
+    int32 max_retry_num = 1;
+    int64 max_wait_seconds = 2;
+  }
+
+  oneof scheduler {
+    FairScheduler fair_scheduler = 1;
+    GangScheduler gang_scheduler = 2;
+    BatchScheduler batch_scheduler = 3;
+  }
+
+  YarnResourceType resource_type = 4;
+  YarnSchedulingType scheduling_type = 5;
+  YarnGlobalConstraintType global_constraint_type = 6;
+  YarnNeedGlobalNodesView need_global_nodes_view = 7;
+
+  NetworkConfig network_config = 8;
+}
+
+enum YarnResourceType {
+  NR_NORMAL = 0;
+  NR_GUARANTEED = 1;
+  NR_BEST_EFFORT = 2;
+}
+
+enum YarnGlobalConstraintType {
+  SOFT_CONSTRAINT = 0;
+  HARD_CONSTRAINT = 1;
+}
+
+enum YarnSchedulingType {
+  ASYNC = 0;
+  SYNC = 1;
+}
+
+enum YarnNeedGlobalNodesView {
+  FALSE = 0;
+  TRUE = 1;
+}

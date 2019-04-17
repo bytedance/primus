@@ -1,0 +1,17 @@
+[Unit]
+Description=HDFS server
+After=sshd.service
+Requires=network-online.target
+
+[Service]
+User=root
+Group=root
+Type=forking
+ExecStart=/bin/bash /usr/lib/hadoop/sbin/start-dfs.sh
+ExecStop=/bin/bash /usr/lib/hadoop/sbin/stop-dfs.sh
+RemainAfterExit=yes
+TimeoutStartSec=1min
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

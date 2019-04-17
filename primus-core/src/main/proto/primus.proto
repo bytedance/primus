@@ -1,0 +1,185 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file may have been modified by Bytedance Inc.
+ */
+
+syntax = "proto3";
+option java_package = "com.bytedance.primus.proto";
+option java_generate_equals_and_hash = true;
+package primus;
+
+message TaskProto {
+  // TODO: [model] centralized to protobuf model
+  enum InputType {
+    UNKNOWN_INPUT = 0;
+    RAW_INPUT = 4;
+    TEXT_INPUT = 5;
+  }
+
+  message SplitTaskProto {
+    string path = 1;
+    int64 start = 2;
+    int64 length = 3;
+    string key = 4;
+    InputType input_type = 6;
+    string table = 7;
+  }
+
+  message KafkaTaskProto {
+    enum KafkaMessageType {
+      JSON = 0;
+      PB = 1;
+    }
+
+    enum KafkaStartUpMode {
+      GROUP_OFFSETS = 0;
+      EARLIEST = 1;
+      LATEST = 2;
+    }
+
+    string cluster = 1;
+    string topic = 2;
+    string consumer_group = 3;
+    map<string, string> config = 4;
+    KafkaStartUpMode kafka_start_up_mode = 5;
+    KafkaMessageType kafka_message_type = 6;
+  }
+
+  string group = 1;
+  int64 task_id = 2;
+  string source_id = 3;
+  string source = 4;
+  string checkpoint = 5;
+  int32 num_attempt = 6;
+  oneof task {
+    SplitTaskProto split_task = 7;
+    KafkaTaskProto kafka_task = 8;
+  }
+}
+
+message TaskStatusProto {
+  enum TaskState {
+    RUNNING = 0;
+    SUCCEEDED = 1;
+    FAILED = 2;
+  }
+
+  string group = 1;
+  int64 task_id = 2;
+  string source_id = 3;
+  TaskState task_state = 4;
+  float progress = 5;
+  string checkpoint = 6;
+  int32 num_attempt = 7;
+  int64 last_assign_time = 8;
+  int64 finish_time = 9;
+  int64 data_consumption_time = 10;
+  string assigned_node = 12;
+  string assigned_node_url = 13;
+  string worker_name = 14;
+}
+
+message ExecutorIdProto {
+  string role_name = 1;
+  int32 index = 2;
+  int64 uniq_id = 3;
+}
+
+message EndpointProto {
+  string hostname = 1;
+  int32 port = 2;
+}
+
+message ExecutorSpecProto {
+  ExecutorIdProto executor_id = 1;
+  repeated EndpointProto endpoints = 2;
+}
+
+message ExecutorSpecsProto {
+  repeated ExecutorSpecProto executor_specs = 1;
+}
+
+message ClusterSpecProto {
+  // role name -> executor specs
+  map<string, ExecutorSpecsProto> executor_specs = 1;
+}
+
+message RegisterRequestProto {
+  ExecutorIdProto executor_id = 1;
+  ExecutorSpecProto executor_spec = 2;
+}
+
+message RegisterResponseProto {
+  message ExecutorCommandProto {
+    string command = 1;
+    map<string, string> environment = 2;
+    int32 restart_times = 3;
+  }
+
+  ClusterSpecProto cluster_spec = 1;
+  ExecutorCommandProto command = 2;
+}
+
+message HeartbeatRequestProto {
+  enum ExecutorState {
+    NEW = 0;
+    REGISTERED = 1;
+    STARTING = 2;
+    RUNNING = 3;
+    KILLING = 4;
+    RECOVERING = 5;
+    EXITED_WITH_FAILURE = 6;
+    EXITED_WITH_SUCCESS = 7;
+    EXITED_WITH_KILLED = 8;
+  }
+
+  ExecutorIdProto executor_id = 1;
+  ExecutorState executor_state = 2;
+  bool need_more_task = 3;
+  repeated TaskStatusProto task_statuses = 4;
+}
+
+message HeartbeatResponseProto {
+  message TaskCommandProto {
+    enum TaskCommandType {
+      ASSIGN = 0;
+      REMOVE = 1;
+    }
+
+    TaskCommandType task_command_type = 1;
+    TaskProto task = 2;
+  }
+
+  enum ExecutorCommandType {
+    NONE = 0;
+    START = 1;
+    KILL = 2;
+  }
+
+  ExecutorCommandType executor_command_type = 1;
+  repeated TaskCommandProto task_commands = 2;
+  bool task_ready = 3;
+}
+
+message UnregisterRequestProto {
+  ExecutorIdProto executor_id = 1;
+  int32 exit_code = 2;
+  string fail_msg = 3;
+}
+
+message UnregisterResponseProto {
+}

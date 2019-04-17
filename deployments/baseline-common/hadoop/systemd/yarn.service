@@ -1,0 +1,17 @@
+[Unit]
+Description=YARN server
+After=hdfs.service
+Requires=network-online.target
+
+[Service]
+User=root
+Group=root
+Type=forking
+ExecStart=/bin/bash /usr/lib/hadoop/sbin/start-yarn.sh
+ExecStop=/bin/bash /usr/lib/hadoop/sbin/stop-yarn.sh
+RemainAfterExit=yes
+TimeoutStartSec=1min
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

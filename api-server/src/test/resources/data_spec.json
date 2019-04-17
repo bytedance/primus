@@ -1,0 +1,54 @@
+{
+  "dataStreamSpecs": {
+    "default": {
+      "dataSourceSpecs": [
+        {
+          "source": "/source",
+          "fileSourceSpec": {
+            "key": "",
+            "input": "/input/text_test",
+            "timeRange": {
+              "from": {
+                "timeFormat": "TF_DEFAULT",
+                "date": {
+                  "day": {
+                    "day": 20201010
+                  }
+                }
+              },
+              "to": {
+                "timeFormat": "TF_DEFAULT",
+                "date": {
+                  "day": {
+                    "day": 20201010
+                  }
+                }
+              }
+            },
+            "inputType": "TEXT_INPUT"
+          }
+        }
+      ],
+      "operatorPolicy": {
+        "commonOperatorPolicy": {
+          "map": {
+            "operatorType": "MAP_IDENTITY",
+            "arguments": []
+          },
+          "groupByKey": {
+            "operatorType": "GROUP_BY_KEY",
+            "arguments": []
+          },
+          "mapPartitionsFunction": {
+            "operatorType": "MAP_PARTITIONS_IDENTITY",
+            "arguments": []
+          },
+          "sortByKey": {
+            "operatorType": "SORT_BY_KEY",
+            "arguments": []
+          }
+        }
+      }
+    }
+  }
+}

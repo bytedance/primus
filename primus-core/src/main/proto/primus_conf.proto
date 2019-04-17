@@ -1,0 +1,608 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ * This file may have been modified by Bytedance Inc.
+ */
+
+syntax = "proto3";
+package primus;
+
+option java_package = "com.bytedance.primus.proto";
+option java_generate_equals_and_hash = true;
+
+import "google/protobuf/wrappers.proto";
+import "primus_common.proto";
+import "primus_input.proto";
+import "primus_runtime.proto";
+
+enum InputPolicy {
+  ENV = 0;
+  STREAMING = 1;
+}
+
+enum RestartType {
+  ON_FAILURE = 0;
+  NEVER = 1;
+  ALWAYS = 2;
+}
+
+enum MaxFailurePolicy {
+  FAIL_APP = 0;
+  FAIL_ATTEMPT = 1;
+  NONE = 2;
+}
+
+message CommonFailover {
+  RestartType restart_type = 1;
+  int32 max_failure_times = 2;
+  MaxFailurePolicy max_failure_policy = 3;
+  int32 max_global_role_failure_times = 4;
+}
+
+message HybridDeploymentFailover {
+  CommonFailover common_failover = 1;
+}
+
+message Failover {
+  oneof failover_policy {
+    CommonFailover common_failover_policy = 1;
+    HybridDeploymentFailover hybrid_deployment_failover_policy = 2;
+  }
+}
+
+message Attribute {
+  bool has_gpu = 1;
+  string gpu_name = 2;
+  string pod = 3;
+  map<string, string> pairs = 4;
+}
+
+message TPU {
+  enum TPU_TYPE {
+    V3_BASE = 0;
+    V3_POD = 1;
+  }
+
+  TPU_TYPE tpu_type = 1;
+  int32 num = 2;
+}
+
+message NUMA {
+  enum NIC_POLICY {
+    NIC_HOST = 0;
+    NIC_FAST = 1;
+    NIC_NUMA = 2;
+    NIC_ALL = 3;
+  }
+  NIC_POLICY nic_policy = 1;
+}
+
+message ScheduleConstraint {
+  repeated GlobalConstraint hardConstraints = 1;
+  repeated GlobalConstraint softConstraints = 2;
+}
+
+message GlobalConstraint {
+  enum ConstraintType {
+    GLOBAL_MAKE_CONTAINER_DECENTRALIZED_AVERAGE = 0;
+    GLOBAL_MAKE_NODE_QUOTA_USAGE_AVERAGE = 1;
+    NODE_SKIP_HIGH_LOAD = 2;
+    NODE_MEET_GPU_AFFINITY = 3;
+    NODE_SATISFY_ATTRIBUTES_EXPRESSION = 4;
+    NODE_LOCALITY = 5;
+    NODE_BIND_NUMA_NODE = 6;
+    NODE_NIC_POLICY = 7;
+    NODE_INTER_APP_SAME_ROLE_TOLERANCE = 8;
+    NODE_INNER_APP_SAME_ROLE_TOLERANCE = 9;
+  }
+
+  ConstraintType constraintType = 1;
+  ConstraintContent constraintContent = 2;
+  int32 constraintWeight = 4;
+}
+
+message NodeInterAppSameRoleToleranceContent {
+  // {roleName: tolerance number}
+  map<string, int32> inter_app_roles_tolerance = 1;
+}
+
+message NodeInnerAppSameRoleToleranceContent {
+  // {roleName: tolerance number}
+  map<string, int32> inner_app_roles_tolerance = 1;
+}
+
+message ConstraintContent {
+  NodeSkipHighLoadContent nodeSkipHighLoadContent = 1;
+  NodeSatisfyAttributesContent nodeSatisfyAttributesContent = 2;
+  NodeQuotaUsageAverageContent nodeQuotaUsageAverageContent = 3;
+  // NodeLocalityContent nodeLocalityContent = 4;
+  NodeGpuAffinityContent nodeGpuAffinityContent = 5;
+  NodeNicPolicyContent nodeNicPolicyContent = 6;
+  NodeInterAppSameRoleToleranceContent nodeInterAppSameRoleToleranceContent = 7;
+  NodeInnerAppSameRoleToleranceContent nodeInnerAppSameRoleToleranceContent = 8;
+}
+
+message NodeNicPolicyContent {
+  enum NicPolicy {
+    NIC_HOST = 0;
+    NIC_FAST = 1;
+    NIC_NUMA = 2;
+    NIC_ALL = 3;
+  }
+  NicPolicy nicPolicy = 1;
+}
+
+message NodeSkipHighLoadContent {
+  float load = 1;
+}
+
+message NodeGpuAffinityContent {
+  enum GPUAllocationType {
+    // random allocate
+    ALL_INSERTABLE_POSITIONS = 0;
+    // continuous position allocate
+    CONTINUOUS_POSITIONS = 1;
+    // network card affinity, not support yet
+    MAXIMUM_DATA_TRANSMISSION_RATE = 2;
+  }
+  GPUAllocationType gpuAllocationType = 1;
+  string affinityRequirement = 2;
+}
+
+message NodeSatisfyAttributesContent {
+  string nodeAttributeExpression = 1;
+}
+
+message NodeQuotaUsageAverageContent {
+  string resourceInformation = 1;
+}
+
+message ScheduleStrategy {
+  enum RoleCategory {
+    UNKNOWN = 0;
+    PS = 1;
+    WORKER = 2;
+  }
+  int32 max_replicas_per_node = 1;
+  int32 executor_delay_start_seconds = 2;
+  ElasticResource elastic_resource = 3;
+  RoleCategory role_category = 4;
+}
+
+message ElasticResource {
+  float extend_mem_ratio = 1;
+  int64 extend_mem_size = 2;
+  int64 max_mem_size = 3;
+  int64 min_mem_size = 4;
+}
+
+message Role {
+  string role_name = 1;
+  int32 num = 2;
+  int32 vcores = 3;
+  int32 memory_mb = 4;
+  int32 gpu_num = 5;
+  int32 jvm_memory_mb = 6;
+  string java_opts = 7;
+  // start command of user script
+  string command = 8;
+  map<string, string> env = 9;
+  InputPolicy input_policy = 10;
+  Failover failover = 11;
+  int32 local_restart_times = 12;
+  int32 success_percent = 13;
+  Attribute attribute = 14;
+  int32 port_num = 15;
+  bool use_yarn_registry = 16;
+  // in seconds
+  int32 yarn_registry_update_intreval = 17;
+  InputManagerMode input_manager_mode = 18;
+  bool is_evaluation = 19;
+  TPU tpu = 20;
+  bool gpu_soft_constraint = 21;
+  bool consul = 22;
+  bool use_tf_data_service = 23;
+  NUMA numa = 24;
+
+  ScheduleConstraint schedule_constraint = 25;
+  ConsulConfig consul_config = 26;
+  PluginConfig plugin_config = 27;
+  YarnScheduler role_scheduler = 28;
+  ScheduleStrategy schedule_strategy = 29;
+  int32 min_num = 30;
+}
+
+message ConsulConfig {
+  google.protobuf.Int32Value port_register_num = 1;
+}
+
+message PluginConfig {
+  repeated Plugin basic_plugins = 1;
+  repeated Plugin extend_plugins = 2;
+  repeated Plugin disabled_plugins = 3;
+}
+
+message Plugin {
+  string name = 1;
+  string version = 2;
+  map<string, string > parameter = 3;
+}
+
+//input of one-time training
+// TODO: have a better name, it's actually for time range.
+message OneTimeInput {
+  enum DayFormat {
+    DEFAULT_DAY = 0; // yyyymmdd
+    DEFAULT_DAY_DASH = 1; // yyyy-mm-dd
+    DAY_RANGE = 2; //yyyymmdd0000-yyyymmdd0000
+  }
+
+  enum HourFormat {
+    DEFAULT_HOUR = 0; // hh
+  }
+
+  string source = 1;
+  TimeRange time_range = 2;
+  DayFormat day_format = 3;
+  HourFormat hour_format = 4;
+  bool has_subdirectory = 5;
+
+  oneof input_type {
+    RawInput raw_input = 11;
+    TextInput text_input = 12;
+  }
+
+  string file_name_filter = 21;
+}
+
+enum RoleScheduleType {
+  GANG = 0;
+  DYNAMIC = 1;
+}
+
+message TimeoutPolicy {
+  string role_name = 1;
+  int32 schedule_percent = 2;
+  int32 timeout_second = 3;
+}
+
+message GangSchedulePolicy {
+  TimeoutPolicy timeout_policy = 1;
+}
+
+message DynamicSchedulePolicy {
+  repeated TimeoutPolicy timeout_policy = 1;
+}
+
+message OrderSchedulePolicy {
+  message RolePolicy {
+    string role_name = 1;
+    RoleScheduleType schedule_type = 2;
+  }
+
+  repeated RolePolicy role_policy = 3;
+}
+
+message PonySchedulePolicy {
+  string ps_role_name = 1;
+}
+
+message SchedulePolicy {
+  oneof schedule_policy {
+    GangSchedulePolicy gang_policy = 1;
+    DynamicSchedulePolicy dynamic_policy = 2;
+    OrderSchedulePolicy order_policy = 3;
+    PonySchedulePolicy pony_policy = 4;
+  }
+}
+
+enum InputManagerType {
+  FILE = 0;
+  RATIO_MIX = 1;
+  KAFKA = 2;
+}
+
+enum InputManagerMode {
+  PUSH = 0;
+  PULL = 1;
+}
+
+message WorkPreserve {
+  enum WorkPreserveType {
+    NONE = 0;
+    HDFS = 1;
+  }
+
+  message HdfsConfig {
+    string staging_dir = 1;
+  }
+
+  WorkPreserveType work_preserve_type = 1;
+  int32 dump_interval_secs = 2;
+  int32 rewind_skip_num = 3;
+  oneof config {
+    HdfsConfig hdfs_config = 4;
+  }
+  int32 snapshot_id = 5;
+}
+
+
+message Sql {
+  enum OutputType {
+    EXAMPLE_BATCH = 0;
+    ARROW = 1;
+  }
+  repeated string select_fields = 1;
+  OutputType output_type = 2;
+}
+
+message InputManager {
+  message FileConfig {
+    string filter_regex = 2;
+    bool raw_format = 3;
+    int32 max_pattern_num = 4;
+    repeated OneTimeInput one_time_inputs = 5;
+    ShuffleConfig shuffle_config = 6;
+  }
+
+  message RatioMixConfig {
+    message InstanceRatio {
+      string instance_name = 1;
+      int32 ratio = 2;
+    }
+
+    enum MessageBuilderType {
+      WRAPPED = 0; // Output may includes sort id, kafka dump, kafka dump prefix
+      PLAIN = 1; // Output includes lagrangeX header
+    }
+
+    repeated InstanceRatio instance_ratios = 2;
+    string filter_regex = 3;
+    int32 max_pattern_num = 4;
+    bool write_key = 5;
+    repeated OneTimeInput one_time_inputs = 7;
+    MessageBuilderType message_builder_type = 8;
+  }
+
+  message KafkaConfig {
+    enum KafkaMessageType {
+      JSON = 0;
+      PB = 1;
+    }
+
+    enum KafkaStartUpMode {
+      GROUP_OFFSETS = 0;
+      EARLIEST = 1;
+      LATEST = 2;
+      TIMESTAMP = 3;
+    }
+
+    message Topic {
+      string topic = 2;
+      string consumer_group = 3;
+      map<string, string> config = 4;
+      KafkaStartUpMode kafka_start_up_mode = 5;
+      int64 start_up_timestamp = 6;
+    }
+
+    repeated Topic topics = 1;
+    KafkaMessageType kafka_message_type = 2;
+  }
+
+  message ShuffleConfig {
+    bool within_partition_shuffle = 1;
+    bool among_partition_shuffle = 2;
+    bool global_file_shuffle = 3;
+  }
+
+  message StopPolicy {
+    float task_success_percent = 1;
+    float task_failed_percent = 2;
+  }
+
+  enum MessageBuilderType {
+    WRAPPED = 0; // Output may includes sort id, kafka dump, kafka dump prefix
+    PLAIN = 1; // Output includes lagrangeX header
+  }
+
+  InputManagerType input_manager_type = 1;
+  InputManagerMode input_manager_mode = 2;
+  WorkPreserve work_preserve = 3;
+  oneof config {
+    FileConfig file_config = 4;
+    RatioMixConfig ratio_mix_config = 5;
+    KafkaConfig kafka_config = 6;
+  }
+  int32 max_task_num_per_worker = 7;
+  int32 max_task_attempts = 8;
+  int32 message_buffer_size = 9;
+  StopPolicy stop_policy = 10;
+  Sql sql = 11;
+  bool skip_records = 12;
+  bool use_file_task_store = 13;
+  int32 max_allowed_io_exception = 14;
+  float sample_rate = 15;
+  MessageBuilderType message_builder_type = 16;
+  bool graceful_shutdown = 17;
+  int32 timeout_min_after_finish = 18;
+  map<string, Sql> source_sql_map = 19;
+  int32 num_build_task_threads = 20;
+  map<string, int32> source_rewind_skip_num = 21; // rewind_skip_num for different datasource. use global rewind_skip_num if this is not set
+  int32 max_num_worker_feeder_clients = 22;
+  int32 socket_send_buffer_size = 23;
+  bool disable_task_succeed_app = 24;
+}
+
+message Scheduler {
+  int32 vcores = 1;
+  int32 memory_mb = 2;
+  int32 gpu_num = 3;
+  int32 jvm_memory_mb = 4;
+  string java_opts = 5;
+  int32 register_retry_times = 6;
+  int32 heartbeat_interval_ms = 7;
+  int32 max_missed_heartbeat = 8;
+  SchedulePolicy schedule_policy = 9;
+  int32 max_allocation_num_each_round = 10;
+  Attribute attribute = 11;
+  map<string, string> env = 12;
+  YarnScheduler yarn_scheduler = 13;
+  string command = 14;
+  YarnScheduler am_scheduler = 15;
+  bool enable_update_resource = 16;
+  KubernetesScheduler kubernetes_scheduler = 17;
+  bool disable_container_succeed_app = 18;
+  ScheduleConstraint am_schedule_constraint = 19;
+}
+
+enum ProgressManagerType {
+  PM_ROLE = 0;
+  PM_FILE = 1;
+  PM_KAFKA = 2;
+}
+
+enum ChannelConfig {
+  PRIMUS_WORKER_STD = 0;
+  PRIMUS_WORKER_FIFO = 1;
+}
+
+message StdPipe {
+}
+
+message FifoPipe {
+  int32 fifo_num = 1;
+}
+
+message EventLogConfig {
+  message HdfsSink {
+    string dir = 1;
+  }
+
+  oneof event_sink {
+    HdfsSink hdfs_sink = 1;
+  }
+}
+
+message BlacklistConfig {
+  bool enabled = 1;
+  int32 max_failed_task_per_container = 2;
+  int32 max_failed_container_per_node = 3;
+  int64 blacklist_timeout_millis = 4;
+  int32 max_blacklist_container = 5;
+  int32 max_blacklist_node = 6;
+}
+
+message MetricToTimelineEventBridgeConfig {
+  int32 task_runner_feed_metric_collect_batch_size = 1;
+  int32 worker_feeder_write_metric_collect_batch_size = 2;
+}
+
+message TimelineConfig {
+  string channel = 1;
+  int32 flush_size = 2;
+
+  MetricToTimelineEventBridgeConfig metric_to_timeline_event_bridge_config = 10;
+}
+
+message KubernetesJobConf {
+  string kubernetes_job_name = 1;
+  string owner = 2; // defaults to submit user
+  string psm = 3;
+}
+
+message UniqueNameConfig {
+  enum UniqueType {
+    REGION = 0;
+  }
+  UniqueType unique_type = 1;
+}
+
+message StateStore {
+  message LocalStateStore {
+  }
+
+  message NasStateStore {
+    string volume = 1;
+  }
+
+  oneof state_store {
+    LocalStateStore local_state_store = 1;
+    NasStateStore nas_state_store = 2;
+  }
+}
+
+message ApiServerConf {
+  StateStore state_store = 1;
+}
+
+message MigrationConf {
+  bool global_migration_enabled = 1;
+  int32 global_max_migration_limit = 2;
+}
+
+message ProgressManagerConf {
+  bool rewind_allowed = 1;
+}
+
+message StatusEventLogConf {
+  string topic = 1;
+  string cluster = 2;
+}
+
+message PrimusConf {
+  string queue = 1;
+  string name = 2;
+  repeated string files = 3;
+  map<string, string> env = 4;
+  string staging_dir = 5;
+  int32 max_app_attempts = 6;
+  repeated Role role = 7;
+  Scheduler scheduler = 8;
+  string history_hdfs_base = 12;
+  map<string, string> yarn_conf = 13;
+  int32 priority = 14;
+  PortRange port_range = 15;
+  string region = 16;
+  ProgressManagerType progress_manager_type = 17;
+  InputManager input_manager = 18;
+  oneof channel_config {
+    StdPipe std_pipe = 19;
+    FifoPipe fifo_pipe = 20;
+  }
+  int64 sleep_before_exit_ms = 21;
+  bool core_dump_enable = 22;
+  RunningMode running_mode = 23; // TODO: Deprecate this
+  map<string, string> custom_metric_tags = 24;
+  int32 setup_port_retry_max_times = 25;
+  EventLogConfig event_log_config = 26;
+  BlacklistConfig blacklist_config = 27;
+  repeated string yarn_application_tags = 28;
+  TimelineConfig timeline_config = 29;
+  int32 graceful_shutdown_timeout_min = 30;
+  int32 am_allocation_timeout_min = 31;
+  KubernetesJobConf kubernetes_job_conf = 32; // TODO: Move to runtime
+  UniqueNameConfig unique_name_config = 33;
+  ApiServerConf api_server_conf = 34;
+
+  MigrationConf migration_conf = 35;
+  int32 snapshot_copy_threads_cnt = 36;
+
+  ProgressManagerConf progress_manager_conf = 37;
+  StatusEventLogConf status_event_log_conf = 38;
+
+  // Experimental zone
+  RuntimeConf runtime_conf = 100;
+}

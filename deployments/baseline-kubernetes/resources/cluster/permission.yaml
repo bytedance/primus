@@ -1,0 +1,33 @@
+# This yaml creates the namespace for Primus applications and configures the needed permissions.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: primus
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: primus-omni
+  namespace: primus
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "pods" ]
+    verbs: [ "get", "list", "watch", "create", "update", "patch", "delete" ]
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: primus-omni
+  namespace: primus
+subjects:
+  - kind: ServiceAccount
+    name: default
+    namespace: primus
+roleRef:
+  kind: Role
+  name: primus-omni
+  apiGroup: rbac.authorization.k8s.io
+---

@@ -1,0 +1,48 @@
+{
+  "name": "primus_input_file_text",
+  "maxAppAttempts": 1,
+  "role": [
+    {
+      "roleName": "worker",
+      "num": 1,
+      "vcores": 1,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
+      "command": "cat",
+      "successPercent": 100,
+      "failover": {
+        "commonFailoverPolicy": {
+          "restartType": "ALWAYS",
+          "maxFailureTimes": 3,
+          "maxFailurePolicy": "FAIL_APP"
+        }
+      },
+      "inputPolicy": "STREAMING"
+    }
+  ],
+  "progressManagerType": "PM_FILE",
+  "inputManager": {
+    "workPreserve": {
+      "workPreserveType": "HDFS",
+      "dumpIntervalSecs": 5,
+      "rewindSkipNum": 15000
+    },
+    "fileConfig": {
+      "oneTimeInputs": [
+        {
+          "textInput": {
+            "inputDir": "/primus/examples/input-file-text/data/*"
+          }
+        }
+      ],
+      "filterRegex": ".+",
+      "maxPatternNum": 10000000
+    },
+    "useFileTaskStore": true,
+    "messageBufferSize": 8388608,
+    "maxTaskNumPerWorker": 2,
+    "stopPolicy": {
+      "taskSuccessPercent": 100
+    }
+  }
+}

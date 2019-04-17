@@ -1,0 +1,88 @@
+<!--
+  ~ Copyright 2022 Bytedance Inc.
+  ~
+  ~ Licensed to the Apache Software Foundation (ASF) under one or more
+  ~ contributor license agreements.  See the NOTICE file distributed with
+  ~ this work for additional information regarding copyright ownership.
+  ~ The ASF licenses this file to You under the Apache License, Version 2.0
+  ~ (the "License"); you may not use this file except in compliance with
+  ~ the License.  You may obtain a copy of the License at
+  ~
+  ~    http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <title>Primus</title>
+  <link rel="stylesheet" href="bootstrap-min.css">
+  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+  <!--[if lt IE 9]>
+  <script src="html5shiv.js"></script>
+  <script src="respond.min.js"></script>
+  <![endif]-->
+  <script src="dateformat.js"></script>
+  <script src="jquery.min.js"></script>
+  <script src="jquery.json-viewer.js"></script>
+  <link href="jquery.json-viewer.css" type="text/css" rel="stylesheet"/>
+  <script src="bootstrap-min.js"></script>
+  <link rel="stylesheet" href="bootstrap-table.min.css">
+  <!-- Latest compiled and minified JavaScript -->
+  <script src="bootstrap-table.min.js"></script>
+  <!-- Latest compiled and minified Locales -->
+  <script src="bootstrap-table-zh-CN.min.js"></script>
+</head>
+
+
+<body>
+   <table>
+     <br />
+     <tr>
+       <th width="300px" colspan="2">Kubernetes Primus logs</th>
+     </tr>
+     <tr>
+       <td width="150px">&nbsp;&nbsp;&nbsp;&nbsp;</td>
+       <td>
+         <p>
+           <a href="" id="stdout_link">stdout</a>
+         </p>
+         <p>
+           <a href="" id="stderr_link">stderr</a>
+         </p>
+         <p>
+           <a href="" id="syslog_link">syslog</a>
+         </p>
+       </td>
+     </tr>
+
+   </table>
+ <script type="text/javascript">
+   var podName = ""
+
+   function refresh() {
+     const queryString = window.location.search;
+     const urlParams = new URLSearchParams(queryString);
+     podName = urlParams.get('podName')
+     console.log("current podName" + podName);
+     var stdOutUrl = "kubernetes/log?channel=stdout&podName=" + podName;
+     var stdErrUrl = "kubernetes/log?channel=stderr&podName=" + podName;
+     var sysLogUrl = "kubernetes/log?channel=syslog&podName=" + podName;
+     $("#stdout_link").attr("href", stdOutUrl)
+     $("#stderr_link").attr("href", stdErrUrl)
+     $("#syslog_link").attr("href", sysLogUrl)
+   }
+
+   $(document).ready(refresh);
+ </script>
+</body>

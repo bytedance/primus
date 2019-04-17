@@ -1,0 +1,324 @@
+<!--
+  ~ Copyright 2022 Bytedance Inc.
+  ~
+  ~ Licensed to the Apache Software Foundation (ASF) under one or more
+  ~ contributor license agreements.  See the NOTICE file distributed with
+  ~ this work for additional information regarding copyright ownership.
+  ~ The ASF licenses this file to You under the Apache License, Version 2.0
+  ~ (the "License"); you may not use this file except in compliance with
+  ~ the License.  You may obtain a copy of the License at
+  ~
+  ~    http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta name="author" content="">
+  <title>Primus</title>
+  <link rel="stylesheet" href="bootstrap-min.css">
+  <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+  <!--[if lt IE 9]>
+  <script src="html5shiv.js"></script>
+  <script src="respond.min.js"></script>
+  <![endif]-->
+  <script src="dateformat.js"></script>
+  <script src="jquery.min.js"></script>
+  <script src="jquery.json-viewer.js"></script>
+  <link href="jquery.json-viewer.css" type="text/css" rel="stylesheet"/>
+  <script src="bootstrap-min.js"></script>
+  <link rel="stylesheet" href="bootstrap-table.min.css">
+  <!-- Latest compiled and minified JavaScript -->
+  <script src="bootstrap-table.min.js"></script>
+  <!-- Latest compiled and minified Locales -->
+  <script src="bootstrap-table-zh-CN.min.js"></script>
+</head>
+
+<body>
+<div class="navbar navbar-static-top">
+  <div class="navbar-inner">
+    <p class="navbar-text pull-right"><strong>Primus UI</strong></p>
+      <ul class="nav">
+      <li class="active">
+        <a href="">Primus Jobs</a>
+      </li>
+    </ul>
+  </div>
+</div>
+<div class="container-fluid">
+  <h4><a href="#" id="view-switch">Detailed view</a></h4>
+  <h5><input type="checkbox" checked="true" id="auto-refresh-checker">Auto-Refresh(30s)</input></h5>
+  <h4>Resources</h4>
+  <button type="button" class="btn btn-outline-dark" id="primus-conf-btn">
+    <b>Conf</b> (click to download)
+  </button>
+  <div class="panel panel-default" id="primus-conf"></div>
+  <button type="button" class="btn btn-outline-dark" id="job-btn">
+    <b>Job</b> (click to download)
+  </button>
+  <div class="panel panel-default" id="job"></div>
+  <button type="button" class="btn btn-outline-dark" id="data-btn">
+    <b>Data</b> (click to download)
+  </button>
+  <div class="panel panel-default" id="data"></div>
+  <h4>Summary</h4>
+  <div class="table-responsive">
+    <table class="table table-bordered table-striped">
+      <thead>
+      <tr>
+        <th>Job</th>
+        <th>Progress</th>
+        <th>Start Time</th>
+        <th>Finish Time</th>
+        <th>Status</th>
+        <th>ExitCode</th>
+        <th>Diagnostic</th>
+      </tr>
+      </thead>
+      <tbody>
+      <tr>
+        <td id="job-name"></td>
+        <td id="job-progress"></td>
+        <td id="job-start-time"></td>
+        <td id="job-finish-time"></td>
+        <td id="job-status"></td>
+        <td id="job-exit-code"></td>
+        <td id="job-diagnostic"></td>
+      </tr>
+      </tbody>
+    </table>
+  </div>
+  <div id="roleTables"></div>
+  <div id="taskTables">
+    <h4>Tasks (excluding successful tasks)</h4>
+    <div class="table-responsive">
+      <table class="table table-bordered table-striped" id="task-table" data-searchable="true"
+             data-pagination="true" data-search="true" data-sort-name="id">
+        <thead>
+        <tr>
+          <th data-field="id" data-sortable="true">Id</th>
+          <th data-field="state" data-sortable="true" data-formatter="fmt_task_state">State</th>
+          <th data-field="numAttempt" data-sortable="true">#Attempt</th>
+          <th data-field="progress" data-formatter="fmt_task_percent" data-sortable="true">
+            Progress
+          </th>
+          <th data-field="lastAssignTime" data-formatter="fmt_date" data-sortable="true">Last Assign
+            Time
+          </th>
+          <th data-field="finishedTime" data-formatter="fmt_date" data-sortable="true">Finish Time
+          </th>
+          <th data-field="uri">URI</th>
+          <th data-field="node" data-formatter="fmt_task_log_url" data-sortable="true">Node</th>
+        </tr>
+        </thead>
+        <!--<tbody id="tasks">-->
+        <!--</tbody>-->
+      </table>
+    </div>
+  </div>
+  <div id="footer">
+    <span style="float: right">version:<span id="version"></span></span>
+  </div>
+</div>
+<script type="text/javascript">
+  var globalData
+
+  var funDownload = function (content, filename) {
+    // 创建隐藏的可下载链接
+    var eleLink = document.createElement('a');
+    eleLink.download = filename;
+    eleLink.style.display = 'none';
+    // 字符内容转变成blob地址
+    var blob = new Blob([content]);
+    eleLink.href = URL.createObjectURL(blob);
+    // 触发点击
+    document.body.appendChild(eleLink);
+    eleLink.click();
+    // 然后移除
+    document.body.removeChild(eleLink);
+  };
+
+  $('#primus-conf-btn').on('click', function () {
+    funDownload(globalData.primusConf, 'primus_conf.json');
+  });
+  $('#job-btn').on('click', function () {
+    funDownload(globalData.job, 'job.json');
+  });
+  $('#data-btn').on('click', function () {
+    funDownload(globalData.data, 'data.json');
+  });
+  $('#auto-refresh-checker').on('click', function () {
+    console.info("auto-refresh-checker status:" + $('#auto-refresh-checker').prop('checked'))
+  });
+
+  function render_json(json, html_id) {
+    if (json == null) {
+      return
+    }
+    $('#' + html_id).jsonViewer(JSON.parse(json),
+        {collapsed: false, withQuotes: true, withLinks: false});
+    $('#' + html_id + ' > a.json-toggle').click();  // collapse root node by default
+  }
+
+  function fmt_task_state(value, row, index) {
+    if (row.numAttempt == 0) {
+      return "PENDING";
+    } else {
+      return value;
+    }
+  }
+
+  function fmt_date(dt) {
+    if (dt == null || dt == undefined || isNaN(dt) || !isFinite(dt) || dt == 0) {
+      return '';
+    } else {
+      var d = new Date(dt);
+      return d.format('yyyy/mm/dd HH:MM:ss');
+    }
+  }
+
+  function fmt_role_date(dt, row) {
+    return fmt_date(dt);
+  }
+
+  function fmt_task_percent(p) {
+    return (p * 100.0).toFixed(1) + '%';
+  }
+
+  function fmt_percent(p) {
+    return (p * 100.0).toFixed(5) + '%';
+  }
+
+  function fmt_role_log_url(data, role) {
+    const url = role.logUrl;
+    return '<a href="' + url + '">' + role.node + '</a>';
+  }
+
+  function fmt_task_log_url(data, task) {
+    const url = role.logUrl;
+    return '<a href="' + url + '">' + task.node + '</a>';
+  }
+
+  function fmt_monitor_url(data, role) {
+    return '<a href="' + role.monitorUrl + '">' + "DTOP" + '</a>';
+  }
+  function fmt_grafana_url(data, role) {
+    return '<a href="' + role.grafanaUrl + '">' + "Grafana" + '</a>';
+  }
+
+  function fmt_exit_code(data, role) {
+    if (role.state != 'RELEASED') {
+      return '';
+    } else {
+      return data;
+    }
+  }
+
+  function genStatusJsonUrl() {
+    let location = window.location.href
+    let indexFilename = '/index.html'
+    let prefix = location.endsWith('/')
+        ? location
+        : location.endsWith(indexFilename)
+            ? location.slice(0, 1 - indexFilename.length)
+            : location + '/'
+
+    return prefix + 'webapps/primus/status.json';
+  }
+
+  function refresh() {
+    console.info("AutoRefresh status:" + $('#auto-refresh-checker').prop('checked'))
+    if (!$('#auto-refresh-checker').prop('checked')) {
+      return
+    }
+
+    var url = genStatusJsonUrl();
+
+    var jqXHR = $.get(url, function (data) {
+      globalData = data
+      document.title = 'primus:' + data.summary.name;
+      if (data.history) {
+        $('#view-switch').parent().html('History view');
+      }
+      $('#page-title').html(data.summary.name);
+
+      render_json(data.primusConf, 'primus-conf');
+      render_json(data.job, 'job');
+      render_json(data.data, 'data');
+
+      var jobNameHtml = '<a href="' + data.summary.amLogUrl + '">' + data.summary.name + '</a>';
+
+      $('#job-name').html(jobNameHtml);
+      $('#job-progress').html(fmt_percent(data.summary.progress));
+      $('#job-start-time').html(fmt_date(data.summary.startTime));
+      $('#job-finish-time').html(fmt_date(data.summary.finishTime));
+      $('#job-status').html(data.summary.finalStatus);
+      $('#job-exit-code').html(data.summary.exitCode);
+      $('#job-diagnostic').html(data.summary.diagnostic);
+
+      var roleTables = '';
+      for (var role in data.roleMap) {
+        roleTables += '<p><b>' + role[0].toUpperCase() + role.substring(1, role.length)
+            + '</b></p>';
+        roleTables += '<div class="table-responsive">';
+        roleTables += '<table class="table table-bordered table-striped" id="' + role + '-table'
+            + '" data-searchable="true" data-pagination="true" data-search="true">';
+        roleTables += '<thead>';
+        roleTables += '<tr>';
+
+        roleTables += '<th data-field="id" data-sortable="true">Id</th>';
+        roleTables += '<th data-field="node" data-formatter="fmt_role_log_url" data-sortable="true">Node</th>';
+        roleTables += '<th data-field="launchTime" data-formatter="fmt_role_date" data-sortable="true">Launch Time</th>';
+        roleTables += '<th data-field="releaseTime" data-formatter="fmt_role_date" data-sortable="true">Release Time</th>';
+        roleTables += '<th data-field="state" data-sortable="true">State</th>';
+        roleTables += '<th data-field="exitCode" data-formatter="fmt_exit_code">Exit Code</th>';
+        roleTables += '<th data-field="diag">Diagnosis</th>';
+
+        roleTables += '</tr>';
+        roleTables += '</thead>';
+        roleTables += '</table>';
+        roleTables += '</div>';
+      }
+
+      $('#roleTables').html(roleTables);
+
+      $('#version').html(data.summary.version)
+
+      for (var role in data.roleMap) {
+        $('#' + role + '-table').bootstrapTable('destroy').bootstrapTable({
+          data: data.roleMap[role]
+        });
+      }
+
+      if (data.tasks.length > 0) {
+        $('#task-table').bootstrapTable({
+          data: data.tasks
+        });
+      } else {
+        $('#taskTables').hide();
+      }
+
+      debugger
+      if (!data.history) {
+        setTimeout('refresh()', 30000);
+      }
+    });
+    jqXHR.error(function (jqXHR, textStatus, errorThrown) {
+      $('#page-title').html("load job failed.");
+    });
+  }
+
+  $(document).ready(refresh);
+</script>
+</body>
+</html>

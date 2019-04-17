@@ -1,0 +1,98 @@
+# This yaml configures the needed network settings to expose Primus UI.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: primus-networking
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: primus-app-proxy-configmap
+  namespace: primus-networking
+data:
+  default.conf: |
+    include /etc/nginx/mime.types;
+
+    server {
+      listen 7889;
+      resolver kube-dns.kube-system valid=5s;
+      error_log  /var/log/nginx/error.log debug;
+
+      location /proxy {
+        add_header Content-Type text/plain;
+        return 200 'Hello from primus-app-proxy!';
+      }
+      location ~/proxy/(?<driverpodname>[^/]*)/$ {
+        proxy_pass http://$driverpodname-svc.primus.svc.cluster.local:44444/index.html;
+      }
+      location ~/proxy/(?<driverpodname>[^/]*)/(?<target>.+) {
+        proxy_pass http://$driverpodname-svc.primus.svc.cluster.local:44444/$target;
+      }
+    }
+---
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: primus-app-proxy-deployment
+  namespace: primus-networking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: primus-app-proxy
+  template:
+    metadata:
+      labels:
+        app: primus-app-proxy
+    spec:
+      containers:
+        - name: nginx
+          image: nginx:alpine
+          ports:
+            - containerPort: 7889
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/conf.d
+      volumes:
+        - name: config
+          configMap:
+            name: primus-app-proxy-configmap
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: primus-app-proxy-service
+  namespace: primus-networking
+spec:
+  selector:
+    app: primus-app-proxy
+  ports:
+    - name: primus-app-proxy
+      protocol: TCP
+      port: 7889
+      targetPort: 7889
+---
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress
+  namespace: primus-networking
+  annotations:
+    kubernetes.io/ingress.class: "ambassador"
+spec:
+  rules:
+    - http:
+        paths:
+          - pathType: Prefix
+            path: "/primus/app"
+            backend:
+              service:
+                name: primus-app-proxy-service
+                port:
+                  number: 7889
+---
