@@ -63,6 +63,8 @@ public class PrimusConstants {
 
   public static final int SCAN_INTERVAL_HOUR = 6;
 
-  public static final int UPDATE_TO_API_SERVER_RETRY_TIMES = 3;
+  // Since the new state machine incurs more updates to API server and thus more occurrences
+  // of mismatched versions, this threshold is increased.
+  public static final int UPDATE_TO_API_SERVER_RETRY_TIMES = 10;
   public static final int UPDATE_TO_API_SERVER_RETRY_INTERVAL_MS = 2000;
 }

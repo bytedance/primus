@@ -86,14 +86,20 @@ public class ExecutorImpl implements Executor {
           .addTransition(ExecutorState.RUNNING,
               ExecutorState.RUNNING,
               ExecutorEventType.START)
+
+          // Ensure the work still starts even when being killed right after registered, since some
+          // training frameworks, such as Monolith, rely on worker with index 0 initiating the
+          // training process. Since AM retains the kill command, the worker will still be killed
+          // after being launched.
+          // TODO(hopang): simplify the state machine.
           .addTransition(ExecutorState.REGISTERED,
-              ExecutorState.EXITED_WITH_KILLED,
+              ExecutorState.STARTING,
               ExecutorEventType.KILL,
-              new KilledTransition())
+              new RegisteredToStartingTransition())
           .addTransition(ExecutorState.STARTING,
-              ExecutorState.KILLING,
-              ExecutorEventType.KILL,
-              new KillingTransition())
+              ExecutorState.STARTING,
+              ExecutorEventType.KILL)
+
           .addTransition(ExecutorState.RUNNING,
               ExecutorState.KILLING,
               ExecutorEventType.KILL,
