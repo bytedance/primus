@@ -1,5 +1,5 @@
 {
-  "name": "primus_input_file_text",
+  "name": "primus_input_kafka_text",
   "maxAppAttempts": 1,
   "role": [
     {
@@ -8,11 +8,11 @@
       "vcores": 1,
       "memoryMb": 512,
       "jvmMemoryMb": 512,
-      "command": "cat",
+      "command": "head -n32",
       "successPercent": 100,
       "failover": {
         "commonFailoverPolicy": {
-          "restartType": "ALWAYS",
+          "restartType": "ON_FAILURE",
           "maxFailureTimes": 3,
           "maxFailurePolicy": "FAIL_APP"
         }
@@ -29,7 +29,7 @@
       "topics": [
         {
           "config": {
-            "bootstrap.servers": "kafka-broker-ip:port",
+            "bootstrap.servers": "<kafka-broker-ip:port>",
             "auto.offset.reset": "earliest",
             "enable.auto.commit": "true",
             "key.deserializer": "org.apache.kafka.common.serialization.ByteArrayDeserializer",
