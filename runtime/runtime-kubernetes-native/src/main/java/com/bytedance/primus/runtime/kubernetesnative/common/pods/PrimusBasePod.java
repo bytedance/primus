@@ -81,7 +81,7 @@ public abstract class PrimusBasePod {
 
     initContainerMounts = new ArrayList<V1VolumeMount>() {{
       addAll(defaultSharedVolumeMounts);
-      addAll(loadVolumeMounts(mainMounts));
+      addAll(loadVolumeMounts(initMounts));
     }};
     mainContainerMounts = new ArrayList<V1VolumeMount>() {{
       addAll(defaultSharedVolumeMounts);

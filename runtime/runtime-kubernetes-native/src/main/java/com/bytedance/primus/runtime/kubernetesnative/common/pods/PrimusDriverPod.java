@@ -205,7 +205,9 @@ public class PrimusDriverPod extends PrimusBasePod {
       return Objects.requireNonNull(driverPod.getStatus()).getPhase();
 
     } catch (Exception ex) {
-      if (ex.getMessage().equalsIgnoreCase("Not Found")) {
+      if (ex.getMessage().isEmpty() || // TODO: Retry instead of directly fail with empty msg.
+          ex.getMessage().equalsIgnoreCase("Not Found")
+      ) {
         LOG.error("Error when getAMPodStatus(), am pod is not existed.");
         return "Failed";
       }
