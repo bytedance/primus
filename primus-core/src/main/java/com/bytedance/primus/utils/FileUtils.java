@@ -19,15 +19,15 @@
 
 package com.bytedance.primus.utils;
 
-import static com.bytedance.primus.api.records.InputType.RAW_INPUT;
-import static com.bytedance.primus.api.records.InputType.TEXT_INPUT;
+import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType.RAW_INPUT;
+import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType.TEXT_INPUT;
 
 import com.bytedance.primus.am.datastream.file.FileSourceInput;
 import com.bytedance.primus.am.datastream.file.PrimusInput;
 import com.bytedance.primus.am.datastream.file.PrimusSplit;
 import com.bytedance.primus.am.datastream.file.operator.Input;
-import com.bytedance.primus.api.records.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.google.protobuf.Message;

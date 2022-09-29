@@ -21,7 +21,6 @@ package com.bytedance.primus.utils;
 
 import static com.bytedance.primus.am.datastream.DataStreamManager.DEFAULT_DATA_STREAM;
 
-import com.bytedance.primus.api.records.InputType;
 import com.bytedance.primus.apiserver.client.models.Data;
 import com.bytedance.primus.apiserver.client.models.Job;
 import com.bytedance.primus.apiserver.proto.ApiServerConfProto;
@@ -29,6 +28,7 @@ import com.bytedance.primus.apiserver.proto.DataProto.DataSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.DataSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.DataStreamSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto.KafkaSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.CommonOperatorPolicy;

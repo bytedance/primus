@@ -21,11 +21,11 @@ package com.bytedance.primus.executor.task.file;
 
 import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_TASK_PERFORMANCE_EVENT;
 
-import com.bytedance.primus.api.records.InputType;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskState;
 import com.bytedance.primus.api.records.TaskStatus;
 import com.bytedance.primus.api.records.impl.pb.TaskStatusPBImpl;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.task.TaskRemovedEvent;

@@ -19,10 +19,10 @@
 
 package com.bytedance.primus.executor.task.file;
 
-import com.bytedance.primus.api.records.InputType;
 import com.bytedance.primus.api.records.SplitTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskState;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.ExecutorExitCode;
 import com.bytedance.primus.executor.exception.PrimusExecutorException;

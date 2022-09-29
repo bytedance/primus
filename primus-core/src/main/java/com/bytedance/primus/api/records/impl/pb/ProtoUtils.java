@@ -19,7 +19,6 @@
 
 package com.bytedance.primus.api.records.impl.pb;
 
-import com.bytedance.primus.api.records.InputType;
 import com.bytedance.primus.api.records.KafkaStartUpMode;
 import com.bytedance.primus.api.records.TaskCommandType;
 import com.bytedance.primus.api.records.TaskState;
@@ -55,13 +54,5 @@ public class ProtoUtils {
   }
   public static KafkaStartUpMode convertFromProtoFormat(TaskProto.KafkaTaskProto.KafkaStartUpMode t) {
     return KafkaStartUpMode.valueOf(t.name());
-  }
-
-  public static TaskProto.InputType convertToProtoFormat(InputType t) {
-    return TaskProto.InputType.valueOf(t.name());
-  }
-
-  public static InputType convertFromProtoFormat(TaskProto.InputType t) {
-    return InputType.valueOf(t.name());
   }
 }

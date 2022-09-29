@@ -27,7 +27,7 @@ import static org.junit.Assert.assertTrue;
 import com.bytedance.primus.am.datastream.file.PrimusInput;
 import com.bytedance.primus.am.datastream.file.PrimusSplit;
 import com.bytedance.primus.am.datastream.file.operator.op.MapDelay;
-import com.bytedance.primus.api.records.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.CommonOperatorPolicy;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorConf;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorType;
