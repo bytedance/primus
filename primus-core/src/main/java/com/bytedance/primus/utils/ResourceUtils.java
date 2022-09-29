@@ -21,7 +21,6 @@ package com.bytedance.primus.utils;
 
 import static com.bytedance.primus.am.datastream.DataStreamManager.DEFAULT_DATA_STREAM;
 
-import com.bytedance.primus.api.records.InputType;
 import com.bytedance.primus.apiserver.client.models.Data;
 import com.bytedance.primus.apiserver.client.models.Job;
 import com.bytedance.primus.apiserver.proto.ApiServerConfProto;
@@ -29,6 +28,7 @@ import com.bytedance.primus.apiserver.proto.DataProto.DataSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.DataSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.DataStreamSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto.KafkaSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.CommonOperatorPolicy;
@@ -62,7 +62,6 @@ import com.bytedance.primus.apiserver.proto.UtilsProto.RestartType;
 import com.bytedance.primus.apiserver.proto.UtilsProto.SchedulePolicy;
 import com.bytedance.primus.apiserver.proto.UtilsProto.ScheduleStrategy;
 import com.bytedance.primus.apiserver.proto.UtilsProto.StreamingInputPolicy;
-import com.bytedance.primus.apiserver.proto.UtilsProto.StreamingInputPolicy.StreamingMode;
 import com.bytedance.primus.apiserver.proto.UtilsProto.SuccessPolicy;
 import com.bytedance.primus.apiserver.proto.UtilsProto.ValueRange;
 import com.bytedance.primus.apiserver.records.Meta;
@@ -76,21 +75,19 @@ import com.bytedance.primus.proto.PrimusConfOuterClass.Attribute;
 import com.bytedance.primus.proto.PrimusConfOuterClass.CommonFailover;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Failover;
 import com.bytedance.primus.proto.PrimusConfOuterClass.HybridDeploymentFailover;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager.ConfigCase;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager.FileConfig;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager.KafkaConfig;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager.KafkaConfig.Topic;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager.RatioMixConfig;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager.ShuffleConfig;
-import com.bytedance.primus.proto.PrimusConfOuterClass.OneTimeInput;
-import com.bytedance.primus.proto.PrimusConfOuterClass.OneTimeInput.DayFormat;
 import com.bytedance.primus.proto.PrimusConfOuterClass.OrderSchedulePolicy.RolePolicy;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PluginConfig;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Role;
 import com.bytedance.primus.proto.PrimusConfOuterClass.RoleScheduleType;
-import com.bytedance.primus.proto.PrimusConfOuterClass.Sql;
+import com.bytedance.primus.proto.PrimusInput.InputManager;
+import com.bytedance.primus.proto.PrimusInput.InputManager.ConfigCase;
+import com.bytedance.primus.proto.PrimusInput.InputManager.FileConfig;
+import com.bytedance.primus.proto.PrimusInput.InputManager.KafkaConfig;
+import com.bytedance.primus.proto.PrimusInput.InputManager.KafkaConfig.Topic;
+import com.bytedance.primus.proto.PrimusInput.InputManager.ShuffleConfig;
+import com.bytedance.primus.proto.PrimusInput.OneTimeInput;
+import com.bytedance.primus.proto.PrimusInput.OneTimeInput.DayFormat;
 import com.bytedance.primus.proto.PrimusRuntime.YarnNeedGlobalNodesView;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler.BatchScheduler;
@@ -101,10 +98,11 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -424,15 +422,6 @@ public class ResourceUtils {
 
   public static StreamingInputPolicy buildStreamingInputPolicy(Role role) {
     StreamingInputPolicy.Builder builder = StreamingInputPolicy.newBuilder();
-    switch (role.getInputManagerMode()) {
-      case PULL:
-        builder.setStreamingMode(StreamingMode.PULL);
-        break;
-      case PUSH:
-      default:
-        builder.setStreamingMode(StreamingMode.PUSH);
-        break;
-    }
     builder.setDataStream(DEFAULT_DATA_STREAM);
     return builder.build();
   }
@@ -468,16 +457,9 @@ public class ResourceUtils {
   }
 
   public static List<DataSourceSpec> buildDataSourceSpecs(InputManager inputManager) {
-    // sql may be unset in input manager in primus conf
-    Optional<Sql> sql =
-        inputManager.hasSql() ? Optional.of(inputManager.getSql()) : Optional.empty();
     switch (inputManager.getConfigCase()) {
       case FILE_CONFIG:
-        return buildDataSourceSpec(inputManager.getFileConfig(), inputManager.getSourceSqlMapMap(),
-            sql);
-      case RATIO_MIX_CONFIG:
-        return buildDataSourceSpecs(inputManager.getRatioMixConfig(),
-            inputManager.getSourceSqlMapMap(), sql);
+        return buildDataSourceSpec(inputManager.getFileConfig());
       case KAFKA_CONFIG:
         return buildDataSourceSpec(inputManager.getKafkaConfig());
       default:
@@ -499,29 +481,8 @@ public class ResourceUtils {
 
   }
 
-  public static List<DataSourceSpec> buildDataSourceSpec(
-      FileConfig config,
-      Map<String, Sql> sqlMap,
-      Optional<Sql> sql
-  ) {
-    boolean isRawFormat = config.getRawFormat();
-    return buildDataSourceSpecsFromOneTimeInputs(
-        config.getOneTimeInputsList(),
-        isRawFormat,
-        sqlMap,
-        sql);
-  }
-
-  public static List<DataSourceSpec> buildDataSourceSpecs(
-      RatioMixConfig config,
-      Map<String, Sql> sqlMap,
-      Optional<Sql> sql
-  ) {
-    return buildDataSourceSpecsFromOneTimeInputs(
-        config.getOneTimeInputsList(),
-        false /* isRawFormat */,
-        sqlMap,
-        sql);
+  public static List<DataSourceSpec> buildDataSourceSpec(FileConfig config) {
+    return buildDataSourceSpecsFromOneTimeInputs(config.getOneTimeInputsList());
   }
 
   public static List<DataSourceSpec> buildDataSourceSpec(KafkaConfig kafkaConfig) {
@@ -606,27 +567,24 @@ public class ResourceUtils {
   }
 
   public static List<DataSourceSpec> buildDataSourceSpecsFromOneTimeInputs(
-      List<OneTimeInput> oneTimeInputs, boolean isRawFormat, Map<String, Sql> sqlMap,
-      Optional<Sql> sql) {
-    List<DataSourceSpec> results = new LinkedList<>();
-    int sourceId = 1;
-    for (OneTimeInput oneTimeInput : oneTimeInputs) {
-      FileSourceSpec fileSourceSpec =
-          buildFileSourceSpec(
-              getInputDir(isRawFormat, oneTimeInput),
-              buildTimeRange(oneTimeInput),
-              getInputType(isRawFormat),
-              oneTimeInput.getFileNameFilter()
-          );
-      results.add(
-          DataSourceSpec.newBuilder()
-              .setSourceId(String.valueOf(sourceId++))
-              .setSource(oneTimeInput.getSource())
-              .setFileSourceSpec(fileSourceSpec)
-              .build()
-      );
-    }
-    return results;
+      List<OneTimeInput> oneTimeInputs
+  ) {
+    return IntStream
+        .range(0, oneTimeInputs.size())
+        .mapToObj(index -> {
+          OneTimeInput input = oneTimeInputs.get(index);
+          return DataSourceSpec.newBuilder()
+              .setSourceId(String.valueOf(index))
+              .setSource(input.getSource())
+              .setFileSourceSpec(
+                  buildFileSourceSpec(
+                      getInputDir(input),
+                      buildTimeRange(input),
+                      getInputType(input),
+                      input.getFileNameFilter()
+                  ))
+              .build();
+        }).collect(Collectors.toList());
   }
 
   public static FileSourceSpec buildFileSourceSpec(
@@ -649,23 +607,27 @@ public class ResourceUtils {
     return builder.build();
   }
 
-  public static InputType getInputType(boolean isRawFormat) {
-    if (isRawFormat) {
-      return InputType.RAW_INPUT;
-    } else {
-      return InputType.TEXT_INPUT;
+  public static InputType getInputType(OneTimeInput oneTimeInput) {
+    switch (oneTimeInput.getInputTypeCase()) {
+      case RAW_INPUT:
+        return InputType.RAW_INPUT;
+      case TEXT_INPUT:
+        return InputType.TEXT_INPUT;
+      default:
+        throw new PrimusUnsupportedException("Unsupported InputType: %s",
+            oneTimeInput.getInputTypeCase());
     }
   }
 
-  private static String getInputDir(boolean isRawFormat, OneTimeInput oneTimeInput) {
-    InputType type = getInputType(isRawFormat);
-    switch (type) {
+  private static String getInputDir(OneTimeInput oneTimeInput) {
+    switch (oneTimeInput.getInputTypeCase()) {
       case RAW_INPUT:
         return oneTimeInput.getRawInput().getInputDir();
       case TEXT_INPUT:
         return oneTimeInput.getTextInput().getInputDir();
       default:
-        throw new PrimusUnsupportedException("Unknown InputType: %s", type);
+        throw new PrimusUnsupportedException("Unsupported InputType: %s",
+            oneTimeInput.getInputTypeCase());
     }
   }
 

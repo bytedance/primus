@@ -56,7 +56,6 @@ import com.bytedance.primus.common.network.NetworkTypeEnum;
 import com.bytedance.primus.common.service.AbstractService;
 import com.bytedance.primus.common.util.AbstractLivelinessMonitor;
 import com.bytedance.primus.executor.ExecutorExitCode;
-import com.bytedance.primus.utils.PrimusConstants;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -73,7 +72,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import java.util.function.Function;
 import org.apache.commons.configuration.Configuration;
 import org.apache.hadoop.registry.client.api.RegistryOperations;
-import org.apache.hadoop.registry.client.api.RegistryOperationsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -97,7 +95,6 @@ public class SchedulerExecutorManager extends AbstractService
 
   private Map<Integer, BitSet> priorityExecutorIndexesMap;
   private Map<Integer, Integer> priorityCompletedNumMap;
-  private Map<Integer, Integer> priorityCompletedGuaranteedNumMap;
   private Map<Integer, Integer> prioritySuccessNumMap;
   private Map<String, ExecutorId> containerExecutorMap;
   private Map<ExecutorId, SchedulerExecutor> runningExecutorMap;
@@ -106,7 +103,6 @@ public class SchedulerExecutorManager extends AbstractService
   private final ReadLock readLock;
   private final WriteLock writeLock;
   private AtomicLong uniqId = new AtomicLong(0);
-  private boolean useYarnRegistry;
   private RegistryOperations registryOperations;
   private String yarnRegistryRootPath;
 
@@ -124,19 +120,10 @@ public class SchedulerExecutorManager extends AbstractService
     priorityFinishNumMap = new HashMap<>();
     priorityExecutorIndexesMap = new HashMap<>();
     priorityCompletedNumMap = new ConcurrentHashMap<>();
-    priorityCompletedGuaranteedNumMap = new ConcurrentHashMap<>();
     prioritySuccessNumMap = new ConcurrentHashMap<>();
     containerExecutorMap = new ConcurrentHashMap<>();
     runningExecutorMap = new ConcurrentHashMap<>();
     registeredExecutorUniqIdMap = new ConcurrentHashMap<>();
-
-    /*
-    TODO
-    useYarnRegistry = true;
-     */
-    if (useYarnRegistry) {
-      registryOperations = RegistryOperationsFactory.createInstance(context.getHadoopConf());
-    }
 
     networkConfig = NetworkConfigHelper.getNetworkConfig(context.getPrimusConf());
 
@@ -155,21 +142,11 @@ public class SchedulerExecutorManager extends AbstractService
   @Override
   protected void serviceStart() throws Exception {
     super.serviceStart();
-    if (useYarnRegistry) {
-      registryOperations.start();
-      yarnRegistryRootPath =
-          PrimusConstants.YARN_REGISTRY_ROOT + context.getAppAttemptId().toString();
-      LOG.info("Yarn registry enabled, make root node[" + yarnRegistryRootPath + "].");
-      registryOperations.mknode(yarnRegistryRootPath, true);
-    }
   }
 
   @Override
   protected void serviceStop() throws Exception {
     super.serviceStop();
-    if (useYarnRegistry) {
-      registryOperations.stop();
-    }
   }
 
   public Map<Integer, Integer> getPrioritySuccessNumMap() {
@@ -206,10 +183,6 @@ public class SchedulerExecutorManager extends AbstractService
 
   public int getCompletedNum(int priority) {
     return priorityCompletedNumMap.getOrDefault(priority, 0);
-  }
-
-  public int getCompletedGuaranteedNum(int priority) {
-    return priorityCompletedGuaranteedNumMap.getOrDefault(priority, 0);
   }
 
   public int getSucceedNum(int priority) {
@@ -583,9 +556,12 @@ public class SchedulerExecutorManager extends AbstractService
           SchedulerExecutorManagerContainerCompletedEvent event =
               (SchedulerExecutorManagerContainerCompletedEvent) e;
           String containerId = event.getContainer().getId().toString();
+
           if (!containerExecutorMap.containsKey(containerId)) {
             LOG.warn("can not find container id [" + containerId + "] in scheduler");
           } else {
+            LOG.info("Container({}) is completed with {}", containerId, e.getType().toString());
+
             ExecutorId executorId = containerExecutorMap.remove(containerId);
             executorMonitor.unregister(executorId);
             TaskManager taskManager = context.getDataStreamManager()
@@ -606,27 +582,31 @@ public class SchedulerExecutorManager extends AbstractService
             }
             Integer priority = event.getContainer().getPriority().getPriority();
             if (oldScheduleExecutorState == SchedulerExecutorState.NEW) {
+              LOG.info("Container({}) is completed as new container.", containerId);
               priorityExecutorIndexesMap.get(priority)
                   .clear(schedulerExecutor.getExecutorId().getIndex());
             } else {
+              LOG.info("Container({}) requires failover handling", containerId);
+
               failoverPolicyManager.increaseFailoverTimes(schedulerExecutor);
               if (failoverPolicyManager.needFailover(schedulerExecutor)) {
+                LOG.info("Container({}) requires failover handling", containerId);
+
                 priorityExecutorIndexesMap.get(priority)
                     .clear(schedulerExecutor.getExecutorId().getIndex());
               } else {
+
                 int completedNum = priorityCompletedNumMap.get(priority);
                 priorityCompletedNumMap.put(priority, completedNum + 1);
-                if (event.getContainer().getIsGuaranteed()) {
-                  int guaranteedCompletedNum = priorityCompletedGuaranteedNumMap.get(priority);
-                  priorityCompletedGuaranteedNumMap.put(priority, guaranteedCompletedNum + 1);
-                }
                 if (schedulerExecutor.isSuccess()) {
+                  LOG.info("Container({}) completed successfully", containerId);
                   int successNum = prioritySuccessNumMap.get(priority);
                   prioritySuccessNumMap.put(priority, successNum + 1);
                 }
               }
             }
             if (!schedulerExecutor.isSuccess()) {
+              LOG.info("Container({}) didn't complete successfully.", containerId);
               String node = context.getExecutorNodeMap().get(executorId.toUniqString());
               context.getBlacklistTrackerOpt().ifPresent(b -> b.addContainerFailure(
                   executorId.toUniqString(),
@@ -665,7 +645,6 @@ public class SchedulerExecutorManager extends AbstractService
             priorityFinishNumMap.put(priority, (int) (roleNum * successPercent + 99) / 100);
             priorityExecutorIndexesMap.putIfAbsent(priority, new BitSet(roleNum));
             priorityCompletedNumMap.putIfAbsent(priority, 0);
-            priorityCompletedGuaranteedNumMap.putIfAbsent(priority, 0);
             prioritySuccessNumMap.putIfAbsent(priority, 0);
           }
           break;
@@ -683,7 +662,6 @@ public class SchedulerExecutorManager extends AbstractService
             priorityFinishNumMap.put(priority, (int) (roleNum * successPercent + 99) / 100);
             priorityExecutorIndexesMap.putIfAbsent(priority, new BitSet(roleNum));
             priorityCompletedNumMap.putIfAbsent(priority, 0);
-            priorityCompletedGuaranteedNumMap.putIfAbsent(priority, 0);
             prioritySuccessNumMap.putIfAbsent(priority, 0);
           }
           break;

@@ -313,12 +313,6 @@ public class DataStreamManager extends AbstractService implements
               LOG.info("TaskManager's gracefulShutdown is true so not succeed app");
               continue;
             }
-            if (context.getPrimusConf().getInputManager().getDisableTaskSucceedApp()
-                && context.getMaster() != null && !context.getMaster().isSuccess()) {
-              LOG.info(
-                  "TaskManager's disableTaskSucceedApp is true and master is not successful so not succeed app");
-              continue;
-            }
             LOG.info("All task managers are successful and succeed app");
             succeedApp();
           }
@@ -327,7 +321,6 @@ public class DataStreamManager extends AbstractService implements
         }
       }
     }
-
   }
 
   private boolean isFailure() {

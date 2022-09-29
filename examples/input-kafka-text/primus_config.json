@@ -22,8 +22,6 @@
   ],
   "progressManagerType": "PM_FILE",
   "inputManager": {
-    "inputManagerMode": "PUSH",
-    "inputManagerType": "KAFKA",
     "kafkaConfig": {
       "kafkaMessageType": "JSON",
       "topics": [

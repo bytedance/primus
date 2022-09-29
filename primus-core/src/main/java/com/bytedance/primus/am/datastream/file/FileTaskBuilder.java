@@ -235,7 +235,6 @@ public class FileTaskBuilder {
       splitTask.setStart(primusSplit.getStart());
       splitTask.setLength(primusSplit.getLength());
       splitTask.setInputType(primusSplit.getInputType());
-      splitTask.setTable(primusSplit.getTable());
       task.setGroup(name);
       task.setTaskId(++currentTaskId);
       task.setSourceId(primusSplit.getSourceId());

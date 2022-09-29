@@ -1,0 +1,135 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+package primus;
+
+option java_package = "com.bytedance.primus.proto";
+option java_generate_equals_and_hash = true;
+
+import "primus_common.proto";
+
+message InputManager {
+  message FileConfig {
+    repeated OneTimeInput one_time_inputs = 5;
+    ShuffleConfig shuffle_config = 6;
+  }
+
+  message KafkaConfig {
+    enum KafkaMessageType {
+      JSON = 0;
+      PB = 1;
+    }
+
+    enum KafkaStartUpMode {
+      GROUP_OFFSETS = 0;
+      EARLIEST = 1;
+      LATEST = 2;
+      TIMESTAMP = 3;
+    }
+
+    message Topic {
+      string topic = 2;
+      string consumer_group = 3;
+      map<string, string> config = 4;
+      KafkaStartUpMode kafka_start_up_mode = 5;
+      int64 start_up_timestamp = 6;
+    }
+
+    repeated Topic topics = 1;
+    KafkaMessageType kafka_message_type = 2;
+  }
+
+  message ShuffleConfig {
+    bool within_partition_shuffle = 1;
+    bool among_partition_shuffle = 2;
+  }
+
+  message StopPolicy {
+    float task_success_percent = 1;
+    float task_failed_percent = 2;
+  }
+
+  WorkPreserve work_preserve = 3;
+  oneof config {
+    FileConfig file_config = 4;
+    KafkaConfig kafka_config = 6;
+  }
+  int32 max_task_num_per_worker = 7;
+  int32 max_task_attempts = 8;
+  int32 message_buffer_size = 9;
+  StopPolicy stop_policy = 10;
+  bool skip_records = 12;
+  int32 max_allowed_io_exception = 14;
+  float sample_rate = 15;
+  bool graceful_shutdown = 17;
+  int32 timeout_min_after_finish = 18;
+  int32 num_build_task_threads = 20;
+  map<string, int32> source_rewind_skip_num = 21; // rewind_skip_num for different datasource. use global rewind_skip_num if this is not set
+  int32 max_num_worker_feeder_clients = 22;
+  int32 socket_send_buffer_size = 23;
+}
+
+//input of one-time training
+// TODO: have a better name, it's actually for time range.
+message OneTimeInput {
+  enum DayFormat {
+    DEFAULT_DAY = 0; // yyyymmdd
+    DEFAULT_DAY_DASH = 1; // yyyy-mm-dd
+    DAY_RANGE = 2; //yyyymmdd0000-yyyymmdd0000
+  }
+
+  enum HourFormat {
+    DEFAULT_HOUR = 0; // hh
+  }
+
+  string source = 1;
+  string file_name_filter = 21;
+
+  // [Optional] TimeRange instructs Primus to scan subdirectories with assigned day_format
+  TimeRange time_range = 2;
+  DayFormat day_format = 3;
+  HourFormat hour_format = 4;
+
+  // Type specific configurations
+  oneof input_type {
+    RawInput raw_input = 11;
+    TextInput text_input = 12;
+  }
+  message RawInput {
+    string input_dir = 1;
+  }
+  message TextInput {
+    string input_dir = 1;
+  }
+}
+
+// TODO: Comment
+message WorkPreserve {
+  // General configurations
+  int32 dump_interval_secs = 2;
+  int32 rewind_skip_num = 3;
+  int32 snapshot_id = 5;
+
+  // Storage specific configurations
+  oneof config {
+    HdfsConfig hdfs_config = 4;
+  }
+  message HdfsConfig {
+    string staging_dir = 1;
+  }
+}

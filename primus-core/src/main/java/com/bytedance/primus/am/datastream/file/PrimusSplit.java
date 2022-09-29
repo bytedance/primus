@@ -20,7 +20,7 @@
 package com.bytedance.primus.am.datastream.file;
 
 import com.bytedance.primus.am.datastream.file.operator.Input;
-import com.bytedance.primus.api.records.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 
 public class PrimusSplit extends BaseSplit {
 
@@ -29,18 +29,16 @@ public class PrimusSplit extends BaseSplit {
   private String key;
   private String path;
   private InputType inputType;
-  private String table;
   private long start;
   private long length;
 
   public PrimusSplit(String sourceId, String source, String key, String path, long start,
-      long length, InputType inputType, String table) {
+      long length, InputType inputType) {
     this.sourceId = sourceId;
     this.source = source;
     this.key = key;
     this.path = path;
     this.inputType = inputType;
-    this.table = table;
     this.start = start;
     this.length = length;
   }
@@ -85,14 +83,6 @@ public class PrimusSplit extends BaseSplit {
     this.inputType = inputType;
   }
 
-  public String getTable() {
-    return table;
-  }
-
-  public void setTable(String table) {
-    this.table = table;
-  }
-
   public long getStart() {
     return start;
   }
@@ -129,7 +119,6 @@ public class PrimusSplit extends BaseSplit {
         + ", key: " + getKey()
         + ", path: " + getPath()
         + ", inputType: " + getInputType()
-        + ", table: " + getTable()
         + ", start: " + start
         + ", length: " + length + "]";
   }

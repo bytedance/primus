@@ -51,26 +51,6 @@
       </extension>
     </extensions>
     <plugins>
-      <plugin> <!-- TODO: remove proto from primus-io -->
-        <groupId>org.xolstice.maven.plugins</groupId>
-        <artifactId>protobuf-maven-plugin</artifactId>
-        <version>0.5.1</version>
-        <extensions>true</extensions>
-        <configuration>
-          <protoSourceRoot>${project.basedir}/src/main/proto</protoSourceRoot>
-          <protocArtifact>
-            com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}
-          </protocArtifact>
-          <clearOutputDirectory>false</clearOutputDirectory>
-        </configuration>
-        <executions>
-          <execution>
-            <goals>
-              <goal>compile</goal>
-            </goals>
-          </execution>
-        </executions>
-      </plugin>
       <plugin>
         <groupId>org.apache.hadoop</groupId>
         <artifactId>hadoop-maven-plugins</artifactId>

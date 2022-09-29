@@ -24,7 +24,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.bytedance.primus.api.records.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto.Time;
 import com.bytedance.primus.apiserver.proto.DataProto.Time.Now;
 import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;

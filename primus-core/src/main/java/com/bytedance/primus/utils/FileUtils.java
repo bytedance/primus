@@ -19,15 +19,15 @@
 
 package com.bytedance.primus.utils;
 
-import static com.bytedance.primus.api.records.InputType.RAW_INPUT;
-import static com.bytedance.primus.api.records.InputType.TEXT_INPUT;
+import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType.RAW_INPUT;
+import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType.TEXT_INPUT;
 
 import com.bytedance.primus.am.datastream.file.FileSourceInput;
 import com.bytedance.primus.am.datastream.file.PrimusInput;
 import com.bytedance.primus.am.datastream.file.PrimusSplit;
 import com.bytedance.primus.am.datastream.file.operator.Input;
-import com.bytedance.primus.api.records.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.google.protobuf.Message;
@@ -65,8 +65,6 @@ import org.slf4j.LoggerFactory;
 public class FileUtils { // TODO: Rename this class as it's actually serving HDFS
 
   private static final Logger LOG = LoggerFactory.getLogger(FileUtils.class);
-  private static final String FEATURE_STORE_DATE_PARTITION_NAME = "_fs_date";
-  private static final String FEATURE_STORE_HOUR_PARTITION_NAME = "_fs_hour";
 
   public static InputType getInputType(Path path, FileSystem fs)
       throws IllegalArgumentException, IOException {
@@ -151,8 +149,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
                 input.getKey(),
                 fileStatus.getPath().toString(),
                 0, fileStatus.getLen(),
-                input.getInputType(),
-                input.getTable());
+                input.getInputType());
             ret.add(split);
           }
         }

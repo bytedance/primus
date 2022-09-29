@@ -66,17 +66,13 @@ message DataSourceStatus {
   int32 data_consumption_time = 2;  // format: YYYYMMDDHH
 }
 
-// TODO: [model] centralize InputType definition
 message FileSourceSpec {
   enum InputType {
     UNKNOWN_INPUT = 0;
-
-    PB_INPUT = 1;
-    RAW_INPUT = 4;
-    TEXT_INPUT = 5;
+    RAW_INPUT = 1;
+    TEXT_INPUT = 2;
   }
 
-  string key = 1;  // deprecated, just for compatibility; use time range instead
   string input = 2;
   TimeRange timeRange = 3;
   InputType inputType = 4;

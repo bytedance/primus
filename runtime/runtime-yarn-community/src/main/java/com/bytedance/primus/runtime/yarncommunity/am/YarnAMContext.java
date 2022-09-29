@@ -21,7 +21,6 @@ package com.bytedance.primus.runtime.yarncommunity.am;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ExecutorMonitor;
-import com.bytedance.primus.am.state.TaskPreserver;
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
 import com.bytedance.primus.common.model.records.Container;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
@@ -82,12 +81,6 @@ public class YarnAMContext extends AMContext {
       // TODO: remove this workaround
       return new HashMap<>(); // throw new PrimusRuntimeException(e);
     }
-  }
-
-  @Override
-  public void setTaskPreserver(TaskPreserver taskPreserver) {
-    super.setTaskPreserver(taskPreserver);
-    ((YarnApplicationMaster) getApplicationMaster()).addExtraService(taskPreserver);
   }
 
   public AMRMClient<ContainerRequest> getAmRMClient() {

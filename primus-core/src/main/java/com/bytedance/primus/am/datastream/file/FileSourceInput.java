@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.am.datastream.file;
 
-import com.bytedance.primus.api.records.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto.Time;
 import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;
 import com.bytedance.primus.apiserver.proto.DataProto.TimeRange;

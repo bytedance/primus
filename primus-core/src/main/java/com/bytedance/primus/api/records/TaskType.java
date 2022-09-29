@@ -21,7 +21,5 @@ package com.bytedance.primus.api.records;
 
 public enum TaskType {
   SPLIT_TASK,
-  MIXED_TASK,
   KAFKA_TASK,
-  MOR_TASK
 }

@@ -36,7 +36,6 @@ import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutor;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerEvent;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerEventType;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorState;
-import com.bytedance.primus.am.state.TaskPreserver;
 import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskCommand;
@@ -49,9 +48,8 @@ import com.bytedance.primus.apiserver.records.DataSourceSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.metrics.PrimusMetrics.TimerMetric;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager;
+import com.bytedance.primus.proto.PrimusInput.InputManager;
 import com.bytedance.primus.utils.PrimusConstants;
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
@@ -111,7 +109,7 @@ public class FileTaskManager implements TaskManager {
     this.readWriteLock = new ReentrantReadWriteLock();
     this.executorLatestLaunchTimes = new ConcurrentHashMap<>();
     this.preservedTaskStatuses = null;
-    this.taskStore = createTaskStore(context, name, savepointDir, readWriteLock);
+    this.taskStore = new FileTaskStore(context, name, savepointDir, readWriteLock);
     this.taskBuilder = new FileTaskBuilder(context, name, dataStreamSpec, taskStore);
 
     InputManager inputManager = context.getPrimusConf().getInputManager();
@@ -547,11 +545,7 @@ public class FileTaskManager implements TaskManager {
     for (Map<Long, TaskWrapper> taskMap : taskStore.getExecutorRunningTaskMap().values()) {
       tasks.addAll(taskMap.values());
     }
-    if (taskStore instanceof MemoryTaskStore) {
-      tasks.addAll(taskStore.getPendingTasks(0));
-    } else if (taskStore instanceof FileTaskStore) {
-      tasks.addAll(taskStore.getPendingTasks(10000));
-    }
+    tasks.addAll(taskStore.getPendingTasks(10000));
     return tasks;
   }
 
@@ -649,46 +643,12 @@ public class FileTaskManager implements TaskManager {
     return ((FileTaskStore) taskStore).getSnapshotDir(snapshotId);
   }
 
-  private TaskStore createTaskStore(AMContext context, String name, String savepointDir,
-      ReentrantReadWriteLock readWriteLock) throws IOException, PrimusAMException {
-    if (context.getPrimusConf().getInputManager().getUseFileTaskStore()) {
-      return new FileTaskStore(context, name, savepointDir, readWriteLock);
-    } else {
-      if (context.getPrimusConf().getInputManager().hasWorkPreserve()) {
-        LOG.info("create task preserver");
-        TaskPreserver taskPreserver = new TaskPreserver(context);
-        context.setTaskPreserver(taskPreserver);
-        LOG.info("Load preserved task status, task number: {}",
-            taskPreserver.getTaskStatuses().size());
-      }
-      return new MemoryTaskStore(name);
-    }
-  }
-
   private TaskWrapper pollPendingTask(ExecutorId executorId) {
-    boolean needGlobalShuffle = context.getPrimusConf().getInputManager().getFileConfig()
-        .getShuffleConfig().getGlobalFileShuffle();
-    TaskWrapper taskWrapper;
-    if (needGlobalShuffle) {
-      boolean isMemoryTaskStore = !context.getPrimusConf().getInputManager().getUseFileTaskStore();
-      String errorMessage = "global file shuffle only works with memory store, "
-          + "check your shuffle_config.global_file_shuffle.";
-      Preconditions.checkArgument(isMemoryTaskStore,
-          errorMessage);
-      if (!taskBuilder.isFinished()) {
-        LOG.warn("Global shuffle enabled and taskBuilder is not finish, so return null task.");
-        return null;
-      }
-      if (taskBuilder.isFinished()) {
-        taskStore.shuffle();
-      }
-    }
     float sampleRate = context.getPrimusConf().getInputManager().getSampleRate();
-    if (sampleRate <= 0) {
-      taskWrapper = taskStore.pollPendingTask();
-    } else {
-      taskWrapper = pollPendingTaskWithSample(sampleRate);
-    }
+    TaskWrapper taskWrapper = sampleRate <= 0
+        ? taskStore.pollPendingTask()
+        : pollPendingTaskWithSample(sampleRate);
+
     if (context.getPrimusConf().getInputManager().getGracefulShutdown()) {
       boolean noPendingTasks =
           taskBuilder.isFinished() && taskStore.getPendingTaskNum() <= 0 && taskWrapper == null;

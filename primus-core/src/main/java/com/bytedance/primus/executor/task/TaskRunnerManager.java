@@ -138,7 +138,6 @@ public class TaskRunnerManager extends AbstractService implements
         return new KafkaTaskRunner(task, executorContext, workerFeeder);
       case SPLIT_TASK:
         return new CommonFileTaskRunner(task, executorContext, workerFeeder);
-      case MIXED_TASK:
       default:
         throw new IOException("Unsupported task type: " + task.getTaskType());
     }

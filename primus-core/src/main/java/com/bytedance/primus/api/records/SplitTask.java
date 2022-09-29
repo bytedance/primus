@@ -19,6 +19,8 @@
 
 package com.bytedance.primus.api.records;
 
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+
 public interface SplitTask {
 
   String getKey();
@@ -40,8 +42,4 @@ public interface SplitTask {
   InputType getInputType();
 
   void setInputType(InputType inputType);
-
-  String getTable();
-
-  void setTable(String table);
 }

@@ -27,7 +27,7 @@ import static org.junit.Assert.assertTrue;
 import com.bytedance.primus.am.datastream.file.PrimusInput;
 import com.bytedance.primus.am.datastream.file.PrimusSplit;
 import com.bytedance.primus.am.datastream.file.operator.op.MapDelay;
-import com.bytedance.primus.api.records.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.CommonOperatorPolicy;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorConf;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorType;
@@ -163,9 +163,9 @@ public class TestCommonFileOperator {
     while (hourKey.compareTo(endKey) <= 0) {
       for (int i = 0; i < 10; i++) {
         results.add(new PrimusSplit(hourKey + "A", sourceA, hourKey,
-            "/" + sourceA + "/" + hourKey + "/file-" + i + "/*", 0, 100, null, null));
+            "/" + sourceA + "/" + hourKey + "/file-" + i + "/*", 0, 100, null));
         results.add(new PrimusSplit(hourKey + "B", sourceB, hourKey,
-            "/" + sourceB + "/" + hourKey + "/file-" + i + "/*", 0, 100, null, null));
+            "/" + sourceB + "/" + hourKey + "/file-" + i + "/*", 0, 100, null));
       }
       hourKey = TimeUtils.plusHour(hourKey, 1);
     }

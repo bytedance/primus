@@ -19,22 +19,18 @@
 
 package com.bytedance.primus.executor.task.file;
 
-import com.bytedance.primus.api.records.InputType;
 import com.bytedance.primus.api.records.SplitTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskState;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.executor.ExecutorContext;
-import com.bytedance.primus.executor.ExecutorExitCode;
-import com.bytedance.primus.executor.exception.PrimusExecutorException;
 import com.bytedance.primus.executor.task.WorkerFeeder;
 import com.bytedance.primus.io.messagebuilder.MessageBuilder;
 import com.bytedance.primus.io.messagebuilder.RawMessageBuilder;
 import com.bytedance.primus.io.messagebuilder.TextMessageBuilder;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager.MessageBuilderType;
 import java.io.IOException;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
-import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.slf4j.Logger;
@@ -80,7 +76,7 @@ public class CommonFileTaskRunner extends FileTaskRunner {
   @Override
   public void init() throws Exception {
     try {
-      this.recordReader = createRecordReader(jobConf, inputType, source);
+      this.recordReader = createRecordReader(jobConf, inputType);
       this.messageBuilder = createMessageBuilder(inputType, source);
     } catch (Exception e) {
       this.taskStatus.setTaskState(TaskState.FAILED);
@@ -88,17 +84,11 @@ public class CommonFileTaskRunner extends FileTaskRunner {
     }
   }
 
-  private RecordReader<Object, Object> createRecordReader(JobConf jobConf, InputType inputType,
-      String source) throws Exception {
-    InputFormat inputFormat = createInputFormat(jobConf, inputType);
-    MessageBuilderType messageBuilderType = context.getPrimusConf()
-        .getInputManager().getMessageBuilderType();
-    if (messageBuilderType == MessageBuilderType.PLAIN) {
-      throw new PrimusExecutorException("Unsupported file input type: " + inputType +
-          " in plain message builder type", ExecutorExitCode.CONFIG_PARSE_ERROR.getValue());
-    } else {
-      return inputFormat.getRecordReader(fileSplit, jobConf, taskReporter);
-    }
+  private RecordReader<Object, Object> createRecordReader(
+      JobConf jobConf,
+      InputType inputType
+  ) throws Exception {
+    return createInputFormat(jobConf, inputType).getRecordReader(fileSplit, jobConf, taskReporter);
   }
 
   public MessageBuilder createMessageBuilder(InputType inputType, String source)
@@ -121,7 +111,7 @@ public class CommonFileTaskRunner extends FileTaskRunner {
 
   @Override
   public RecordReader<Object, Object> createRecordReader() throws Exception {
-    recordReader = createRecordReader(jobConf, inputType, source);
+    recordReader = createRecordReader(jobConf, inputType);
     return recordReader;
   }
 

@@ -19,8 +19,8 @@
 
 package com.bytedance.primus.api.records.impl.pb;
 
-import com.bytedance.primus.api.records.InputType;
 import com.bytedance.primus.api.records.SplitTask;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.proto.Primus.TaskProto.SplitTaskProto;
 import com.bytedance.primus.proto.Primus.TaskProto.SplitTaskProtoOrBuilder;
 
@@ -112,28 +112,12 @@ public class SplitTaskPBImpl implements SplitTask {
   @Override
   public InputType getInputType() {
     SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
-    return ProtoUtils.convertFromProtoFormat(p.getInputType());
+    return p.getInputType();
   }
 
   @Override
   public void setInputType(InputType inputType) {
     maybeInitBuilder();
-    builder.setInputType(ProtoUtils.convertToProtoFormat(inputType));
-  }
-
-  @Override
-  public String getTable() {
-    SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
-    return p.getTable();
-  }
-
-  @Override
-  public void setTable(String table) {
-    maybeInitBuilder();
-    if (table == null) {
-      builder.clearTable();
-    } else {
-      builder.setTable(table);
-    }
+    builder.setInputType(inputType);
   }
 }

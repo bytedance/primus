@@ -20,7 +20,7 @@
 package com.bytedance.primus.am.datastream.file;
 
 import com.bytedance.primus.am.datastream.file.operator.Input;
-import com.bytedance.primus.api.records.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 
 public class PrimusInput implements Input {
 
@@ -29,23 +29,21 @@ public class PrimusInput implements Input {
   private String key;
   private String path;
   private InputType inputType;
-  private String table;
   private long start;
   private long length;
 
 
   public PrimusInput(String sourceId, String source, String key, String path, InputType inputType) {
-    this(sourceId, source, key, path, inputType, null, 0, 0);
+    this(sourceId, source, key, path, inputType, 0, 0);
   }
 
   public PrimusInput(String sourceId, String source, String key, String path, InputType inputType,
-      String table, long start, long length) {
+      long start, long length) {
     this.sourceId = sourceId;
     this.source = source;
     this.key = key;
     this.path = path;
     this.inputType = inputType;
-    this.table = table;
     this.start = start;
     this.length = length;
   }
@@ -94,14 +92,6 @@ public class PrimusInput implements Input {
     this.inputType = inputType;
   }
 
-  public String getTable() {
-    return table;
-  }
-
-  public void setTable(String table) {
-    this.table = table;
-  }
-
   public long getStart() {
     return start;
   }
@@ -125,7 +115,7 @@ public class PrimusInput implements Input {
         + ", key: " + key
         + ", path: " + path
         + ", inputType: " + inputType
-        + ", table: " + table + "]";
+        + "]";
   }
 
 
