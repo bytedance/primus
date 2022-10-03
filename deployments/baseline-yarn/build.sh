@@ -66,5 +66,11 @@ cp -f deployments/baseline-yarn/conf/* output/conf
 mkdir -p output/sbin
 cp deployments/baseline-yarn/sbin/* output/sbin
 
+mkdir -p output/resources
+cp -rf deployments/baseline-yarn/resources/* output/resources
+
 mkdir -p output/examples
 cp -r examples/* output/examples
+
+mkdir -p output/tests
+cp -rf deployments/baseline-yarn/tests/* output/tests

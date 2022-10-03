@@ -1,0 +1,16 @@
+[Unit]
+Description=Primus on YARN history server
+After=yarn.service
+
+[Service]
+User=<USER>
+Type=simple
+Environment=PRIMUS_HISTORY_PORT=17890
+ExecStart=/bin/bash /usr/lib/primus-yarn/sbin/primus-history-server
+ExecStop=/bin/kill -KILL $MAINPID
+RemainAfterExit=yes
+TimeoutStartSec=1min
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

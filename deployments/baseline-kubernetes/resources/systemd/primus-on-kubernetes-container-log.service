@@ -1,0 +1,15 @@
+[Unit]
+Description=Primus on Kubernetes container log server
+After=hdfs.service
+
+[Service]
+User=<USER>
+Type=simple
+ExecStart=python3 /usr/lib/primus-kubernetes/sbin/kubernetes-log-server.py --port=7891
+ExecStop=/bin/kill -KILL $MAINPID
+RemainAfterExit=yes
+TimeoutStartSec=1min
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

@@ -102,8 +102,8 @@ mkdir -p /app/hadoop/hdfs/dn
 /usr/lib/hadoop/bin/hdfs namenode -format
 
 cp deployments/baseline-common/hadoop/systemd/* /etc/systemd/system/
-systemctl enable hdfs yarn
-systemctl start hdfs yarn
+systemctl enable hdfs yarn yarn-jobhistory
+systemctl start  hdfs yarn yarn-jobhistory
 
 /usr/lib/hadoop/bin/hdfs dfs -mkdir -p /user/"$USERNAME"
 /usr/lib/hadoop/bin/hdfs dfs -chown -R "$USERNAME" /user/"$USERNAME"
@@ -113,6 +113,8 @@ systemctl start hdfs yarn
 /usr/lib/hadoop/bin/hdfs dfs -mkdir -p /primus/event
 /usr/lib/hadoop/bin/hdfs dfs -mkdir -p /primus/history
 /usr/lib/hadoop/bin/hdfs dfs -chown -R "$USERNAME" /primus
+
+/usr/lib/hadoop/bin/hdfs dfs -chmod 777 /tmp
 
 # Kafka - https://kafka.apache.org/quickstart
 echo "Installing Kafka..."
@@ -127,7 +129,7 @@ sed -i "s|#listeners=PLAINTEXT://:9092|listeners=PLAINTEXT://$DOCKER_HOST_IP:909
 
 cp deployments/baseline-common/kafka/systemd/* /etc/systemd/system/
 systemctl enable zookeeper kafka
-systemctl start zookeeper kafka
+systemctl start  zookeeper kafka
 
 # kubectl - https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/#install-using-native-package-management
 echo "Installing kubectl..."
@@ -150,3 +152,7 @@ mv ./kind /usr/local/bin/kind
 
 echo "Creating Kubernetes cluster..."
 runuser -u $USERNAME -- kind create cluster --config=deployments/baseline-common/kubernetes/configs/cluster.yaml
+
+# Robot Framework - https://robotframework.org/robotframework/latest/RobotFrameworkUserGuide.html#installing-using-pip
+apt-get install -y python3-pip
+runuser -u $USERNAME pip install robotframework docutils
