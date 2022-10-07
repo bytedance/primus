@@ -28,8 +28,8 @@ import com.bytedance.primus.apiserver.proto.UtilsProto.StreamingInputPolicy.Stre
 import com.bytedance.primus.apiserver.records.ExecutorSpec;
 import com.bytedance.primus.executor.exception.PrimusExecutorException;
 import com.bytedance.primus.proto.PrimusCommon.RunningMode;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
+import com.bytedance.primus.proto.PrimusInput.InputManager;
 import com.bytedance.primus.utils.ConfigurationUtils;
 import java.util.ArrayList;
 import java.util.Arrays;

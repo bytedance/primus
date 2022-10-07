@@ -49,7 +49,7 @@ import com.bytedance.primus.apiserver.records.DataSourceSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.metrics.PrimusMetrics.TimerMetric;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager;
+import com.bytedance.primus.proto.PrimusInput.InputManager;
 import com.bytedance.primus.utils.PrimusConstants;
 import com.google.common.base.Preconditions;
 import java.io.IOException;

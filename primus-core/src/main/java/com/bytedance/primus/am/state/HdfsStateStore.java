@@ -23,7 +23,7 @@ import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.common.model.ApplicationConstants;
 import com.bytedance.primus.common.model.records.ApplicationAttemptId;
 import com.bytedance.primus.common.model.records.ContainerId;
-import com.bytedance.primus.proto.PrimusConfOuterClass;
+import com.bytedance.primus.proto.PrimusInput.WorkPreserve.HdfsConfig;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Map;
@@ -62,7 +62,7 @@ public class HdfsStateStore implements StateStore {
   }
 
   private String getStagingDir(AMContext context) {
-    PrimusConfOuterClass.WorkPreserve.HdfsConfig hdfsConfig =
+    HdfsConfig hdfsConfig =
         context.getPrimusConf().getInputManager().getWorkPreserve().getHdfsConfig();
     if (!hdfsConfig.getStagingDir().isEmpty()) {
       return hdfsConfig.getStagingDir();

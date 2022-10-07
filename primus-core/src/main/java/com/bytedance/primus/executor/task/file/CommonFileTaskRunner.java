@@ -30,7 +30,7 @@ import com.bytedance.primus.executor.task.WorkerFeeder;
 import com.bytedance.primus.io.messagebuilder.MessageBuilder;
 import com.bytedance.primus.io.messagebuilder.RawMessageBuilder;
 import com.bytedance.primus.io.messagebuilder.TextMessageBuilder;
-import com.bytedance.primus.proto.PrimusConfOuterClass.InputManager.MessageBuilderType;
+import com.bytedance.primus.proto.PrimusInput.InputManager.MessageBuilderType;
 import java.io.IOException;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
