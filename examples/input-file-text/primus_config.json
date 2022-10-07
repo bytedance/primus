@@ -34,11 +34,8 @@
             "inputDir": "/primus/examples/input-file-text/data/*"
           }
         }
-      ],
-      "filterRegex": ".+",
-      "maxPatternNum": 10000000
+      ]
     },
-    "useFileTaskStore": true,
     "messageBufferSize": 8388608,
     "maxTaskNumPerWorker": 2,
     "stopPolicy": {

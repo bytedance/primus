@@ -36,7 +36,6 @@ import com.bytedance.primus.am.psonyarn.PonyManager;
 import com.bytedance.primus.am.role.RoleInfoManager;
 import com.bytedance.primus.am.schedule.SchedulePolicyManager;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManager;
-import com.bytedance.primus.am.state.TaskPreserver;
 import com.bytedance.primus.apiserver.client.apis.CoreApi;
 import com.bytedance.primus.common.event.Dispatcher;
 import com.bytedance.primus.common.event.Event;
@@ -105,7 +104,6 @@ public abstract class AMContext {
   protected Map<String, String> executorNodeMap;
 
   private InetSocketAddress rpcAddress;
-  private TaskPreserver taskPreserver;
   private Date startTime = new Date();
   private Date finishTime;
   private FinalApplicationStatus finalStatus;
@@ -289,14 +287,6 @@ public abstract class AMContext {
 
   public InetSocketAddress getRpcAddress() {
     return rpcAddress;
-  }
-
-  public TaskPreserver getTaskPreserver() {
-    return taskPreserver;
-  }
-
-  public void setTaskPreserver(TaskPreserver taskPreserver) {
-    this.taskPreserver = taskPreserver;
   }
 
   public Date getStartTime() {

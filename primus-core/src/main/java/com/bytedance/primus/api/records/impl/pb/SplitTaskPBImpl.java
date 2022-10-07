@@ -120,20 +120,4 @@ public class SplitTaskPBImpl implements SplitTask {
     maybeInitBuilder();
     builder.setInputType(inputType);
   }
-
-  @Override
-  public String getTable() {
-    SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
-    return p.getTable();
-  }
-
-  @Override
-  public void setTable(String table) {
-    maybeInitBuilder();
-    if (table == null) {
-      builder.clearTable();
-    } else {
-      builder.setTable(table);
-    }
-  }
 }

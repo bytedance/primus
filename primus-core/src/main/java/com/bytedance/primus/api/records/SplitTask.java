@@ -42,8 +42,4 @@ public interface SplitTask {
   InputType getInputType();
 
   void setInputType(InputType inputType);
-
-  String getTable();
-
-  void setTable(String table);
 }

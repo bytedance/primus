@@ -186,13 +186,6 @@ message EnvInputPolicy {
 }
 
 message StreamingInputPolicy {
-  enum StreamingMode {
-    PUSH = 0;
-    PULL = 1;
-  }
-
-  // Forward compatibility, may be deprecated in future
-  StreamingMode streamingMode = 1;
   string dataStream = 2;
 }
 

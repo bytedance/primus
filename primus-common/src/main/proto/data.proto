@@ -73,7 +73,6 @@ message FileSourceSpec {
     TEXT_INPUT = 2;
   }
 
-  string key = 1;  // deprecated, just for compatibility; use time range instead
   string input = 2;
   TimeRange timeRange = 3;
   InputType inputType = 4;

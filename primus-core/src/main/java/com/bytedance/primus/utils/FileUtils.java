@@ -65,8 +65,6 @@ import org.slf4j.LoggerFactory;
 public class FileUtils { // TODO: Rename this class as it's actually serving HDFS
 
   private static final Logger LOG = LoggerFactory.getLogger(FileUtils.class);
-  private static final String FEATURE_STORE_DATE_PARTITION_NAME = "_fs_date";
-  private static final String FEATURE_STORE_HOUR_PARTITION_NAME = "_fs_hour";
 
   public static InputType getInputType(Path path, FileSystem fs)
       throws IllegalArgumentException, IOException {
@@ -151,8 +149,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
                 input.getKey(),
                 fileStatus.getPath().toString(),
                 0, fileStatus.getLen(),
-                input.getInputType(),
-                input.getTable());
+                input.getInputType());
             ret.add(split);
           }
         }

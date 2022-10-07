@@ -24,7 +24,6 @@ import com.bytedance.primus.api.records.impl.pb.ExecutorIdPBImpl;
 import com.bytedance.primus.apiserver.client.Client;
 import com.bytedance.primus.apiserver.client.DefaultClient;
 import com.bytedance.primus.apiserver.client.apis.CoreApi;
-import com.bytedance.primus.apiserver.proto.UtilsProto.StreamingInputPolicy.StreamingMode;
 import com.bytedance.primus.apiserver.records.ExecutorSpec;
 import com.bytedance.primus.executor.exception.PrimusExecutorException;
 import com.bytedance.primus.proto.PrimusCommon.RunningMode;
@@ -155,10 +154,6 @@ public class PrimusExecutorConf {
 
   public List<String> getPortList() {
     return portList;
-  }
-
-  public StreamingMode getStreamingMode() {
-    return executorSpec.getInputPolicy().getStreamingInputPolicy().getStreamingMode();
   }
 
   public String toJsonString() {

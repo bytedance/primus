@@ -428,19 +428,15 @@ public class FileTaskStore implements TaskStore {
   }
 
   private String getStoreDir(String appId, String name, PrimusConf primusConf) throws IOException {
-    WorkPreserve workPreserve = primusConf.getInputManager().getWorkPreserve();
-    switch (workPreserve.getWorkPreserveType()) {
-      case HDFS:
-        HdfsConfig hdfsConfig = workPreserve.getHdfsConfig();
-        if (hdfsConfig.getStagingDir().isEmpty()) {
-          return primusConf.getStagingDir() + "/" + appId + "/state/" + name;
-        } else {
-          return hdfsConfig.getStagingDir() + "/" + name;
-        }
-      case NONE:
-      default:
-        throw new IOException("Not set store directory for " + FileTaskStore.class.getSimpleName());
+    if (!primusConf.getInputManager().hasWorkPreserve()) {
+      throw new IOException("Not set store directory for " + FileTaskStore.class.getSimpleName());
     }
+
+    WorkPreserve workPreserve = primusConf.getInputManager().getWorkPreserve();
+    HdfsConfig hdfsConfig = workPreserve.getHdfsConfig();
+    return !workPreserve.hasHdfsConfig() || hdfsConfig.getStagingDir().isEmpty()
+        ? primusConf.getStagingDir() + "/" + appId + "/state/" + name
+        : hdfsConfig.getStagingDir() + "/" + name;
   }
 
   private List<TaskWrapper> getFinishedTasksFromFs(FileSystem fs, String storeDir,
@@ -1304,11 +1300,6 @@ public class FileTaskStore implements TaskStore {
     boolean result = taskPreserver.snapshot(snapshotPath, true);
     LOG.info("make savepoint " + savepointDir + " successful? " + result);
     return result;
-  }
-
-  @Override
-  public boolean shuffle() {
-    throw new UnsupportedOperationException("File taskStore not support file shuffle");
   }
 
   private boolean copyFilesParallel(String filesPrefix, Path destPath, int parallel) {

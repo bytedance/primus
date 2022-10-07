@@ -30,7 +30,6 @@ message TaskProto {
     int64 length = 3;
     string key = 4;
     FileSourceSpec.InputType input_type = 6;
-    string table = 7;
   }
 
   message KafkaTaskProto {

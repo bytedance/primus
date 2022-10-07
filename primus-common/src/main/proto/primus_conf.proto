@@ -104,7 +104,6 @@ message Role {
   int32 success_percent = 13;
   Attribute attribute = 14;
   int32 port_num = 15;
-  InputManagerMode input_manager_mode = 18;
   bool is_evaluation = 19;
   bool gpu_soft_constraint = 21;
   bool use_tf_data_service = 23;

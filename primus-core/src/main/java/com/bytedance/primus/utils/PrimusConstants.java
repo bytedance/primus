@@ -32,15 +32,10 @@ public class PrimusConstants {
   public static final String PRIMUS_CONF = "primus.conf";
   public static final String PRIMUS_CONF_PATH = "__primus_conf__";
   public static final String PRIMUS_JAR = "primus-STABLE.jar";
-  public static final String PRIMUS_FLOW_JAR = "primus-flow-STABLE.jar";
   public static final String PRIMUS_JAR_PATH = "__primus_lib__";
-  public static final String PRIMUS_KUBERNETES_NATIVE_PATH = "__primus_kubernetes_native__";
-  public static final String PRIMUS_FLOW_PATH = "__primus_flow__";
-  public static final String METRICS_PREFIX = "inf.primus.app.";
   public static final String EXPIRED_EXIT_MSG = "executor expired";
   public static final String BLACKLISTED_EXIT_MSG = "executor blacklisted";
   public static final String KILLED_THROUGH_AM_DIAG = "ApplicationMaster terminated by someone through http/rpc request";
-  public static final String YARN_REGISTRY_ROOT = "/users/batchcompute/primus/";
   public static final String PRIMUS_AM_RPC_HOST = "PRIMUS_AM_RPC_HOST";
   public static final String PRIMUS_AM_RPC_PORT = "PRIMUS_AM_RPC_PORT";
   public static final String PRIMUS_HOME_ENV_KEY = "PRIMUS_HOME";

@@ -163,9 +163,9 @@ public class TestCommonFileOperator {
     while (hourKey.compareTo(endKey) <= 0) {
       for (int i = 0; i < 10; i++) {
         results.add(new PrimusSplit(hourKey + "A", sourceA, hourKey,
-            "/" + sourceA + "/" + hourKey + "/file-" + i + "/*", 0, 100, null, null));
+            "/" + sourceA + "/" + hourKey + "/file-" + i + "/*", 0, 100, null));
         results.add(new PrimusSplit(hourKey + "B", sourceB, hourKey,
-            "/" + sourceB + "/" + hourKey + "/file-" + i + "/*", 0, 100, null, null));
+            "/" + sourceB + "/" + hourKey + "/file-" + i + "/*", 0, 100, null));
       }
       hourKey = TimeUtils.plusHour(hourKey, 1);
     }

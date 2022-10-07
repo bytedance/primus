@@ -21,7 +21,6 @@ package com.bytedance.primus.executor;
 
 import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.api.records.ExecutorState;
-import com.bytedance.primus.apiserver.proto.UtilsProto.StreamingInputPolicy.StreamingMode;
 import com.bytedance.primus.common.child.ChildLauncherEvent;
 import com.bytedance.primus.common.child.ChildLauncherEventType;
 import com.bytedance.primus.common.event.Dispatcher;
@@ -52,11 +51,7 @@ public class ExecutorImpl implements Executor {
   private WorkerContext workerContext;
   private int exitCode;
   private String failMsg;
-  volatile boolean needMoreTask;
-  private String yarnRegistryRootPath;
-  // update interval in seconds
-  private int registryUpdateInterval;
-  private static int DEFAULT_REGISTRY_UPDATE_INTERVAL = 120;
+  volatile boolean needMoreTask = true;
 
   public ExecutorImpl(ExecutorContext executorContext, Dispatcher dispatcher) {
     ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
@@ -68,12 +63,6 @@ public class ExecutorImpl implements Executor {
     this.workerContext = null;
     this.exitCode = 0;
     this.failMsg = "";
-
-    if (executorContext.getPrimusConf().getStreamingMode() == StreamingMode.PUSH) {
-      needMoreTask = true;
-    } else {
-      needMoreTask = false;
-    }
   }
 
   private static StateMachineFactory<ExecutorImpl, ExecutorState, ExecutorEventType,

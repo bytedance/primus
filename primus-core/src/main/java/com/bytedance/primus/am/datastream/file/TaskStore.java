@@ -76,11 +76,4 @@ public interface TaskStore {
    * @return true if succeeded else false
    */
   boolean makeSavepoint(String savepointDir);
-
-  /**
-   * Shuffle tasks (only memory store supported)
-   * @return true if shuffle operation happened,
-   *         false if shuffle has completed
-   */
-  boolean shuffle();
 }
