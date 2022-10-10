@@ -82,7 +82,12 @@ public class TestCommonFileOperator {
         assertEquals(hourInKey, realHourInPath);
       } else {
         assertEquals(input.getSource(), sourceB);
-        assertEquals(hourInKey, TimeUtils.plusHour(realHourInPath, 23));
+        assertEquals(hourInKey, String.valueOf(
+            TimeUtils.plusHour(
+                Integer.parseInt(realHourInPath),
+                23
+            ))
+        );
       }
       lastKey = input.getKey();
     }
@@ -107,7 +112,7 @@ public class TestCommonFileOperator {
       results.add(
           new PrimusInput(hourKey + "B", sourceB, hourKey, "/" + sourceB + "/" + hourKey + "/*",
               InputType.TEXT_INPUT));
-      hourKey = TimeUtils.plusHour(hourKey, 1);
+      hourKey = String.valueOf(TimeUtils.plusHour(Integer.parseInt(hourKey), 1));
     }
     return results;
   }
@@ -167,7 +172,7 @@ public class TestCommonFileOperator {
         results.add(new PrimusSplit(hourKey + "B", sourceB, hourKey,
             "/" + sourceB + "/" + hourKey + "/file-" + i + "/*", 0, 100, null));
       }
-      hourKey = TimeUtils.plusHour(hourKey, 1);
+      hourKey = String.valueOf(TimeUtils.plusHour(Integer.parseInt(hourKey), 1));
     }
     return results;
   }

@@ -27,14 +27,15 @@ import com.bytedance.primus.am.datastream.file.operator.FileOperator;
 import com.bytedance.primus.am.datastream.file.operator.Input;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;
-import com.bytedance.primus.apiserver.proto.DataProto.TimeRange;
 import com.bytedance.primus.apiserver.records.DataSourceSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
 import com.bytedance.primus.common.collections.Pair;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.metrics.PrimusMetrics.TimerMetric;
 import com.bytedance.primus.common.util.Sleeper;
+import com.bytedance.primus.proto.PrimusCommon.DayFormat;
+import com.bytedance.primus.proto.PrimusCommon.Time.TimeCase;
+import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import com.bytedance.primus.utils.FileUtils;
 import com.google.common.base.Preconditions;
 import java.io.IOException;
@@ -135,6 +136,7 @@ public class FileScanner {
               fss.getInput(),
               inputType,
               dataSourceSpec.getFileNameFilter(),
+              fss.getDayFormat(),
               fss.getTimeRange());
         } else {
           return FileSourceInput.newInstance(
@@ -167,7 +169,7 @@ public class FileScanner {
 
   private static boolean isDayGranularity(FileSourceInput fileSourceInput) {
     Optional<TimeRange> timeRange = fileSourceInput.getTimeRange();
-    return timeRange.isPresent() && !timeRange.get().getFrom().getDate().hasHour();
+    return timeRange.isPresent() && timeRange.get().getFrom().getTimeCase() == TimeCase.DATE;
   }
 
   private List<Input> scanFileSourceInputWithKey(List<FileSourceInput> fileSourceInputs) {
@@ -193,14 +195,13 @@ public class FileScanner {
   ) throws RuntimeException {
     try {
       checkFileAccessibility(fileSystem, input);
-
       Pair<Integer, Integer> startDateHour = input.getStartDateHour();
       Pair<Integer, Integer> endDateHour = input.getEndDateHour();
       return scanFileSourceInput(
           fileSystem, input, isDayGranularity(input),
           startDateHour.getKey(), startDateHour.getValue(),
           endDateHour.getKey(), endDateHour.getValue(),
-          input.getTimeFormat(),
+          input.getDayFormat(),
           hasDayGranularity, checkSuccess);
     } catch (IOException | ParseException e) {
       throw new RuntimeException(e);
@@ -215,7 +216,7 @@ public class FileScanner {
       Integer startHour,
       Integer endDay,
       Integer endHour,
-      TimeFormat timeFormat,
+      DayFormat dayFormat,
       boolean dayKey,
       boolean checkSuccess) throws IOException, ParseException {
     TimerMetric latency = PrimusMetrics
@@ -223,10 +224,10 @@ public class FileScanner {
     try {
       if (isDayGranularity) {
         return FileUtils.scanDayInput(fileSystem, fileSourceInput, startDay, endDay,
-            timeFormat, checkSuccess);
+            dayFormat, checkSuccess);
       } else {
         return FileUtils.scanHourInput(fileSystem, fileSourceInput, startDay, startHour,
-            endDay, endHour, timeFormat, dayKey, checkSuccess, context.getHadoopConf());
+            endDay, endHour, dayFormat, dayKey, checkSuccess, context.getHadoopConf());
       }
     } finally {
       latency.stop();

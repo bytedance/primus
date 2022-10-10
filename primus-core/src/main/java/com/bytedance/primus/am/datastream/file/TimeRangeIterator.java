@@ -19,8 +19,8 @@
 
 package com.bytedance.primus.am.datastream.file;
 
-import com.bytedance.primus.apiserver.proto.DataProto.Time;
-import com.bytedance.primus.apiserver.proto.DataProto.TimeRange;
+import com.bytedance.primus.proto.PrimusCommon.Time;
+import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import com.bytedance.primus.utils.TimeUtils;
 import java.text.ParseException;
 import java.util.LinkedList;
@@ -51,14 +51,16 @@ public class TimeRangeIterator {
   private List<FileSourceInput> generatedBatch = null;
 
   public TimeRangeIterator(List<FileSourceInput> inputs) throws ParseException {
+    Time anchor = TimeUtils.newDateHour(new java.util.Date());
+
     originalInputs = inputs;
     originalInputWindow = inputs.stream()
         .filter(input -> input.getTimeRange().isPresent())
         .map(input -> input.getTimeRange().get())
         .reduce((TimeRange a, TimeRange b) ->
             TimeRange.newBuilder()
-                .setFrom(TimeUtils.minTime(a.getFrom(), b.getFrom()))
-                .setTo(TimeUtils.maxTime(a.getTo(), b.getTo()))
+                .setFrom(TimeUtils.minTime(anchor, a.getFrom(), b.getFrom()))
+                .setTo(TimeUtils.maxTime(anchor, a.getTo(), b.getTo()))
                 .build())
         .orElse(null);
 
@@ -72,9 +74,9 @@ public class TimeRangeIterator {
     }
   }
 
-  // Returns there is the next batch
+  // Returns whether there is the next batch
   public boolean prepareNextBatch() throws ParseException {
-    return prepareNextBatch(TimeUtils.getCurrentTime(true /* isDayGranularity */));
+    return prepareNextBatch(TimeUtils.newDateHour(new java.util.Date()));
   }
 
   public boolean prepareNextBatch(Time current) throws ParseException {
@@ -108,20 +110,23 @@ public class TimeRangeIterator {
       // Compute batch window
       Time batchWindowStart = TimeUtils.plusDay(generatedBatchEndTime, 1);
       Time batchWindowEnd = TimeUtils.minTime(
+          current,
           TimeUtils.plusDay(generatedBatchEndTime, DAY_WINDOW_SIZE),
-          TimeUtils.newTime(current.getDate().getDay().getDay()));
+          current);
 
-      LOG.info("Current BatchWindow: [{}.{}, {}.{}]",
-          batchWindowStart.getDate().getDay().getDay(),
-          batchWindowStart.getDate().getHour().getHour(),
-          batchWindowEnd.getDate().getDay().getDay(),
-          batchWindowEnd.getDate().getHour().getHour());
+      LOG.info("Current BatchWindow: [{}, {}]",
+          batchWindowStart.getDate(),
+          batchWindowEnd.getDate());
 
       // The batch window has gone beyond the original inputs
-      if (TimeUtils.isTimeAfter(
-          batchWindowStart,
-          TimeUtils.minTime(current, originalInputWindow.getTo())
-      )) {
+      if (!TimeUtils.overlapped(
+          current,
+          TimeRange.newBuilder()
+              .setFrom(batchWindowStart)
+              .setTo(batchWindowEnd)
+              .build(),
+          originalInputWindow)
+      ) {
         LOG.info("Iterator has been exhausted");
         valid = false;
         break;
@@ -137,16 +142,14 @@ public class TimeRangeIterator {
       generatedBatchEndTime = batchWindowEnd;
       generatedBatch = originalInputs.stream()
           .filter(input -> {
-            Optional<TimeRange> timeRange = input.getTimeRange();
-            return timeRange.isPresent() && TimeUtils.overlapped(batchWindow, timeRange.get());
+            Optional<TimeRange> window = input.getTimeRange();
+            return window.isPresent() && TimeUtils.overlapped(current, batchWindow, window.get());
           })
           .map(input -> {
             TimeRange inputWindow = input.getTimeRange().get();
             LOG.info("fileSourceInput: " + input
-                + "inputStartDay: " + inputWindow.getFrom().getDate().getDay().getDay()
-                + "inputStartHour: " + inputWindow.getFrom().getDate().getHour().getHour()
-                + "inputEndDay: " + inputWindow.getTo().getDate().getDay().getDay()
-                + "inputEndHour: " + inputWindow.getTo().getDate().getHour().getHour());
+                + "inputStartDay: " + inputWindow.getFrom().getDate().getDate()
+                + "inputEndDay: " + inputWindow.getTo().getDate().getDate());
 
             return FileSourceInput.newInstanceWithTimeRange(
                 input.getSourceId(),
@@ -154,12 +157,15 @@ public class TimeRangeIterator {
                 input.getInput(),
                 input.getInputType(),
                 input.getFileNameFilter(),
+                input.getDayFormat(),
                 TimeRange.newBuilder()
                     .setFrom(TimeUtils.maxTime(
-                        input.getTimeRange().get().getFrom(),
+                        current,
+                        inputWindow.getFrom(),
                         generatedBatchStartTime))
                     .setTo(TimeUtils.minTime(
-                        input.getTimeRange().get().getTo(),
+                        current,
+                        inputWindow.getTo(),
                         generatedBatchEndTime))
                     .build()
             );
@@ -175,5 +181,4 @@ public class TimeRangeIterator {
   public Time getNextBatchEndTime() {
     return generatedBatchEndTime;
   }
-
 }

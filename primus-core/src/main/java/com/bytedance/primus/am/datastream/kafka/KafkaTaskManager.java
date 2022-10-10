@@ -162,7 +162,7 @@ public class KafkaTaskManager implements TaskManager {
     for (TaskStatus taskStatus : taskStatuses) {
       int dataConsumptionTime = dataConsumptionTimeMap.get(taskStatus.getSourceId());
       Date date = new Date(taskStatus.getDataConsumptionTime());
-      SimpleDateFormat format = new SimpleDateFormat(PrimusConstants.DAY_FORMAT_DEFAULT +
+      SimpleDateFormat format = new SimpleDateFormat(PrimusConstants.DATE_FORMAT_DEFAULT +
           PrimusConstants.HOUR_FORMAT);
 
       int dayHour = Integer.valueOf(format.format(date));

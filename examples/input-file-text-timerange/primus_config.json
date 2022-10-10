@@ -33,13 +33,13 @@
           "dayFormat": 0,
           "timeRange": {
             "from": {
-              "dayTime": {
-                "day": 20200101
+              "date": {
+                "date": 20200101
               }
             },
             "to": {
-              "dayTime": {
-                "day": 20200104
+              "date": {
+                "date": 20200104
               }
             }
           },

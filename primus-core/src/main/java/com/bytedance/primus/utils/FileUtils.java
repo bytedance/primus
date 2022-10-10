@@ -28,7 +28,7 @@ import com.bytedance.primus.am.datastream.file.PrimusSplit;
 import com.bytedance.primus.am.datastream.file.operator.Input;
 import com.bytedance.primus.apiserver.proto.DataProto;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;
+import com.bytedance.primus.proto.PrimusCommon.DayFormat;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.google.protobuf.Message;
 import com.google.protobuf.util.JsonFormat;
@@ -191,11 +191,15 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
   }
 
   public static List<Input> scanDayInput(FileSystem fileSystem,
-      FileSourceInput fileSourceInput, int startDay, int endDay, TimeFormat timeFormat,
+      FileSourceInput fileSourceInput, int startDay, int endDay, DayFormat timeFormat,
       boolean checkSuccess) throws ParseException, IOException {
 
     List<Input> results = new LinkedList<>();
-    for (int fileDay = startDay; fileDay <= endDay; ) {
+    for (
+        int fileDay = startDay;
+        fileDay <= endDay;
+        fileDay = Integer.valueOf(TimeUtils.plusDay(fileDay, 1))
+    ) {
       String dayPath = fileSourceInput.getInput() + "/" + getDayPath(fileDay, timeFormat) + "/";
       Path successFilePath = new Path(dayPath + "_SUCCESS");
       String inputPath = dayPath + fileSourceInput.getFileNameFilter();
@@ -209,35 +213,35 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
           inputPath,
           fileSourceInput.getInputType());
       results.add(input);
-      fileDay = Integer.valueOf(TimeUtils.plusDay(fileDay, 1));
     }
     return results;
   }
 
-  public static String getDayPath(int day, TimeFormat timeFormat)
+  public static String getDayPath(int day, DayFormat timeFormat)
       throws ParseException, IOException {
     String dayFormat = getTimeFormat(timeFormat);
-    if (dayFormat.equals(PrimusConstants.DAY_FORMAT_DEFAULT)) {
+    if (dayFormat.equals(PrimusConstants.DATE_FORMAT_DEFAULT)) {
       return String.valueOf(day);
     }
-    SimpleDateFormat defaultDateFormat = new SimpleDateFormat(PrimusConstants.DAY_FORMAT_DEFAULT);
+    SimpleDateFormat defaultDateFormat = new SimpleDateFormat(PrimusConstants.DATE_FORMAT_DEFAULT);
     SimpleDateFormat dateFormat = new SimpleDateFormat(dayFormat);
-    if (dayFormat.equals(PrimusConstants.DAY_FORMAT_RANGE)) {
-      String endDay = TimeUtils.plusDay(day, 1);
-      return dateFormat.format(defaultDateFormat.parse(String.valueOf(day))) + "-" + dateFormat
-          .format(defaultDateFormat.parse(endDay));
+    if (dayFormat.equals(PrimusConstants.DATE_FORMAT_RANGE)) {
+      int endDay = TimeUtils.plusDay(day, 1);
+      return dateFormat.format(
+          defaultDateFormat.parse(String.valueOf(day))) + "-" +
+          dateFormat.format(defaultDateFormat.parse(String.valueOf(endDay)));
     }
     return dateFormat.format(defaultDateFormat.parse(String.valueOf(day)));
   }
 
-  public static String getTimeFormat(TimeFormat timeFormat) throws IOException {
+  public static String getTimeFormat(DayFormat timeFormat) throws IOException {
     switch (timeFormat) {
-      case TF_DEFAULT:
-        return PrimusConstants.DAY_FORMAT_DEFAULT;
-      case TF_DASH:
-        return PrimusConstants.DAY_FORMAT_DASH;
-      case TF_RANGE:
-        return PrimusConstants.DAY_FORMAT_RANGE;
+      case DEFAULT_DAY:
+        return PrimusConstants.DATE_FORMAT_DEFAULT;
+      case DEFAULT_DAY_DASH:
+        return PrimusConstants.DATE_FORMAT_DASH;
+      case DAY_RANGE:
+        return PrimusConstants.DATE_FORMAT_RANGE;
       default:
         throw new IOException("Unknown time format " + timeFormat);
     }
@@ -245,7 +249,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
 
   public static List<Input> scanHourInput(FileSystem fileSystem,
       FileSourceInput fileSourceInput, int startDay, int startHour, int endDay, int endHour,
-      TimeFormat timeFormat, boolean dayKey, boolean checkSuccess, Configuration conf)
+      DayFormat dayFormat, boolean dayKey, boolean checkSuccess, Configuration conf)
       throws ParseException, IOException {
     List<Input> results = new LinkedList<>();
     int fileDay = startDay;
@@ -256,21 +260,13 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
         String hourPath = getHourPath(fileHour);
         String inputKey = dayKey ? String.valueOf(fileDay) : fileDay + hourPath;
         String dayPath =
-            fileSourceInput.getInput() + "/" + getDayPath(fileDay, timeFormat) + "/";
+            fileSourceInput.getInput() + "/" + getDayPath(fileDay, dayFormat) + "/";
         String inputPath;
         Path successFilePath;
         if (fileSystem.isDirectory(new Path(dayPath + hourPath))) {
-          /* E.g.
-          /ies/recommend/aweme/timely_train_4mc/aweme_with_ad_neg_sampling_train_data/20201201/23/part-r-00000.4mc
-          /ies/recommend/aweme/timely_train_4mc/aweme_with_ad_neg_sampling_train_data/20201201/23/_SUCCESS
-           */
           inputPath = dayPath + hourPath + "/" + fileSourceInput.getFileNameFilter();
           successFilePath = new Path(dayPath + hourPath + "/_SUCCESS");
         } else {
-          /* E.g.
-          /data/kafka_dump/aweme_group_deep_understanding/20201201/00_task_priest_100152731_0.1606752035314.pb.snappy
-          /data/kafka_dump/aweme_group_deep_understanding/20201201/_00_SUCCESS
-           */
           inputPath = dayPath + hourPath + fileSourceInput.getFileNameFilter();
           successFilePath = new Path(dayPath + "_" + hourPath + "_SUCCESS");
         }
@@ -284,7 +280,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
             inputPath,
             fileSourceInput.getInputType()));
       }
-      fileDay = Integer.parseInt(TimeUtils.plusDay(fileDay, 1));
+      fileDay = TimeUtils.plusDay(fileDay, 1);
     }
     return results;
   }

@@ -87,23 +87,12 @@ message InputManager {
 //input of one-time training
 // TODO: have a better name, it's actually for time range.
 message OneTimeInput {
-  enum DayFormat {
-    DEFAULT_DAY = 0; // yyyymmdd
-    DEFAULT_DAY_DASH = 1; // yyyy-mm-dd
-    DAY_RANGE = 2; //yyyymmdd0000-yyyymmdd0000
-  }
-
-  enum HourFormat {
-    DEFAULT_HOUR = 0; // hh
-  }
-
   string source = 1;
   string file_name_filter = 21;
 
   // [Optional] TimeRange instructs Primus to scan subdirectories with assigned day_format
   TimeRange time_range = 2;
   DayFormat day_format = 3;
-  HourFormat hour_format = 4;
 
   // Type specific configurations
   oneof input_type {

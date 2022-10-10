@@ -34,13 +34,6 @@ import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.CommonOperatorPolicy;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorConf;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorType;
-import com.bytedance.primus.apiserver.proto.DataProto.Time;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.Date;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.Day;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.Hour;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.Now;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;
-import com.bytedance.primus.apiserver.proto.DataProto.TimeRange;
 import com.bytedance.primus.apiserver.proto.ResourceProto;
 import com.bytedance.primus.apiserver.proto.ResourceProto.ExecutorSpec;
 import com.bytedance.primus.apiserver.proto.ResourceProto.JobSpec;
@@ -69,6 +62,7 @@ import com.bytedance.primus.apiserver.records.impl.DataSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.JobSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.MetaImpl;
 import com.bytedance.primus.common.exceptions.PrimusUnsupportedException;
+import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.ApiServerConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Attribute;
@@ -87,7 +81,6 @@ import com.bytedance.primus.proto.PrimusInput.InputManager.KafkaConfig;
 import com.bytedance.primus.proto.PrimusInput.InputManager.KafkaConfig.Topic;
 import com.bytedance.primus.proto.PrimusInput.InputManager.ShuffleConfig;
 import com.bytedance.primus.proto.PrimusInput.OneTimeInput;
-import com.bytedance.primus.proto.PrimusInput.OneTimeInput.DayFormat;
 import com.bytedance.primus.proto.PrimusRuntime.YarnNeedGlobalNodesView;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler.BatchScheduler;
@@ -579,7 +572,7 @@ public class ResourceUtils {
               .setFileSourceSpec(
                   buildFileSourceSpec(
                       getInputDir(input),
-                      buildTimeRange(input),
+                      (input.hasTimeRange() ? input.getTimeRange() : null),
                       getInputType(input),
                       input.getFileNameFilter()
                   ))
@@ -651,21 +644,6 @@ public class ResourceUtils {
     return path;
   }
 
-  public static TimeFormat getTimeFormat(String path, String prefix) {
-    String day = path.substring(prefix.length()).split("/")[0];
-    Pattern defaultPattern = Pattern.compile("^\\d{8}");
-    Pattern dashPattern = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}");
-    Pattern rangePattern = Pattern.compile("^\\d{12}-\\d{12}");
-    if (defaultPattern.matcher(day).matches()) {
-      return TimeFormat.TF_DEFAULT;
-    } else if (dashPattern.matcher(day).matches()) {
-      return TimeFormat.TF_DASH;
-    } else if (rangePattern.matcher(day).matches()) {
-      return TimeFormat.TF_RANGE;
-    }
-    throw new RuntimeException("Unsupported day format");
-  }
-
   public static ApiServerConfProto.ApiServerConf buildApiServerConf(ApiServerConf conf) {
     ApiServerConfProto.ApiServerConf.Builder builder = ApiServerConfProto.ApiServerConf
         .newBuilder();
@@ -673,52 +651,6 @@ public class ResourceUtils {
       builder.mergeFrom(conf.toByteString());
     } catch (InvalidProtocolBufferException ex) {
       LOG.warn("Incompatible ApiServerConf in primus.conf, ignore it.", ex);
-    }
-    return builder.build();
-  }
-
-  // TODO: [model] Centralize protobuf models
-  public static TimeRange buildTimeRange(OneTimeInput oneTimeInput) {
-    if (!oneTimeInput.hasTimeRange()) {
-      return null;
-    }
-
-    return TimeRange.newBuilder()
-        .setFrom(buildTime(
-            oneTimeInput.getTimeRange().getFrom(),
-            oneTimeInput.getDayFormat()))
-        .setTo(buildTime(
-            oneTimeInput.getTimeRange().getTo(),
-            oneTimeInput.getDayFormat()))
-        .build();
-  }
-
-  // TODO: [model] Centralize protobuf models
-  public static Time buildTime(
-      com.bytedance.primus.proto.PrimusCommon.Time time,
-      DayFormat format
-  ) {
-    Time.Builder builder = Time.newBuilder()
-        .setTimeFormatValue(format.getNumber());
-    if (time.hasDayTime()) {
-      builder.setDate(Date.newBuilder()
-          .setDay(Day.newBuilder()
-              .setDay(time.getDayTime().getDay())
-              .build())
-          .build());
-    } else if (time.hasHourTime()) {
-      builder.setDate(Date.newBuilder()
-          .setDay(Day.newBuilder()
-              .setDay(time.getHourTime().getDay())
-              .build())
-          .setHour(Hour.newBuilder()
-              .setHour(time.getHourTime().getHour())
-              .build())
-          .build());
-    } else if (time.hasNow()) {
-      builder.setNow(Now.newBuilder());
-    } else {
-      throw new PrimusUnsupportedException("Invalid Time from primus_conf: %s", time);
     }
     return builder.build();
   }

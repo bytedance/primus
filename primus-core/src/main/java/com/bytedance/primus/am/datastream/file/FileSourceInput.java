@@ -20,10 +20,10 @@
 package com.bytedance.primus.am.datastream.file;
 
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
-import com.bytedance.primus.apiserver.proto.DataProto.Time;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;
-import com.bytedance.primus.apiserver.proto.DataProto.TimeRange;
 import com.bytedance.primus.common.collections.Pair;
+import com.bytedance.primus.proto.PrimusCommon.DayFormat;
+import com.bytedance.primus.proto.PrimusCommon.Time;
+import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import java.util.Objects;
 import java.util.Optional;
 import lombok.AccessLevel;
@@ -43,7 +43,9 @@ public class FileSourceInput {
   private InputType inputType;
   @Getter
   private String fileNameFilter;
-  // With a customized getter
+  @Getter
+  private DayFormat dayFormat;
+  @Getter
   private TimeRange timeRange;
 
   public static FileSourceInput newInstance(
@@ -52,7 +54,10 @@ public class FileSourceInput {
       String input,
       InputType inputType
   ) {
-    return new FileSourceInput(sourceId, source, input, inputType, "*", null);
+    return new FileSourceInput(sourceId, source, input, inputType, "*",
+        null, // DayFormat
+        null  // TimeRange
+    );
   }
 
   public static FileSourceInput newInstance(
@@ -62,7 +67,10 @@ public class FileSourceInput {
       InputType inputType,
       String fileNameFilter
   ) {
-    return new FileSourceInput(sourceId, source, input, inputType, fileNameFilter, null);
+    return new FileSourceInput(sourceId, source, input, inputType, fileNameFilter,
+        null, // DayFormat
+        null  // TimeRange
+    );
   }
 
   public static FileSourceInput newInstanceWithTimeRange(
@@ -71,43 +79,52 @@ public class FileSourceInput {
       String input,
       InputType inputType,
       String fileNameFilter,
+      DayFormat dayFormat,
       TimeRange timeRange
   ) {
-    return new FileSourceInput(sourceId, source, input, inputType, fileNameFilter, timeRange);
+    return new FileSourceInput(
+        sourceId, source, input, inputType, fileNameFilter,
+        dayFormat, timeRange);
   }
 
   public Optional<TimeRange> getTimeRange() {
     return Optional.ofNullable(timeRange);
   }
 
-  public void setTimeRange(TimeRange timeRange) {
-    this.timeRange = timeRange;
-  }
-
-  // TODO: Create DateHour class to abstract the parsing and error handling.
   public Pair<Integer, Integer> getStartDateHour() {
     Time time = timeRange.getFrom();
-    return time.hasNow()
-        ? new Pair<>(null, null)
-        : new Pair<>(
-            time.getDate().getDay().getDay(),
-            time.getDate().getHour().getHour() // Defaults to 0
+    switch (time.getTimeCase()) {
+      case DATE:
+        return new Pair<>(
+            time.getDate().getDate(),
+            0 // Defaults to 0 for closed interval
         );
+      case DATE_HOUR:
+        return new Pair<>(
+            time.getDateHour().getDate(),
+            time.getDateHour().getHour()
+        );
+      default:
+        return new Pair<>(null, null);
+    }
   }
 
-  // TODO: Create DateHour class to abstract the parsing and error handling.
   public Pair<Integer, Integer> getEndDateHour() {
     Time time = timeRange.getTo();
-    return time.hasNow()
-        ? new Pair<>(null, null)
-        : new Pair<>(
-            time.getDate().getDay().getDay(),
-            time.getDate().getHour().getHour() // Defaults to 0
+    switch (time.getTimeCase()) {
+      case DATE:
+        return new Pair<>(
+            time.getDate().getDate(),
+            23 // Defaults to 23 for closed interval
         );
-  }
-
-  public TimeFormat getTimeFormat() {
-    return timeRange.getFrom().getTimeFormat();
+      case DATE_HOUR:
+        return new Pair<>(
+            time.getDateHour().getDate(),
+            time.getDateHour().getHour()
+        );
+      default:
+        return new Pair<>(null, null);
+    }
   }
 
   @Override

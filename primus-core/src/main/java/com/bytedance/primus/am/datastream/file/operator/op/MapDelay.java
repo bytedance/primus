@@ -58,9 +58,9 @@ public class MapDelay<T extends Input> implements Map<T> {
     String priority = sourcePriorityMap.get(input.getSource());
     String key;
     if (isDayGranularity(originKey)) {
-      key = TimeUtils.plusDay(Integer.valueOf(originKey), delay) + DELIMITER + priority;
+      key = TimeUtils.plusDay(Integer.parseInt(originKey), delay) + DELIMITER + priority;
     } else {
-      key = TimeUtils.plusHour(originKey, delay) + DELIMITER + priority;
+      key = TimeUtils.plusHour(Integer.parseInt(originKey), delay) + DELIMITER + priority;
     }
     input.setKey(key);
     return new Pair<>(key, input);

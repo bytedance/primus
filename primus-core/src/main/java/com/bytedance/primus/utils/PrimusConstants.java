@@ -66,8 +66,8 @@ public class PrimusConstants {
   public static final int UPDATE_TO_API_SERVER_RETRY_TIMES = 3;
   public static final int UPDATE_TO_API_SERVER_RETRY_INTERVAL_MS = 2000;
 
-  public static final String DAY_FORMAT_DEFAULT = "yyyyMMdd";
-  public static final String DAY_FORMAT_DASH = "yyyy-MM-dd";
-  public static final String DAY_FORMAT_RANGE = "yyyyMMdd0000";
+  public static final String DATE_FORMAT_DEFAULT = "yyyyMMdd";
+  public static final String DATE_FORMAT_DASH = "yyyy-MM-dd";
+  public static final String DATE_FORMAT_RANGE = "yyyyMMdd0000";
   public static final String HOUR_FORMAT = "HH";
 }

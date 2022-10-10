@@ -16,10 +16,13 @@
  */
 
 syntax = "proto3";
+package primus;
 
 option java_outer_classname = "DataProto";
 option java_package = "com.bytedance.primus.apiserver.proto";
 option java_generate_equals_and_hash = true;
+
+import "primus_common.proto";
 
 message DataSpec {
   map<string, DataStreamSpec> dataStreamSpecs = 1;
@@ -74,9 +77,11 @@ message FileSourceSpec {
   }
 
   string input = 2;
-  TimeRange timeRange = 3;
   InputType inputType = 4;
   string fileNameFilter = 6;
+
+  DayFormat day_format = 20;
+  TimeRange time_range = 21;
 }
 
 message FileSourceStatus {
@@ -139,41 +144,6 @@ message OperatorPolicy {
 
   oneof operatorPolicy {
     CommonOperatorPolicy commonOperatorPolicy = 1;
-  }
-}
-
-message TimeRange {
-  Time from = 1;
-  Time to = 2;
-}
-
-message Time {
-  enum TimeFormat {
-    TF_DEFAULT = 0;  // yyyymmdd
-    TF_DASH = 1;  // yyyy-mm-dd
-    TF_RANGE = 2;  // yyyymmdd0000-yyyymmdd0000
-  }
-
-  message Day {
-    int32 day = 1;  // e.g. 20201212
-  }
-
-  message Hour {
-    int32 hour = 1; // e.g. 0~23
-  }
-
-  message Date {
-    Day day = 1;
-    Hour hour = 2;
-  }
-
-  message Now {
-  }
-
-  TimeFormat timeFormat = 1;
-  oneof time {
-    Date date = 2;
-    Now now = 3;
   }
 }
 
