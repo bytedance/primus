@@ -20,92 +20,32 @@
 package com.bytedance.primus.am.datastream.file;
 
 import com.bytedance.primus.am.datastream.file.operator.Input;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
+@AllArgsConstructor(access = AccessLevel.PUBLIC)
+@Getter
+@Setter
 public class PrimusInput implements Input {
 
   private String sourceId;
   private String source;
   private String key;
   private String path;
-  private InputType inputType;
+  private FileSourceSpec spec; // TODO: Reuse spec for other fields.
   private long start;
   private long length;
 
-
-  public PrimusInput(String sourceId, String source, String key, String path, InputType inputType) {
-    this(sourceId, source, key, path, inputType, 0, 0);
-  }
-
-  public PrimusInput(String sourceId, String source, String key, String path, InputType inputType,
-      long start, long length) {
-    this.sourceId = sourceId;
-    this.source = source;
-    this.key = key;
-    this.path = path;
-    this.inputType = inputType;
-    this.start = start;
-    this.length = length;
-  }
-
-  public String getSourceId() {
-    return sourceId;
-  }
-
-  public void setSourceId(String sourceId) {
-    this.sourceId = sourceId;
-  }
-
-  @Override
-  public String getSource() {
-    return source;
-  }
-
-  @Override
-  public void setSource(String source) {
-    this.source = source;
-  }
-
-  @Override
-  public String getKey() {
-    return key;
-  }
-
-  @Override
-  public void setKey(String key) {
-    this.key = key;
-  }
-
-  public String getPath() {
-    return path;
-  }
-
-  public void setPath(String path) {
-    this.path = path;
-  }
-
-  public InputType getInputType() {
-    return inputType;
-  }
-
-  public void setInputType(InputType inputType) {
-    this.inputType = inputType;
-  }
-
-  public long getStart() {
-    return start;
-  }
-
-  public void setStart(long start) {
-    this.start = start;
-  }
-
-  public long getLength() {
-    return length;
-  }
-
-  public void setLength(long length) {
-    this.length = length;
+  public PrimusInput(
+      String sourceId,
+      String source,
+      String key,
+      String path,
+      FileSourceSpec spec) {
+    this(sourceId, source, key, path, spec, 0 /* start */, 0 /* Length */);
   }
 
   @Override
@@ -114,9 +54,7 @@ public class PrimusInput implements Input {
         + ", source: " + source
         + ", key: " + key
         + ", path: " + path
-        + ", inputType: " + inputType
+        + ", spec: " + spec
         + "]";
   }
-
-
 }

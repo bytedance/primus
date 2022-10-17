@@ -24,7 +24,8 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.RawInput;
 import com.bytedance.primus.proto.PrimusCommon.DayFormat;
 import com.bytedance.primus.proto.PrimusCommon.Time;
 import com.bytedance.primus.proto.PrimusCommon.Time.Now;
@@ -47,18 +48,20 @@ public class TestTimeRangeIterator {
 
   // TODO: Test with InputType as well.
   private FileSourceInput newFileSourceInput(String key, Time start, Time end) {
-    return FileSourceInput.newInstanceWithTimeRange(
+    return new FileSourceInput(
         key, // sourceID
         key, // source
-        key, // input
-        InputType.TEXT_INPUT,
-        key, // fileNameFilter
-        DayFormat.DEFAULT_DAY,
-        TimeRange.newBuilder()
-            .setFrom(start)
-            .setTo(end)
-            .build()
-    );
+        FileSourceSpec
+            .newBuilder()
+            .setFilePath(key)
+            .setFileNameFilter(key)
+            .setDayFormat(DayFormat.DEFAULT_DAY)
+            .setTimeRange(
+                TimeRange.newBuilder()
+                    .setFrom(start)
+                    .setTo(end))
+            .setRawInput(RawInput.getDefaultInstance())
+            .build());
   }
 
   // Drops the last time is the length of the input is odd.

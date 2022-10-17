@@ -26,7 +26,6 @@ import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.bytedance.primus.am.datastream.file.operator.FileOperator;
 import com.bytedance.primus.am.datastream.file.operator.Input;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.apiserver.records.DataSourceSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
 import com.bytedance.primus.common.collections.Pair;
@@ -103,14 +102,16 @@ public class FileScanner {
       FileSourceInput fileSourceInput
   ) throws IOException {
     try {
-      fileSystem.exists(new Path(fileSourceInput.getInput()));
+      fileSystem.exists(new Path(fileSourceInput.getSpec().getFilePath()));
     } catch (AccessControlException e) {
-      String diag = "Failed to check access input[" + fileSourceInput.getInput()
+      String diag = "Failed to check access input["
+          + fileSourceInput.getSpec().getFilePath()
           + "], fail job because of " + e;
       failedApp(diag, ApplicationMasterEventType.FAIL_APP,
           ApplicationExitCode.GDPR.getValue());
     } catch (IllegalArgumentException e) {
-      String diag = "Failed to check access input[" + fileSourceInput.getInput()
+      String diag = "Failed to check access input["
+          + fileSourceInput.getSpec().getFilePath()
           + "], fail job because of " + e;
       failedApp(diag, ApplicationMasterEventType.FAIL_APP,
           ApplicationExitCode.WRONG_FS.getValue());
@@ -128,24 +129,10 @@ public class FileScanner {
     switch (dataSourceSpec.getProto().getDataSourceCase()) {
       case FILESOURCESPEC: {
         FileSourceSpec fss = dataSourceSpec.getFileSourceSpec();
-        InputType inputType = InputType.valueOf(fss.getInputType().name());
-        if (fss.hasTimeRange()) {
-          return FileSourceInput.newInstanceWithTimeRange(
-              dataSourceSpec.getSourceId(),
-              dataSourceSpec.getSource(),
-              fss.getInput(),
-              inputType,
-              dataSourceSpec.getFileNameFilter(),
-              fss.getDayFormat(),
-              fss.getTimeRange());
-        } else {
-          return FileSourceInput.newInstance(
-              dataSourceSpec.getSourceId(),
-              dataSourceSpec.getSource(),
-              fss.getInput(),
-              inputType,
-              dataSourceSpec.getFileNameFilter());
-        }
+        return new FileSourceInput(
+            dataSourceSpec.getSourceId(),
+            dataSourceSpec.getSource(),
+            fss);
       }
       default:
         LOG.warn("Unsupported source spec " + dataSourceSpec.getProto().getDataSourceCase());
@@ -180,8 +167,8 @@ public class FileScanner {
               fileSourceInput.getSourceId(),
               fileSourceInput.getSource(),
               fileSourceInput.getSource(), // Reuse for key
-              fileSourceInput.getInput(),
-              fileSourceInput.getInputType()
+              fileSourceInput.getSpec().getFilePath(),
+              fileSourceInput.getSpec()
           )
       );
     }
@@ -201,7 +188,7 @@ public class FileScanner {
           fileSystem, input, isDayGranularity(input),
           startDateHour.getKey(), startDateHour.getValue(),
           endDateHour.getKey(), endDateHour.getValue(),
-          input.getDayFormat(),
+          input.getSpec().getDayFormat(),
           hasDayGranularity, checkSuccess);
     } catch (IOException | ParseException e) {
       throw new RuntimeException(e);

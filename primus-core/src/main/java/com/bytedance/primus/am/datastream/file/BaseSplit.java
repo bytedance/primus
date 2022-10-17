@@ -20,11 +20,11 @@
 package com.bytedance.primus.am.datastream.file;
 
 import com.bytedance.primus.am.datastream.file.operator.Input;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 
-public abstract class BaseSplit implements Input {
-  abstract public String getPath();
+public interface BaseSplit extends Input {
 
-  abstract public InputType getInputType();
+  String getPath();
 
+  FileSourceSpec getSpec();
 }

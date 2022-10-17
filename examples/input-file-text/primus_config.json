@@ -1,5 +1,5 @@
 {
-  "name": "primus_input_file_text",
+  "name": "primus-input-file-text",
   "maxAppAttempts": 1,
   "role": [
     {
@@ -12,7 +12,7 @@
       "successPercent": 100,
       "failover": {
         "commonFailoverPolicy": {
-          "restartType": "ALWAYS",
+          "restartType": "ON_FAILURE",
           "maxFailureTimes": 3,
           "maxFailurePolicy": "FAIL_APP"
         }
@@ -30,8 +30,10 @@
     "fileConfig": {
       "oneTimeInputs": [
         {
-          "textInput": {
-            "inputDir": "/primus/examples/input-file-text/data/*"
+          "name": "primus-input-file-text-data",
+          "spec": {
+            "filePath": "/primus/examples/input-file-text/data/*",
+            "textInput": {}
           }
         }
       ]

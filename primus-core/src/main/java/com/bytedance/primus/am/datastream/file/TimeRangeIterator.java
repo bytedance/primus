@@ -151,24 +151,21 @@ public class TimeRangeIterator {
                 + "inputStartDay: " + inputWindow.getFrom().getDate().getDate()
                 + "inputEndDay: " + inputWindow.getTo().getDate().getDate());
 
-            return FileSourceInput.newInstanceWithTimeRange(
+            return new FileSourceInput(
                 input.getSourceId(),
                 input.getSource(),
-                input.getInput(),
-                input.getInputType(),
-                input.getFileNameFilter(),
-                input.getDayFormat(),
-                TimeRange.newBuilder()
-                    .setFrom(TimeUtils.maxTime(
-                        current,
-                        inputWindow.getFrom(),
-                        generatedBatchStartTime))
-                    .setTo(TimeUtils.minTime(
-                        current,
-                        inputWindow.getTo(),
-                        generatedBatchEndTime))
-                    .build()
-            );
+                input.getSpec()
+                    .toBuilder()
+                    .setTimeRange(TimeRange.newBuilder()
+                        .setFrom(TimeUtils.maxTime(
+                            current,
+                            inputWindow.getFrom(),
+                            generatedBatchStartTime))
+                        .setTo(TimeUtils.minTime(
+                            current,
+                            inputWindow.getTo(),
+                            generatedBatchEndTime))
+                    ).build());
           })
           .collect(Collectors.toList());
     }

@@ -70,18 +70,20 @@ message DataSourceStatus {
 }
 
 message FileSourceSpec {
-  enum InputType {
-    UNKNOWN_INPUT = 0;
-    RAW_INPUT = 1;
-    TEXT_INPUT = 2;
+  string file_path = 2;        // The directory containing input files. TODO: support a single file specified by the path.
+  string file_name_filter = 3; // Regex filter for files by their name, defaults to `.*`.
+
+  // [Optional] TimeRange instructs Primus to scan subdirectories with assigned day_format
+  TimeRange time_range = 10; // TODO: Document how Time::Now works.
+  DayFormat day_format = 11; // TODO: support customized time formatter which supports both date and hour.
+
+  // Type specific configurations
+  oneof input_type {
+    RawInput raw_input = 100;
+    TextInput text_input = 101;
   }
-
-  string input = 2;
-  InputType inputType = 4;
-  string fileNameFilter = 6;
-
-  DayFormat day_format = 20;
-  TimeRange time_range = 21;
+  message RawInput {}
+  message TextInput {}
 }
 
 message FileSourceStatus {

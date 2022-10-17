@@ -25,7 +25,7 @@ import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskState;
 import com.bytedance.primus.api.records.TaskStatus;
 import com.bytedance.primus.api.records.impl.pb.TaskStatusPBImpl;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.task.TaskRemovedEvent;
@@ -359,7 +359,7 @@ public abstract class FileTaskRunner implements TaskRunner {
     }
   }
 
-  public InputFormat createInputFormat(JobConf jobConf, InputType inputType) {
+  public InputFormat createInputFormat(JobConf jobConf, InputTypeCase inputType) {
     InputFormat inputFormat;
     try {
       switch (inputType) {

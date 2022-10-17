@@ -27,8 +27,6 @@ import com.bytedance.primus.apiserver.proto.ApiServerConfProto;
 import com.bytedance.primus.apiserver.proto.DataProto.DataSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.DataSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.DataStreamSpec;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
 import com.bytedance.primus.apiserver.proto.DataProto.KafkaSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.CommonOperatorPolicy;
@@ -61,8 +59,6 @@ import com.bytedance.primus.apiserver.records.Meta;
 import com.bytedance.primus.apiserver.records.impl.DataSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.JobSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.MetaImpl;
-import com.bytedance.primus.common.exceptions.PrimusUnsupportedException;
-import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.ApiServerConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Attribute;
@@ -92,8 +88,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.slf4j.Logger;
@@ -568,80 +562,10 @@ public class ResourceUtils {
           OneTimeInput input = oneTimeInputs.get(index);
           return DataSourceSpec.newBuilder()
               .setSourceId(String.valueOf(index))
-              .setSource(input.getSource())
-              .setFileSourceSpec(
-                  buildFileSourceSpec(
-                      getInputDir(input),
-                      (input.hasTimeRange() ? input.getTimeRange() : null),
-                      getInputType(input),
-                      input.getFileNameFilter()
-                  ))
+              .setSource(input.getName())
+              .setFileSourceSpec(input.getSpec()) // TODO: Implement FileSourceSpec validator
               .build();
         }).collect(Collectors.toList());
-  }
-
-  public static FileSourceSpec buildFileSourceSpec(
-      String input,
-      TimeRange timeRange,
-      InputType inputType,
-      String fileNameFilter
-  ) {
-    FileSourceSpec.Builder builder =
-        FileSourceSpec.newBuilder()
-            .setInput(input)
-            .setInputType(FileSourceSpec.InputType.valueOf(inputType.name()))
-            .setFileNameFilter(fileNameFilter);
-    if (timeRange != null) {
-      LOG.info("TimeRanged");
-      builder.setTimeRange(timeRange);
-    } else {
-      LOG.info("keyed");
-    }
-    return builder.build();
-  }
-
-  public static InputType getInputType(OneTimeInput oneTimeInput) {
-    switch (oneTimeInput.getInputTypeCase()) {
-      case RAW_INPUT:
-        return InputType.RAW_INPUT;
-      case TEXT_INPUT:
-        return InputType.TEXT_INPUT;
-      default:
-        throw new PrimusUnsupportedException("Unsupported InputType: %s",
-            oneTimeInput.getInputTypeCase());
-    }
-  }
-
-  private static String getInputDir(OneTimeInput oneTimeInput) {
-    switch (oneTimeInput.getInputTypeCase()) {
-      case RAW_INPUT:
-        return oneTimeInput.getRawInput().getInputDir();
-      case TEXT_INPUT:
-        return oneTimeInput.getTextInput().getInputDir();
-      default:
-        throw new PrimusUnsupportedException("Unsupported InputType: %s",
-            oneTimeInput.getInputTypeCase());
-    }
-  }
-
-  /**
-   * Get input prefix of the path.
-   *
-   * @param path in one of the below formats "hdfs://prefix/yet-another-prefix/"
-   *             "hdfs://prefix/yet-another-prefix/20200514/"
-   *             "hdfs://prefix/yet-another-prefix/2020-05-14/"
-   *             "hdfs://prefix/yet-another-prefix/202005140000-202005140000/"
-   * @return the prefix of the path; e.g, "hdfs://prefix/yet-another-prefix/"
-   */
-  public static String getPrefix(String path) {
-    Pattern pattern = Pattern.compile("^\\d{8}|^\\d{4}-\\d{2}-\\d{2}|^\\d{12}-\\d{12}");
-    for (String item : path.split("/", Integer.MAX_VALUE)) {
-      Matcher matcher = pattern.matcher(item);
-      if (matcher.matches()) {
-        return path.substring(0, path.indexOf(item));
-      }
-    }
-    return path;
   }
 
   public static ApiServerConfProto.ApiServerConf buildApiServerConf(ApiServerConf conf) {

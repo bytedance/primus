@@ -20,7 +20,7 @@
 package com.bytedance.primus.api.records.impl.pb;
 
 import com.bytedance.primus.api.records.SplitTask;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.proto.Primus.TaskProto.SplitTaskProto;
 import com.bytedance.primus.proto.Primus.TaskProto.SplitTaskProtoOrBuilder;
 
@@ -30,8 +30,20 @@ public class SplitTaskPBImpl implements SplitTask {
   SplitTaskProto.Builder builder = null;
   boolean viaProto = false;
 
-  public SplitTaskPBImpl() {
-    builder = SplitTaskProto.newBuilder();
+  public SplitTaskPBImpl(
+      String path,
+      long start,
+      long length,
+      String key,
+      FileSourceSpec spec
+  ) {
+    builder = SplitTaskProto
+        .newBuilder()
+        .setPath(path)
+        .setStart(start)
+        .setLength(length)
+        .setKey(key)
+        .setSpec(spec);
   }
 
   public SplitTaskPBImpl(SplitTaskProto proto) {
@@ -68,21 +80,9 @@ public class SplitTaskPBImpl implements SplitTask {
   }
 
   @Override
-  public void setKey(String key) {
-    maybeInitBuilder();
-    builder.setKey(key);
-  }
-
-  @Override
   public String getPath() {
     SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
     return p.getPath();
-  }
-
-  @Override
-  public void setPath(String path) {
-    maybeInitBuilder();
-    builder.setPath(path);
   }
 
   @Override
@@ -92,32 +92,14 @@ public class SplitTaskPBImpl implements SplitTask {
   }
 
   @Override
-  public void setStart(long start) {
-    maybeInitBuilder();
-    builder.setStart(start);
-  }
-
-  @Override
   public long getLength() {
     SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
     return p.getLength();
   }
 
   @Override
-  public void setLength(long length) {
-    maybeInitBuilder();
-    builder.setLength(length);
-  }
-
-  @Override
-  public InputType getInputType() {
+  public FileSourceSpec getSpec() {
     SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
-    return p.getInputType();
-  }
-
-  @Override
-  public void setInputType(InputType inputType) {
-    maybeInitBuilder();
-    builder.setInputType(inputType);
+    return p.getSpec();
   }
 }

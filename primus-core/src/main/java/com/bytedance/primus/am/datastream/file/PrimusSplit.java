@@ -20,88 +20,30 @@
 package com.bytedance.primus.am.datastream.file;
 
 import com.bytedance.primus.am.datastream.file.operator.Input;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.Setter;
 
-public class PrimusSplit extends BaseSplit {
+@AllArgsConstructor(access = AccessLevel.PUBLIC)
+@Getter
+@Setter
+public class PrimusSplit implements BaseSplit {
 
   private String sourceId;
   private String source;
-  private String key;
+
   private String path;
-  private InputType inputType;
   private long start;
   private long length;
 
-  public PrimusSplit(String sourceId, String source, String key, String path, long start,
-      long length, InputType inputType) {
-    this.sourceId = sourceId;
-    this.source = source;
-    this.key = key;
-    this.path = path;
-    this.inputType = inputType;
-    this.start = start;
-    this.length = length;
-  }
-
-  public String getSourceId() {
-    return sourceId;
-  }
-
-  public void setSourceId(String sourceId) {
-    this.sourceId = sourceId;
-  }
-
-  public String getSource() {
-    return source;
-  }
-
-  public void setSource(String source) {
-    this.source = source;
-  }
-
-  public String getKey() {
-    return key;
-  }
-
-  public void setKey(String key) {
-    this.key = key;
-  }
-
-  public String getPath() {
-    return path;
-  }
-
-  public void setPath(String path) {
-    this.path = path;
-  }
-
-  public InputType getInputType() {
-    return inputType;
-  }
-
-  public void setInputType(InputType inputType) {
-    this.inputType = inputType;
-  }
-
-  public long getStart() {
-    return start;
-  }
-
-  public void setStart(long start) {
-    this.start = start;
-  }
-
-  public long getLength() {
-    return length;
-  }
-
-  public void setLength(long length) {
-    this.length = length;
-  }
+  private String key;
+  private FileSourceSpec spec; // TODO: Reuse spec for other fields.
 
   @Override
   public int compareTo(Input p) {
-    PrimusSplit other = (PrimusSplit)p;
+    PrimusSplit other = (PrimusSplit) p;
     int ret = getKey().compareTo(other.getKey());
     if (ret == 0) {
       ret = getSource().compareTo(other.getSource());
@@ -118,7 +60,7 @@ public class PrimusSplit extends BaseSplit {
         + ", source: " + getSource()
         + ", key: " + getKey()
         + ", path: " + getPath()
-        + ", inputType: " + getInputType()
+        + ", spec: " + spec
         + ", start: " + start
         + ", length: " + length + "]";
   }

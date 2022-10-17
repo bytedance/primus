@@ -22,7 +22,7 @@ package com.bytedance.primus.executor.task.file;
 import com.bytedance.primus.api.records.SplitTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskState;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;
 import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.task.WorkerFeeder;
 import com.bytedance.primus.io.messagebuilder.MessageBuilder;
@@ -40,17 +40,36 @@ public class CommonFileTaskRunner extends FileTaskRunner {
 
   private static final Logger LOG = LoggerFactory.getLogger(CommonFileTaskRunner.class);
 
-  private SplitTask splitTask;
-  private InputType inputType;
-  private FileSplit fileSplit;
+  private final InputTypeCase inputType; // TODO: Create DataSourceAPI to avoid depending on switch cases.
+  private final FileSplit fileSplit;
   private RecordReader<Object, Object> recordReader;
   private MessageBuilder messageBuilder;
-  private String source;
+  private final String source;
 
-  public CommonFileTaskRunner(Task task, ExecutorContext context, WorkerFeeder workerFeeder)
-      throws IOException {
+  public CommonFileTaskRunner(
+      Task task,
+      ExecutorContext context,
+      WorkerFeeder workerFeeder
+  ) throws IOException {
     super(task, context, workerFeeder);
-    splitTask = task.getSplitTask();
+
+    SplitTask splitTask = task.getSplitTask();
+    inputType = splitTask.getSpec().getInputTypeCase();
+    source = task.getSource();
+    switch (inputType) {
+      case RAW_INPUT:
+      case TEXT_INPUT:
+        this.fileSplit = new FileSplit(
+            new Path(splitTask.getPath()),
+            splitTask.getStart(),
+            splitTask.getLength(),
+            (String[]) null
+        );
+        break;
+      default:
+        throw new IOException("Unsupported input type " + inputType);
+    }
+
     LOG.info("Init task runner, group[" + task.getGroup()
         + ", taskId[" + task.getTaskId() + "]"
         + ", sourceId[" + task.getSourceId() + "]"
@@ -59,25 +78,14 @@ public class CommonFileTaskRunner extends FileTaskRunner {
         + ", path[" + splitTask.getPath() + "]"
         + ", start[" + splitTask.getStart() + "]"
         + ", length[" + splitTask.getLength() + "]"
-        + ", inputType[" + splitTask.getInputType() + "]");
-    source = task.getSource();
-    inputType = splitTask.getInputType();
-    switch (inputType) {
-      case RAW_INPUT:
-      case TEXT_INPUT:
-        this.fileSplit = new FileSplit(new Path(splitTask.getPath()), splitTask.getStart(),
-            splitTask.getLength(), (String[]) null);
-        break;
-      default:
-        throw new IOException("Unsupported input type " + inputType);
-    }
+        + ", inputType[" + inputType + "]");
   }
 
   @Override
   public void init() throws Exception {
     try {
       this.recordReader = createRecordReader(jobConf, inputType);
-      this.messageBuilder = createMessageBuilder(inputType, source);
+      this.messageBuilder = createMessageBuilder(inputType);
     } catch (Exception e) {
       this.taskStatus.setTaskState(TaskState.FAILED);
       throw e;
@@ -86,12 +94,12 @@ public class CommonFileTaskRunner extends FileTaskRunner {
 
   private RecordReader<Object, Object> createRecordReader(
       JobConf jobConf,
-      InputType inputType
+      InputTypeCase inputType
   ) throws Exception {
     return createInputFormat(jobConf, inputType).getRecordReader(fileSplit, jobConf, taskReporter);
   }
 
-  public MessageBuilder createMessageBuilder(InputType inputType, String source)
+  public MessageBuilder createMessageBuilder(InputTypeCase inputType)
       throws IOException {
     int messageBufferSize = getMessageBufferSize();
     switch (inputType) {

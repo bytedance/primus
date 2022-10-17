@@ -19,15 +19,16 @@
 
 package com.bytedance.primus.utils;
 
-import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType.RAW_INPUT;
-import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType.TEXT_INPUT;
+
+import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase.RAW_INPUT;
+import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase.TEXT_INPUT;
 
 import com.bytedance.primus.am.datastream.file.FileSourceInput;
 import com.bytedance.primus.am.datastream.file.PrimusInput;
 import com.bytedance.primus.am.datastream.file.PrimusSplit;
 import com.bytedance.primus.am.datastream.file.operator.Input;
 import com.bytedance.primus.apiserver.proto.DataProto;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;
 import com.bytedance.primus.proto.PrimusCommon.DayFormat;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.google.protobuf.Message;
@@ -66,7 +67,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
 
   private static final Logger LOG = LoggerFactory.getLogger(FileUtils.class);
 
-  public static InputType getInputType(Path path, FileSystem fs)
+  public static InputTypeCase getInputType(Path path, FileSystem fs)
       throws IllegalArgumentException, IOException {
     FileStatus[] fss;
     if ((fss = fs.globStatus(path)).length > 0) {
@@ -76,7 +77,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
           if (isIgnoredFile(fileStatus.getPath())) {
             continue;
           }
-          InputType inputType = getInputType(fileStatus.getPath().getName());
+          InputTypeCase inputType = getInputType(fileStatus.getPath().getName());
           LOG.info("FileType compute:{}, path:{}, file path:{}", inputType, path,
               fileStatus.getPath().getName());
           return inputType;
@@ -89,19 +90,15 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
         if (isIgnoredFile(fileStatus.getPath())) {
           continue;
         }
-        InputType inputType = getInputType(fileStatus.getPath().getName());
+        InputTypeCase inputType = getInputType(fileStatus.getPath().getName());
         LOG.info("FileType compute:{}, path:{}, file path:{}", inputType, path,
             fileStatus.getPath().getName());
         return inputType;
       }
     }
-    InputType inputType = getInputType(path.getName());
+    InputTypeCase inputType = getInputType(path.getName());
     LOG.info("FileType compute:{}, path:{}, name:{}", inputType, path, path.getName());
     return inputType;
-  }
-
-  public static boolean isSplittable(InputType inputType) {
-    return false;
   }
 
   public static boolean isIgnoredFile(Path path) {
@@ -110,7 +107,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
         || path.toUri().getPath().contains("/_temporary/");
   }
 
-  public static InputType getInputType(String path) {
+  public static InputTypeCase getInputType(String path) {
     if (path.contains(".txt")) {
       return TEXT_INPUT;
     } else {
@@ -121,7 +118,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
   public static SortedSet<PrimusSplit> scanPattern(PrimusInput input, FileSystem fs,
       Configuration conf) throws IllegalArgumentException, IOException {
     SortedSet<PrimusSplit> ret = new TreeSet<>();
-    switch (input.getInputType()) {
+    switch (input.getSpec().getInputTypeCase()) {
       case RAW_INPUT:
       case TEXT_INPUT: {
         FileStatus[] matches = fs.globStatus(new Path(input.getPath()));
@@ -146,17 +143,20 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
             PrimusSplit split = new PrimusSplit(
                 input.getSourceId(),
                 input.getSource(),
-                input.getKey(),
                 fileStatus.getPath().toString(),
-                0, fileStatus.getLen(),
-                input.getInputType());
+                0, // Start
+                fileStatus.getLen(), // Length
+                input.getKey(),
+                input.getSpec()
+            );
             ret.add(split);
           }
         }
         break;
       }
       default:
-        throw new IllegalArgumentException("Unsupported input type: " + input.getInputType());
+        throw new IllegalArgumentException(
+            "Unsupported input type: " + input.getSpec().getInputTypeCase());
     }
     return ret;
   }
@@ -200,9 +200,10 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
         fileDay <= endDay;
         fileDay = Integer.valueOf(TimeUtils.plusDay(fileDay, 1))
     ) {
-      String dayPath = fileSourceInput.getInput() + "/" + getDayPath(fileDay, timeFormat) + "/";
+      String dayPath =
+          fileSourceInput.getSpec().getFilePath() + "/" + getDayPath(fileDay, timeFormat) + "/";
       Path successFilePath = new Path(dayPath + "_SUCCESS");
-      String inputPath = dayPath + fileSourceInput.getFileNameFilter();
+      String inputPath = dayPath + fileSourceInput.getSpec().getFileNameFilter();
       if (checkSuccess && !isFileExist(fileSystem, successFilePath)) {
         return null;
       }
@@ -211,7 +212,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
           fileSourceInput.getSource(),
           String.valueOf(fileDay),
           inputPath,
-          fileSourceInput.getInputType());
+          fileSourceInput.getSpec());
       results.add(input);
     }
     return results;
@@ -260,14 +261,14 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
         String hourPath = getHourPath(fileHour);
         String inputKey = dayKey ? String.valueOf(fileDay) : fileDay + hourPath;
         String dayPath =
-            fileSourceInput.getInput() + "/" + getDayPath(fileDay, dayFormat) + "/";
+            fileSourceInput.getSpec().getFilePath() + "/" + getDayPath(fileDay, dayFormat) + "/";
         String inputPath;
         Path successFilePath;
         if (fileSystem.isDirectory(new Path(dayPath + hourPath))) {
-          inputPath = dayPath + hourPath + "/" + fileSourceInput.getFileNameFilter();
+          inputPath = dayPath + hourPath + "/" + fileSourceInput.getSpec().getFileNameFilter();
           successFilePath = new Path(dayPath + hourPath + "/_SUCCESS");
         } else {
-          inputPath = dayPath + hourPath + fileSourceInput.getFileNameFilter();
+          inputPath = dayPath + hourPath + fileSourceInput.getSpec().getFileNameFilter();
           successFilePath = new Path(dayPath + "_" + hourPath + "_SUCCESS");
         }
         if (checkSuccess && !isFileExist(fileSystem, successFilePath)) {
@@ -278,7 +279,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
             fileSourceInput.getSource(),
             inputKey,
             inputPath,
-            fileSourceInput.getInputType()));
+            fileSourceInput.getSpec()));
       }
       fileDay = TimeUtils.plusDay(fileDay, 1);
     }

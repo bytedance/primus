@@ -27,7 +27,8 @@ import static org.junit.Assert.assertTrue;
 import com.bytedance.primus.am.datastream.file.PrimusInput;
 import com.bytedance.primus.am.datastream.file.PrimusSplit;
 import com.bytedance.primus.am.datastream.file.operator.op.MapDelay;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.CommonOperatorPolicy;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorConf;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorType;
@@ -98,8 +99,8 @@ public class TestCommonFileOperator {
     File textFolder = tempFolder.newFolder("text");
     FileSystem fs = FileSystem.get(textFolder.toURI(), new Configuration());
     tempFolder.newFolder("text/train_1_txt_temporary");
-    InputType inputType = FileUtils.getInputType(new Path(textFolder.toURI().getPath()), fs);
-    assertEquals(InputType.RAW_INPUT, inputType);
+    InputTypeCase inputType = FileUtils.getInputType(new Path(textFolder.toURI().getPath()), fs);
+    assertEquals(InputTypeCase.RAW_INPUT, inputType);
   }
 
   private List<PrimusInput> buildInputs() throws ParseException {
@@ -108,10 +109,10 @@ public class TestCommonFileOperator {
     while (hourKey.compareTo(endKey) <= 0) {
       results.add(
           new PrimusInput(hourKey + "A", sourceA, hourKey, "/" + sourceA + "/" + hourKey + "/*",
-              InputType.TEXT_INPUT));
+              FileSourceSpec.getDefaultInstance()));
       results.add(
           new PrimusInput(hourKey + "B", sourceB, hourKey, "/" + sourceB + "/" + hourKey + "/*",
-              InputType.TEXT_INPUT));
+              FileSourceSpec.getDefaultInstance()));
       hourKey = String.valueOf(TimeUtils.plusHour(Integer.parseInt(hourKey), 1));
     }
     return results;
@@ -156,21 +157,17 @@ public class TestCommonFileOperator {
     }
   }
 
-  private void printList(List<PrimusSplit> primusSplits) {
-    for (PrimusSplit split : primusSplits) {
-      System.out.println(split);
-    }
-  }
-
   private List<PrimusSplit> buildSplits() throws ParseException {
     List<PrimusSplit> results = new LinkedList<>();
     String hourKey = startKey;
     while (hourKey.compareTo(endKey) <= 0) {
       for (int i = 0; i < 10; i++) {
-        results.add(new PrimusSplit(hourKey + "A", sourceA, hourKey,
-            "/" + sourceA + "/" + hourKey + "/file-" + i + "/*", 0, 100, null));
-        results.add(new PrimusSplit(hourKey + "B", sourceB, hourKey,
-            "/" + sourceB + "/" + hourKey + "/file-" + i + "/*", 0, 100, null));
+        results.add(new PrimusSplit(hourKey + "A", sourceA,
+            "/" + sourceA + "/" + hourKey + "/file-" + i + "/*", 0, 100,
+            hourKey, null));
+        results.add(new PrimusSplit(hourKey + "B", sourceB,
+            "/" + sourceB + "/" + hourKey + "/file-" + i + "/*", 0, 100,
+            hourKey, null));
       }
       hourKey = String.valueOf(TimeUtils.plusHour(Integer.parseInt(hourKey), 1));
     }

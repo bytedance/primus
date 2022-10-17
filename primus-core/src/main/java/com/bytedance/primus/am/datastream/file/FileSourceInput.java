@@ -19,9 +19,8 @@
 
 package com.bytedance.primus.am.datastream.file;
 
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.common.collections.Pair;
-import com.bytedance.primus.proto.PrimusCommon.DayFormat;
 import com.bytedance.primus.proto.PrimusCommon.Time;
 import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import java.util.Objects;
@@ -30,7 +29,7 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
-@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@AllArgsConstructor(access = AccessLevel.PUBLIC)
 public class FileSourceInput {
 
   @Getter
@@ -38,61 +37,21 @@ public class FileSourceInput {
   @Getter
   private String source;
   @Getter
-  private String input;
-  @Getter
-  private InputType inputType;
-  @Getter
-  private String fileNameFilter;
-  @Getter
-  private DayFormat dayFormat;
-  @Getter
-  private TimeRange timeRange;
-
-  public static FileSourceInput newInstance(
-      String sourceId,
-      String source,
-      String input,
-      InputType inputType
-  ) {
-    return new FileSourceInput(sourceId, source, input, inputType, "*",
-        null, // DayFormat
-        null  // TimeRange
-    );
-  }
-
-  public static FileSourceInput newInstance(
-      String sourceId,
-      String source,
-      String input,
-      InputType inputType,
-      String fileNameFilter
-  ) {
-    return new FileSourceInput(sourceId, source, input, inputType, fileNameFilter,
-        null, // DayFormat
-        null  // TimeRange
-    );
-  }
-
-  public static FileSourceInput newInstanceWithTimeRange(
-      String sourceId,
-      String source,
-      String input,
-      InputType inputType,
-      String fileNameFilter,
-      DayFormat dayFormat,
-      TimeRange timeRange
-  ) {
-    return new FileSourceInput(
-        sourceId, source, input, inputType, fileNameFilter,
-        dayFormat, timeRange);
-  }
+  private FileSourceSpec spec;
 
   public Optional<TimeRange> getTimeRange() {
-    return Optional.ofNullable(timeRange);
+    return spec.hasTimeRange()
+        ? Optional.of(spec.getTimeRange())
+        : Optional.empty();
   }
 
   public Pair<Integer, Integer> getStartDateHour() {
-    Time time = timeRange.getFrom();
+    Optional<TimeRange> optional = getTimeRange();
+    if (!optional.isPresent()) {
+      throw new IllegalArgumentException("Missing TimeRange: " + this);
+    }
+
+    Time time = optional.get().getFrom();
     switch (time.getTimeCase()) {
       case DATE:
         return new Pair<>(
@@ -110,7 +69,12 @@ public class FileSourceInput {
   }
 
   public Pair<Integer, Integer> getEndDateHour() {
-    Time time = timeRange.getTo();
+    Optional<TimeRange> optional = getTimeRange();
+    if (!optional.isPresent()) {
+      throw new IllegalArgumentException("Missing TimeRange: " + this);
+    }
+
+    Time time = optional.get().getTo();
     switch (time.getTimeCase()) {
       case DATE:
         return new Pair<>(
@@ -131,10 +95,7 @@ public class FileSourceInput {
   public String toString() {
     return "sourceId: " + sourceId +
         ", source: " + source +
-        ", input: " + input +
-        ", inputType: " + inputType +
-        ", timeRange: " + timeRange +
-        ", filter: " + fileNameFilter;
+        ", spec: " + spec;
   }
 
   @Override
@@ -146,9 +107,6 @@ public class FileSourceInput {
     FileSourceInput other = (FileSourceInput) obj;
     return Objects.equals(sourceId, other.sourceId)
         && Objects.equals(source, other.source)
-        && Objects.equals(input, other.input)
-        && Objects.equals(inputType, other.inputType)
-        && Objects.equals(timeRange, other.timeRange)
-        && Objects.equals(fileNameFilter, other.fileNameFilter);
+        && spec.equals(other.getSpec());
   }
 }

@@ -198,7 +198,7 @@ public class FileTaskBuilder {
           + tasks.get(tasks.size() - 1).getTaskId()
           + "] for input[key: " + splits.get(0).getKey()
           + ", source: " + splits.get(0).getSource()
-          + ", inputType: " + splits.get(0).getInputType()
+          + ", spec: " + splits.get(0).getSpec()
           + ", path of a split: " + splits.get(0).getPath() + "]");
     }
     latency.stop();
@@ -229,12 +229,14 @@ public class FileTaskBuilder {
     Task task = new TaskPBImpl();
     if (split instanceof PrimusSplit) {
       PrimusSplit primusSplit = (PrimusSplit) split;
-      SplitTask splitTask = new SplitTaskPBImpl();
-      splitTask.setKey(primusSplit.getKey());
-      splitTask.setPath(primusSplit.getPath());
-      splitTask.setStart(primusSplit.getStart());
-      splitTask.setLength(primusSplit.getLength());
-      splitTask.setInputType(primusSplit.getInputType());
+      SplitTask splitTask = new SplitTaskPBImpl(
+          primusSplit.getPath(),
+          primusSplit.getStart(),
+          primusSplit.getLength(),
+          primusSplit.getKey(),
+          primusSplit.getSpec()
+      );
+
       task.setGroup(name);
       task.setTaskId(++currentTaskId);
       task.setSourceId(primusSplit.getSourceId());
