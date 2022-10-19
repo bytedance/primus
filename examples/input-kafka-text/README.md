@@ -1,11 +1,13 @@
 `input-kafka-text` is an example showing how Primus adopts Kafka topics as training data source.
-Similar to the examples with HDFS data, Primus reads off Kafka topics and inject the data into trainers.
+Similar to the examples with HDFS data, Primus reads data off from Kafka topics and injects them
+into trainers.
 
 ## Preparation
 
-The preparation of this example only requires two actions
+The preparation of this example requires three actions
+
 - setup a Primus cluster, refer to [quickstart](../../docs/primus-quickstart.md).
-- modify `examples/input-kafka-text/primus_config` by updating `kafka-broker-ip:port` 
+- modify `examples/input-kafka-text/primus_config` by updating `<kafka-broker-ip:port>`
 - upload training data to Kafka
   ```bash
   # Create a new topic
@@ -20,9 +22,7 @@ This example can be submitted with this following command, after which a Primus 
 start working and the execution can be verified by checking the logs or Primus UI as shown
 in [quickstart](../../docs/primus-quickstart.md).
 
-> Notes:
->  1. This example needs to be stopped manually by either deleting the Kubernetes Pods or killing the YARN application.
->  2. This example cannot be rerun without cleaning Kafka offsets. 
+> Notes: This example cannot be rerun without cleaning Kafka offsets.
 
 ```bash
 # Submit

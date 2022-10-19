@@ -42,8 +42,6 @@ import com.bytedance.primus.apiserver.proto.DataProto.Time.Now;
 import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;
 import com.bytedance.primus.apiserver.proto.DataProto.TimeRange;
 import com.bytedance.primus.apiserver.proto.ResourceProto;
-import com.bytedance.primus.apiserver.proto.ResourceProto.ConsulConfig;
-import com.bytedance.primus.apiserver.proto.ResourceProto.ConsulConfig.Builder;
 import com.bytedance.primus.apiserver.proto.ResourceProto.ExecutorSpec;
 import com.bytedance.primus.apiserver.proto.ResourceProto.JobSpec;
 import com.bytedance.primus.apiserver.proto.ResourceProto.Plugin;
@@ -93,7 +91,6 @@ import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Role;
 import com.bytedance.primus.proto.PrimusConfOuterClass.RoleScheduleType;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Sql;
-import com.bytedance.primus.proto.PrimusConfOuterClass.TPU;
 import com.bytedance.primus.proto.PrimusRuntime.YarnNeedGlobalNodesView;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler.BatchScheduler;
@@ -260,14 +257,6 @@ public class ResourceUtils {
     executorBuilder.setInputPolicy(buildInputPolicy(role));
     executorBuilder.setIsEvaluation(role.getIsEvaluation());
 
-    if (role.hasConsulConfig()) {
-      Builder consulConfigResource = ConsulConfig.newBuilder();
-      PrimusConfOuterClass.ConsulConfig consulConfig = role.getConsulConfig();
-      if (consulConfig.hasPortRegisterNum()) {
-        consulConfigResource.setPortRegisterNum(consulConfig.getPortRegisterNum());
-      }
-      executorBuilder.setConsulConfig(consulConfigResource);
-    }
     if (role.hasPluginConfig()) {
       PluginConfig pluginConfig = role.getPluginConfig();
       ResourceProto.PluginConfig.Builder pluginConfigBuilder = ResourceProto.PluginConfig
@@ -340,26 +329,6 @@ public class ResourceUtils {
             .setValue(role.getGpuNum())
             .build()
     );
-    if (role.hasTpu()) {
-      TPU tpu = role.getTpu();
-      ResourceType resourceType = null;
-      switch (tpu.getTpuType()) {
-        case V3_BASE:
-          resourceType = ResourceType.TPU_V3_BASE;
-          break;
-        case V3_POD:
-          resourceType = ResourceType.TPU_V3_POD;
-          break;
-      }
-      if (resourceType != null) {
-        resourceRequests.add(
-            ResourceRequest.newBuilder()
-                .setResourceType(resourceType)
-                .setValue(tpu.getNum())
-                .build()
-        );
-      }
-    }
     // default ask for 1 port because tf config need it.
     // consul need 1 port, same as default, so no need to write it here.
     if (role.getUseTfDataService()) {

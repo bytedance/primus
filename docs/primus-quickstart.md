@@ -1,33 +1,33 @@
 # Primus - Quickstart
 
 Hello developers, welcome to Primus quick start guide. Here we are ensuring you an enjoyable start
-with Primus by showing the detailed steps to create a standard local development environments for
-both Primus on Kubernetes and YARN respectively, and subsequently submit Hello Primus applications
-to make sure everything is ready to go!
+with Primus by showing the detailed steps to create standard development environments for
+both Primus on Kubernetes and YARN respectively on your local machine, and subsequently submit
+example Primus applications to make sure everything is ready to go!
 
 
 ## Primus Baseline Virtual Machine
 
-Being a generic distributed training scheduler, Primus applications are executed in conjunction with
-many environmental dependencies, which inevitably complicates the developer experiences. Therefore,
-Primus Baseline Virtual Machine(PBVM) is introduced. By ambitiously comprising every required
+Being a generic distributed training scheduler, Primus functions in conjunction with many
+environmental dependencies, which inevitably hinders developer experiences; therefore, Primus
+Baseline Virtual Machine(PBVM) is introduced. By ambitiously encompassing every required
 environmental dependencies, PBVM encloses the entire development cycle to local machines, which not
-only greatly improves developer experiences but also serves as the standard environments of Primus.
+only greatly improves developer experiences but also serves as the standard environments for Primus.
 
 ![](images/pbvm-overview.jpg)
 
-As illustrated in the diagram above, PBVM mainly encompasses three categories of environmental
+As illustrated in the diagram above, PBVM mainly contains three categories of environmental
 dependencies including storages, Kubernetes runtime and YARN runtime, where storages serve both
 Primus on Kubernetes and Primus on YARN, while Kubernetes runtime and YARN runtime are only required
 by their corresponding Primus deployment.
 
 ### Prepare
 
-Essentially being a fully virtualized machine, the preparation for PBVM begins with the installation
-of a full virtualization hypervisor and creating a PBVM with the specifications listed below. Once
-the PBVM has been successfully created, setting up SSH with port-forwarding is highly recommended
-for various development needs in the future. Besides, a virtual machine snapshot is also strongly
-encouraged at the same time.
+Being a fully virtualized machine, the construction of PBVM begins with the installation
+of a full virtualization hypervisor and creating a virtual machine with the specifications listed
+below. Once the VM has been successfully created, setting up SSH with port-forwarding is highly
+recommended for various development needs in the future. Besides, a virtual machine snapshot is also
+strongly encouraged at the same time.
 
 - Hypervisor: VirtualBox (suggested)
 - Operating System: Ubuntu 22.04 Desktop (suggested)
@@ -38,10 +38,10 @@ encouraged at the same time.
 
 ### Initialize
 
-Having the newly created PBVM, we now can proceed to installing all the components needed to form
-the environment for Primus applications, which can be simply done with the setup script from Primus
-repository as shown below. Noticeably, restarting the PBVM is required to finalise the installation
-of those components; meanwhile, it's a good timing to create another virtual machine snapshot.
+Having a newly created virtual machine, we now can proceed to installing all the components needed
+by PBVM, which can be simply done with the setup script from Primus repository as shown below.
+Noticeably, restarting the newly installed PBVM is required to finalise the installation components;
+meanwhile, it's a good timing to create another virtual machine snapshot.
 
 ```bash
 # Primus repository can be obtained from git, scp or other methods.
@@ -53,15 +53,15 @@ $ sudo shutdown -h now
 ### Verify
 
 With all the components installed, the PBVM now is ready for the deployments of both Primus on
-Kubernetes and Primus on YARN. However, given the amount of installed components, though optional,
-verifying the installations would be suggested before proceeding.
+Kubernetes and YARN. However, given the number of installed components, though optional, verifying
+the installations would be suggested before proceeding.
 
 #### Docker
 
 Docker is adopted as the container provider for PBVM, which is actually the cornerstone of the
 Kubernetes runtime. Moreover, the virtual network interface created by Docker is used as the network
-interface for other components within PBVM. To verify docker installation, we can simply run a
-hello-world image as shown in the official guide.
+interface for other components within PBVM such as HDFS. To verify docker installation, we can
+simply run a hello-world image as shown in the official guide.
 
 ```bash
 $ docker run hello-world
@@ -74,9 +74,9 @@ This message shows that your installation appears to be working correctly.
 #### kubectl & kind
 
 kubectl is the standard command line tool of Kubernetes ecosystem, while kind is a single node
-Kubernetes cluster solution, based on which PBVM can host a Kubernetes cluster as one of the
-resource orchestrators for Primus applications within PBVM, where kind and kubectl can be verified
-together as shown below.
+Kubernetes cluster solution, based on which PBVM can host a Kubernetes cluster as the resource
+orchestrator for Primus on Kubernetes within PBVM, where kind and kubectl can be verified together
+as shown below.
 
 ```bash
 # Check versions
@@ -95,7 +95,7 @@ kind-control-plane   Ready    control-plane,master   12m   v1.20.15
 
 #### YARN
 
-As the default resource manager of Hadoop ecosystem, YARN naturally is the other resource
+As the default resource orchestrator of Hadoop ecosystem, YARN naturally is the other resource
 orchestrator inside PBVM. Similar to Kubernetes clusters, YARN installation can be verified by
 listing the cluster nodes.
 
@@ -112,7 +112,7 @@ primus-baseline:44553    RUNNING       primus-baseline:8042
 Being a renowned distributed filesystem, HDFS is selected as the major storage in Primus ecosystem.
 HDFS serves as the storages of both Primus internal states and data inputs. During PBVM
 initialization, HDFS has been properly configured with the directories needed for Primus
-applications, and thus HDFS can be simply verified with listing those directories.
+applications, and thus HDFS can be simply verified by listing those directories.
 
 ```bash
 $ /usr/lib/hadoop/bin/hdfs dfs -ls /primus
@@ -126,7 +126,7 @@ drwxr-xr-x   - primus supergroup          0 2022-08-29 20:46 /primus/staging
 
 Different from HDFS, Kafka solely serves as data input source in Primus ecosystem, and thus is
 entirely optional in production. Inspired by the official guide, the verification of Kafka is done
-by interacting with a topic created as shown below.
+by interacting with a created topic.
 
 ```bash
 # Obtain docker virtual interface IP address on host
@@ -159,60 +159,40 @@ $ bin/kafka-topics.sh --bootstrap-server <DOCKER-HOST-IP>:9092 --delete --topic 
 
 ## Primus on Kubernetes
 
-In this chapter, we will be demonstrating the process of bringing Primus from source to a Kubernetes
-cluster, and round up with a Primus application submission. Notably, being highly customizable,
-Kubernetes clusters do require more configurations to host Primus applications.
+In this section, we will be setting up the environment for Primus on Kubernetes inside PBVM as
+depicted in the diagram below. Remarkably, since Kubernetes clusters are highly configurable, many
+environment specific settings are required, and thus the settings demonstrated in this section also
+serve as the references for other environments.
+
+![](images/pbvm-kubernetes.jpg)
 
 ### Deployment
 
-In order to adopt different environments, Primus is designed to be built into the corresponding
-deployments, where each deployment contains the correlated executables and configurations tailored
-for the environment. Hence, the very first step of deploying Primus is preparing the Primus
-deployment.
+To adapt different environments, Primus releases are built into their corresponding deployments,
+where each deployment contains the tailored executables and configurations. Hence, deploying Primus
+on Kubernetes to PBVM mainly comprises two steps, building and installing the Primus deployment. For
+the detailed information, please refer to the corresponding scripts.
 
 ```bash
+# Build
 $ cd <PRIMUS_ROOT>
 $ ./deployments/baseline-kubernetes/build.sh --skip-tests
-$ ls output
-conf  examples  jars  resources  sbin
 
-$ sudo mkdir /usr/lib/primus-kubernetes
-$ sudo chown $USER /usr/lib/primus-kubernetes
-$ cp -r output/* /usr/lib/primus-kubernetes
-```
+# Install
+$ sudo ./deployments/baseline-kubernetes/install.sh $USER 
 
-### Adoption
-
-As aforementioned, there are some more preparation to make Kubernetes cluster ready for Primus
-applications, which configurations can be found inside the Primus deployment for baseline-kubernetes
-environment.
-
-```bash
-# Preparing docker images
-$ cd /usr/lib/primus-kubernetes/resources/containers
-$ ./build.sh
-$ kind load docker-image primus-baseline-init primus-baseline-base
-
-# Setting up Kubernetes cluster permissions
-$ cd /usr/lib/primus-kubernetes/resources/cluster
-$ kubectl apply -f permission.yaml
+# Test
+$ cd /usr/lib/primus-kubernetes/tests
+$ python3 -m robot --variable PRIMUS_HOME:/usr/lib/primus-kubernetes --variable HADOOP_HOME:/usr/lib/hadoop --variable KAFKA_HOME:/usr/lib/kafka basics.robot 
 ```
 
 ### Primus UI
 
-Primus UI is the WebApp displaying the status of Primus Applications, which is really-good-to-have
-but entirely optional. As illustrated below, Primus UI is highly integrated with the environment,
-and hence requires many environment specific settings. Notably, the setting demonstrated in this are
-based on baseline-kubernetes-environment in PBVM, and serves as an example for production
-environments, where the corresponding configurations can be found in `primus_conf.proto`.
-
-![](images/pbvm-kubernetes.jpg)
-
-Being encapsulated, components inside PBVM need sophisticated network settings, especially for those
-reside in the Kubernetes cluster. Firstly, components inside PBVM need to be port-forwarded to allow
-accesses from the host machine as listed below. Importantly, since PBVM doesn't incorporate a
-general purposed network proxy, aligning host ports and guest ports is strongly suggested to prevent
-esoteric problems.
+Primus UI is the WebApp displaying the status of Primus Applications. Since the entire baseline
+kubernetes environment is encapsulated inside PBVM, sophisticated network settings are required to
+allow accesses from the host machine, where the suggested for forwarded ports are listed below.
+Importantly, since PBVM doesn't incorporate a network proxy, aligning host ports
+and guest ports is strongly advised to prevent esoteric problems.
 
 | Name                               | Protocol | Host Port | Guest Port |
 |------------------------------------|----------|-----------|------------|
@@ -220,46 +200,11 @@ esoteric problems.
 | Kubernetes Log Server              | TCP      | 7891      | 7891       |
 | Primus History Server (Kubernetes) | TCP      | 7890      | 7890       |
 
-Next, the kubernetes cluster has to be equipped with an ingress controller to expose components
-running within it. For more detailed information, please refer to Kubernetes Ingress and kind
-ingress guide.
-
-```bash
-$ kubectl apply -f https://github.com/datawire/ambassador-operator/releases/latest/download/ambassador-operator-crds.yaml
-$ kubectl apply -n ambassador -f https://github.com/datawire/ambassador-operator/releases/latest/download/ambassador-operator-kind.yaml
-$ kubectl wait --timeout=180s -n ambassador --for=condition=deployed ambassadorinstallations/ambassador
-```
-
-> NOTE: Kubernetes ingress controllers are not interchangeable; for instance, Ambassador ingress
-> controller trims API paths after forwarding, while Nginx ingress controller leaves API path
-> intact.
-
-Following up is the installation of a tailored pair of Kubernetes ingress and reversed proxy, which
-resources are also bundle in Primus baseline-kubernetes deployment.
-
-```bash
-$ cd /usr/lib/primus-kubernetes
-$ kubectl apply -f resources/cluster/networking.yaml
-```
-
-Lastly, the final setup of setting up Primus UI for baseline-kubernetes in PBVM is launching the
-affiliating servers as shown below.
-
-```bash
-# Kubernetes log server
-$ cd /usr/lib/primus-kubernetes/sbin
-$ python3 kubernetes-log-server.py --port=7891
-
-# Primus history server
-$ cd /usr/lib/primus-yarn/sbin
-$ PRIMUS_HISTORY_PORT=7890 ./primus-history-server
-```
-
 ### Hello Primus on Kubernetes!
 
 After the long preparation, the newly created PBVM is finally ready for Primus application
 submissions on Kubernetes, which can be easily done with the commands below. After being
-successfully submitted, the driver pod name of the Primus application will be printed to stdout as
+successfully submitted, the driver pod name of the Primus application will be printed as
 shown in the snippet below, which is the key information for future debugging.
 
 ```bash
@@ -278,7 +223,7 @@ $ sbin/primus-submit --primus_conf examples/hello/primus_config.json
 ```
 
 Later, the execution of Primus applications can be verified by observing the logs through either CLI
-or Primus UI if it has been properly setup previously with the URLs.
+or Primus UI if it has been properly setup in the previous step.
 
 ```bash
 $ kubectl -n primus get pods | grep <DRIVER-POD-NAME> 
@@ -297,37 +242,35 @@ Hello from Worker
 
 ## Primus on YARN
 
-Similar to the previous chapter for Primus on Kubernetes, this chapter will be demonstrating the
-process of deploying Primus to a YARN cluster and submitting a Primus application in the end.
+As its counterpart for Primus on Kubernetes, this section will be demonstrating the process of
+deploying Primus on YARN to PBVM with the architecture depicted in the diagram below, and wrapped up
+by submitting a Primus application.
+
+![](images/pbvm-yarn.jpg)
 
 ### Deployment
 
-As its Kubernetes counterpart, the deployment for Primus on YARN begins with building the
-corresponding Primus deployment. Remarkably, no additional configurations on the YARN cluster is
-required.
+Similarly, deploying Primus on YARN starts with building the corresponding Primus deployment, and
+followed by the installation of the Primus deployment.
 
 ```bash
+# Build
 $ cd <PRIMUS_ROOT>
 $ ./deployments/baseline-yarn/build.sh --skip-tests
-$ ls output
-conf  examples  jars  sbin
 
-$ sudo mkdir /usr/lib/primus-kubernetes
-$ sudo chown $USER /usr/lib/primus-kubernetes
-$ cp -r output/* /usr/lib/primus-kubernetes
+# Install
+$ sudo ./deployments/baseline-yarn/install.sh $USER 
+
+# Test
+$ cd /usr/lib/primus-yarn/tests
+$ python3 -m robot --variable PRIMUS_HOME:/usr/lib/primus-yarn --variable HADOOP_HOME:/usr/lib/hadoop --variable KAFKA_HOME:/usr/lib/kafka basics.robot 
 ```
 
 ### Primus UI
 
-Having been support various data technologies for years, YARN cluster require much less settings to
-integrate Primus UI when compared to Kubernetes clusters. As illustrated in the diagram below, many
-of the components are actually from Hadoop ecosystem.
-
-![](images/pbvm-yarn.jpg)
-
-Next, components inside PBVM have to be port-forwarded to serve external requests, where the
-suggested mapping are listed below, and again matching host and quests ports are encouraged for the
-same reason.
+For the same reason for components in the baseline Kubernetes environment, components in baseline
+YARN environment have to be forwarded to serve external requests, where the suggested mapping are
+listed below.
 
 | Name                         | Protocol | Host Port | Guest Port |
 |------------------------------|----------|-----------|------------|
@@ -339,23 +282,10 @@ same reason.
 However, since customized application master URLs are not supported by YARN and proxies are not
 adopted in baseline-yarn environment, we have to extend the hostname mappings on the host machine by
 pointing the hostname of PBVM to 127.0.0.1, through which requests will be eventually redirected to
-components inside PBVM via the forwarded ports configured earlier.
+components inside PBVM via the forwarded ports configured slightly earlier.
 
 ```bash
 $ sudo cat "127.0.0.1 <PBVM-HOSTNAME>" > /etc/hosts
-```
-
-Lastly, the final setup of setting up Primus UI for baseline-yarn in PBVM is launching the
-affiliating servers too.
-
-```bash
-# YARN JobHistory server
-$ cd /usr/lib/hadoop/sbin
-$ sudo ./mr-jobhistory-daemon.sh --config ../etc/hadoop start historyserver
-
-# Primus history server
-$ cd /usr/lib/primus-yarn/sbin
-$ PRIMUS_HISTORY_PORT=17890 ./primus-history-server
 ```
 
 ### Hello Primus on YARN!
@@ -375,7 +305,7 @@ $ sbin/primus-submit --primus_conf examples/hello/primus_config.json
 ```
 
 Once again, the execution of Primus applications can be verified by either observing the logs
-through CLI or Primus UI if it has been configured start from YARN cluster UI
+through CLI or Primus UI if it has been configured starting from YARN cluster UI
 at http://localhost:8088.
 
 ```bash

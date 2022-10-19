@@ -13,8 +13,6 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
- *
- * This file may have been modified by Bytedance Inc.
  */
 
 syntax = "proto3";
@@ -70,106 +68,6 @@ message Attribute {
   map<string, string> pairs = 4;
 }
 
-message TPU {
-  enum TPU_TYPE {
-    V3_BASE = 0;
-    V3_POD = 1;
-  }
-
-  TPU_TYPE tpu_type = 1;
-  int32 num = 2;
-}
-
-message NUMA {
-  enum NIC_POLICY {
-    NIC_HOST = 0;
-    NIC_FAST = 1;
-    NIC_NUMA = 2;
-    NIC_ALL = 3;
-  }
-  NIC_POLICY nic_policy = 1;
-}
-
-message ScheduleConstraint {
-  repeated GlobalConstraint hardConstraints = 1;
-  repeated GlobalConstraint softConstraints = 2;
-}
-
-message GlobalConstraint {
-  enum ConstraintType {
-    GLOBAL_MAKE_CONTAINER_DECENTRALIZED_AVERAGE = 0;
-    GLOBAL_MAKE_NODE_QUOTA_USAGE_AVERAGE = 1;
-    NODE_SKIP_HIGH_LOAD = 2;
-    NODE_MEET_GPU_AFFINITY = 3;
-    NODE_SATISFY_ATTRIBUTES_EXPRESSION = 4;
-    NODE_LOCALITY = 5;
-    NODE_BIND_NUMA_NODE = 6;
-    NODE_NIC_POLICY = 7;
-    NODE_INTER_APP_SAME_ROLE_TOLERANCE = 8;
-    NODE_INNER_APP_SAME_ROLE_TOLERANCE = 9;
-  }
-
-  ConstraintType constraintType = 1;
-  ConstraintContent constraintContent = 2;
-  int32 constraintWeight = 4;
-}
-
-message NodeInterAppSameRoleToleranceContent {
-  // {roleName: tolerance number}
-  map<string, int32> inter_app_roles_tolerance = 1;
-}
-
-message NodeInnerAppSameRoleToleranceContent {
-  // {roleName: tolerance number}
-  map<string, int32> inner_app_roles_tolerance = 1;
-}
-
-message ConstraintContent {
-  NodeSkipHighLoadContent nodeSkipHighLoadContent = 1;
-  NodeSatisfyAttributesContent nodeSatisfyAttributesContent = 2;
-  NodeQuotaUsageAverageContent nodeQuotaUsageAverageContent = 3;
-  // NodeLocalityContent nodeLocalityContent = 4;
-  NodeGpuAffinityContent nodeGpuAffinityContent = 5;
-  NodeNicPolicyContent nodeNicPolicyContent = 6;
-  NodeInterAppSameRoleToleranceContent nodeInterAppSameRoleToleranceContent = 7;
-  NodeInnerAppSameRoleToleranceContent nodeInnerAppSameRoleToleranceContent = 8;
-}
-
-message NodeNicPolicyContent {
-  enum NicPolicy {
-    NIC_HOST = 0;
-    NIC_FAST = 1;
-    NIC_NUMA = 2;
-    NIC_ALL = 3;
-  }
-  NicPolicy nicPolicy = 1;
-}
-
-message NodeSkipHighLoadContent {
-  float load = 1;
-}
-
-message NodeGpuAffinityContent {
-  enum GPUAllocationType {
-    // random allocate
-    ALL_INSERTABLE_POSITIONS = 0;
-    // continuous position allocate
-    CONTINUOUS_POSITIONS = 1;
-    // network card affinity, not support yet
-    MAXIMUM_DATA_TRANSMISSION_RATE = 2;
-  }
-  GPUAllocationType gpuAllocationType = 1;
-  string affinityRequirement = 2;
-}
-
-message NodeSatisfyAttributesContent {
-  string nodeAttributeExpression = 1;
-}
-
-message NodeQuotaUsageAverageContent {
-  string resourceInformation = 1;
-}
-
 message ScheduleStrategy {
   enum RoleCategory {
     UNKNOWN = 0;
@@ -206,27 +104,15 @@ message Role {
   int32 success_percent = 13;
   Attribute attribute = 14;
   int32 port_num = 15;
-  bool use_yarn_registry = 16;
-  // in seconds
-  int32 yarn_registry_update_intreval = 17;
   InputManagerMode input_manager_mode = 18;
   bool is_evaluation = 19;
-  TPU tpu = 20;
   bool gpu_soft_constraint = 21;
-  bool consul = 22;
   bool use_tf_data_service = 23;
-  NUMA numa = 24;
 
-  ScheduleConstraint schedule_constraint = 25;
-  ConsulConfig consul_config = 26;
   PluginConfig plugin_config = 27;
   YarnScheduler role_scheduler = 28;
   ScheduleStrategy schedule_strategy = 29;
   int32 min_num = 30;
-}
-
-message ConsulConfig {
-  google.protobuf.Int32Value port_register_num = 1;
 }
 
 message PluginConfig {
@@ -465,7 +351,6 @@ message Scheduler {
   bool enable_update_resource = 16;
   KubernetesScheduler kubernetes_scheduler = 17;
   bool disable_container_succeed_app = 18;
-  ScheduleConstraint am_schedule_constraint = 19;
 }
 
 enum ProgressManagerType {

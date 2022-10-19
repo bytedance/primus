@@ -1,0 +1,17 @@
+[Unit]
+Description=YARN JobHistory server
+After=hdfs.service
+Requires=network-online.target
+
+[Service]
+User=root
+Group=root
+Type=forking
+ExecStart=/usr/lib/hadoop/sbin/mr-jobhistory-daemon.sh --config /usr/lib/hadoop/etc/hadoop start historyserver
+ExecStop=/usr/lib/hadoop/sbin/mr-jobhistory-daemon.sh  --config /usr/lib/hadoop/etc/hadoop stop  historyserver
+RemainAfterExit=yes
+TimeoutStartSec=1min
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

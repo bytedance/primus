@@ -66,8 +66,11 @@ cp -rf deployments/baseline-kubernetes/conf/* output/conf
 mkdir -p output/sbin
 cp -rf deployments/baseline-kubernetes/sbin/* output/sbin
 
+mkdir -p output/resources
+cp -rf deployments/baseline-kubernetes/resources/* output/resources
+
 mkdir -p output/examples
 cp -rf examples/* output/examples
 
-mkdir -p output/resources
-cp -rf deployments/baseline-kubernetes/resources/* output/resources
+mkdir -p output/tests
+cp -rf deployments/baseline-kubernetes/tests/* output/tests

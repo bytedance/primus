@@ -8,7 +8,7 @@ and [quickstart](docs/primus-quickstart.md).
 ## Building Primus
 
 Primus is built using [Apache Maven](https://maven.apache.org/).
-To build Spark and its example programs, run:
+To build Primus and its example programs, run:
 
 ```bash
 mvn -DskipTests clean package
