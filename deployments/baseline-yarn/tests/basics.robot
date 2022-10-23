@@ -126,40 +126,40 @@ input-file-text
   ${application_id} =  Submit Primus Application  ${PRIMUS_HOME}/examples/input-file-text/primus_config.json
 
   # Check Primus application logs
-  ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-file-text" | cut -d$'\t' -f2-
+  ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-file-text"
   ${hello_expected} =  Create List
-  Append To List  ${hello_expected}  Hello from input-file-text: 0-0
-  Append To List  ${hello_expected}  Hello from input-file-text: 0-1
-  Append To List  ${hello_expected}  Hello from input-file-text: 0-2
-  Append To List  ${hello_expected}  Hello from input-file-text: 0-3
-  Append To List  ${hello_expected}  Hello from input-file-text: 0-4
-  Append To List  ${hello_expected}  Hello from input-file-text: 0-5
-  Append To List  ${hello_expected}  Hello from input-file-text: 0-6
-  Append To List  ${hello_expected}  Hello from input-file-text: 0-7
-  Append To List  ${hello_expected}  Hello from input-file-text: 1-0
-  Append To List  ${hello_expected}  Hello from input-file-text: 1-1
-  Append To List  ${hello_expected}  Hello from input-file-text: 1-2
-  Append To List  ${hello_expected}  Hello from input-file-text: 1-3
-  Append To List  ${hello_expected}  Hello from input-file-text: 1-4
-  Append To List  ${hello_expected}  Hello from input-file-text: 1-5
-  Append To List  ${hello_expected}  Hello from input-file-text: 1-6
-  Append To List  ${hello_expected}  Hello from input-file-text: 1-7
-  Append To List  ${hello_expected}  Hello from input-file-text: 2-0
-  Append To List  ${hello_expected}  Hello from input-file-text: 2-1
-  Append To List  ${hello_expected}  Hello from input-file-text: 2-2
-  Append To List  ${hello_expected}  Hello from input-file-text: 2-3
-  Append To List  ${hello_expected}  Hello from input-file-text: 2-4
-  Append To List  ${hello_expected}  Hello from input-file-text: 2-5
-  Append To List  ${hello_expected}  Hello from input-file-text: 2-6
-  Append To List  ${hello_expected}  Hello from input-file-text: 2-7
-  Append To List  ${hello_expected}  Hello from input-file-text: 3-0
-  Append To List  ${hello_expected}  Hello from input-file-text: 3-1
-  Append To List  ${hello_expected}  Hello from input-file-text: 3-2
-  Append To List  ${hello_expected}  Hello from input-file-text: 3-3
-  Append To List  ${hello_expected}  Hello from input-file-text: 3-4
-  Append To List  ${hello_expected}  Hello from input-file-text: 3-5
-  Append To List  ${hello_expected}  Hello from input-file-text: 3-6
-  Append To List  ${hello_expected}  Hello from input-file-text: 3-7
+  Append To List  ${hello_expected}  0\tHello from input-file-text: 0-0
+  Append To List  ${hello_expected}  32\tHello from input-file-text: 0-1
+  Append To List  ${hello_expected}  64\tHello from input-file-text: 0-2
+  Append To List  ${hello_expected}  96\tHello from input-file-text: 0-3
+  Append To List  ${hello_expected}  128\tHello from input-file-text: 0-4
+  Append To List  ${hello_expected}  160\tHello from input-file-text: 0-5
+  Append To List  ${hello_expected}  192\tHello from input-file-text: 0-6
+  Append To List  ${hello_expected}  224\tHello from input-file-text: 0-7
+  Append To List  ${hello_expected}  0\tHello from input-file-text: 1-0
+  Append To List  ${hello_expected}  32\tHello from input-file-text: 1-1
+  Append To List  ${hello_expected}  64\tHello from input-file-text: 1-2
+  Append To List  ${hello_expected}  96\tHello from input-file-text: 1-3
+  Append To List  ${hello_expected}  128\tHello from input-file-text: 1-4
+  Append To List  ${hello_expected}  160\tHello from input-file-text: 1-5
+  Append To List  ${hello_expected}  192\tHello from input-file-text: 1-6
+  Append To List  ${hello_expected}  224\tHello from input-file-text: 1-7
+  Append To List  ${hello_expected}  0\tHello from input-file-text: 2-0
+  Append To List  ${hello_expected}  32\tHello from input-file-text: 2-1
+  Append To List  ${hello_expected}  64\tHello from input-file-text: 2-2
+  Append To List  ${hello_expected}  96\tHello from input-file-text: 2-3
+  Append To List  ${hello_expected}  128\tHello from input-file-text: 2-4
+  Append To List  ${hello_expected}  160\tHello from input-file-text: 2-5
+  Append To List  ${hello_expected}  192\tHello from input-file-text: 2-6
+  Append To List  ${hello_expected}  224\tHello from input-file-text: 2-7
+  Append To List  ${hello_expected}  0\tHello from input-file-text: 3-0
+  Append To List  ${hello_expected}  32\tHello from input-file-text: 3-1
+  Append To List  ${hello_expected}  64\tHello from input-file-text: 3-2
+  Append To List  ${hello_expected}  96\tHello from input-file-text: 3-3
+  Append To List  ${hello_expected}  128\tHello from input-file-text: 3-4
+  Append To List  ${hello_expected}  160\tHello from input-file-text: 3-5
+  Append To List  ${hello_expected}  192\tHello from input-file-text: 3-6
+  Append To List  ${hello_expected}  224\tHello from input-file-text: 3-7
 
   Lists Should Be Equal  ${hello_captured}  ${hello_expected}  ignore_order=True
 
@@ -172,24 +172,24 @@ input-file-text-timerange
   ${application_id} =  Submit Primus Application  ${PRIMUS_HOME}/examples/input-file-text-timerange/primus_config.json
 
   # Check Primus application logs
-  ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-file-text-timerange" | cut -d$'\t' -f2-
+  ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-file-text-timerange"
   ${hello_expected} =  Create List
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-01 - 0
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-01 - 1
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-01 - 2
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-01 - 3
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-02 - 0
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-02 - 1
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-02 - 2
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-02 - 3
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-03 - 0
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-03 - 1
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-03 - 2
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-03 - 3
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-04 - 0
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-04 - 1
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-04 - 2
-  Append To List  ${hello_expected}  Hello from input-file-text-timerange: 2020-01-04 - 3
+  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange: 2020-01-01 - 0
+  Append To List  ${hello_expected}  53\tHello from input-file-text-timerange: 2020-01-01 - 1
+  Append To List  ${hello_expected}  106\tHello from input-file-text-timerange: 2020-01-01 - 2
+  Append To List  ${hello_expected}  159\tHello from input-file-text-timerange: 2020-01-01 - 3
+  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange: 2020-01-02 - 0
+  Append To List  ${hello_expected}  53\tHello from input-file-text-timerange: 2020-01-02 - 1
+  Append To List  ${hello_expected}  106\tHello from input-file-text-timerange: 2020-01-02 - 2
+  Append To List  ${hello_expected}  159\tHello from input-file-text-timerange: 2020-01-02 - 3
+  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange: 2020-01-03 - 0
+  Append To List  ${hello_expected}  53\tHello from input-file-text-timerange: 2020-01-03 - 1
+  Append To List  ${hello_expected}  106\tHello from input-file-text-timerange: 2020-01-03 - 2
+  Append To List  ${hello_expected}  159\tHello from input-file-text-timerange: 2020-01-03 - 3
+  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange: 2020-01-04 - 0
+  Append To List  ${hello_expected}  53\tHello from input-file-text-timerange: 2020-01-04 - 1
+  Append To List  ${hello_expected}  106\tHello from input-file-text-timerange: 2020-01-04 - 2
+  Append To List  ${hello_expected}  159\tHello from input-file-text-timerange: 2020-01-04 - 3
 
   Lists Should Be Equal  ${hello_captured}  ${hello_expected}  ignore_order=True
 

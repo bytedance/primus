@@ -22,16 +22,12 @@ package com.bytedance.primus.executor.task.file;
 import com.bytedance.primus.api.records.SplitTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskState;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;
 import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.task.WorkerFeeder;
-import com.bytedance.primus.io.datasource.file.impl.raw.RawMessageBuilder;
-import com.bytedance.primus.io.datasource.file.impl.text.TextMessageBuilder;
+import com.bytedance.primus.io.datasource.file.FileDataSource;
 import com.bytedance.primus.io.messagebuilder.MessageBuilder;
-import java.io.IOException;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
-import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,35 +36,29 @@ public class CommonFileTaskRunner extends FileTaskRunner {
 
   private static final Logger LOG = LoggerFactory.getLogger(CommonFileTaskRunner.class);
 
-  private final InputTypeCase inputType; // TODO: Create DataSourceAPI to avoid depending on switch cases.
+  private final FileDataSource fileDataSource;
   private final FileSplit fileSplit;
+  private final String source;
+
   private RecordReader<Object, Object> recordReader;
   private MessageBuilder messageBuilder;
-  private final String source;
 
   public CommonFileTaskRunner(
       Task task,
       ExecutorContext context,
       WorkerFeeder workerFeeder
-  ) throws IOException {
+  ) {
     super(task, context, workerFeeder);
 
     SplitTask splitTask = task.getSplitTask();
-    inputType = splitTask.getSpec().getInputTypeCase();
-    source = task.getSource();
-    switch (inputType) {
-      case RAW_INPUT:
-      case TEXT_INPUT:
-        this.fileSplit = new FileSplit(
-            new Path(splitTask.getPath()),
-            splitTask.getStart(),
-            splitTask.getLength(),
-            (String[]) null
-        );
-        break;
-      default:
-        throw new IOException("Unsupported input type " + inputType);
-    }
+    this.fileDataSource = FileDataSource.load(task.getSplitTask().getSpec());
+    this.fileSplit = new FileSplit(
+        new Path(splitTask.getPath()),
+        splitTask.getStart(),
+        splitTask.getLength(),
+        (String[]) null
+    );
+    this.source = task.getSource();
 
     LOG.info("Init task runner, group[" + task.getGroup()
         + ", taskId[" + task.getTaskId() + "]"
@@ -78,37 +68,17 @@ public class CommonFileTaskRunner extends FileTaskRunner {
         + ", path[" + splitTask.getPath() + "]"
         + ", start[" + splitTask.getStart() + "]"
         + ", length[" + splitTask.getLength() + "]"
-        + ", inputType[" + inputType + "]");
+        + ", spec[" + splitTask.getSpec() + "]");
   }
 
   @Override
   public void init() throws Exception {
     try {
-      this.recordReader = createRecordReader(jobConf, inputType);
-      this.messageBuilder = createMessageBuilder(inputType);
+      this.recordReader = fileDataSource.createRecordReader(jobConf, fileSplit);
+      this.messageBuilder = fileDataSource.createMessageBuilder(getMessageBufferSize());
     } catch (Exception e) {
       this.taskStatus.setTaskState(TaskState.FAILED);
       throw e;
-    }
-  }
-
-  private RecordReader<Object, Object> createRecordReader(
-      JobConf jobConf,
-      InputTypeCase inputType
-  ) throws Exception {
-    return createInputFormat(jobConf, inputType).getRecordReader(fileSplit, jobConf, taskReporter);
-  }
-
-  public MessageBuilder createMessageBuilder(InputTypeCase inputType)
-      throws IOException {
-    int messageBufferSize = getMessageBufferSize();
-    switch (inputType) {
-      case TEXT_INPUT:
-        return new TextMessageBuilder(messageBufferSize);
-      case RAW_INPUT:
-        return new RawMessageBuilder(messageBufferSize);
-      default:
-        throw new IOException("Unsupported file input type: " + inputType);
     }
   }
 
@@ -119,7 +89,7 @@ public class CommonFileTaskRunner extends FileTaskRunner {
 
   @Override
   public RecordReader<Object, Object> createRecordReader() throws Exception {
-    recordReader = createRecordReader(jobConf, inputType);
+    this.recordReader = fileDataSource.createRecordReader(jobConf, fileSplit);
     return recordReader;
   }
 

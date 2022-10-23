@@ -29,7 +29,6 @@ import com.bytedance.primus.am.ApplicationMasterEvent;
 import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.bytedance.primus.am.datastream.file.operator.FileOperator;
 import com.bytedance.primus.am.datastream.file.operator.FileOperatorFactory;
-import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.api.records.SplitTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.impl.pb.SplitTaskPBImpl;
@@ -38,10 +37,11 @@ import com.bytedance.primus.apiserver.records.DataStreamSpec;
 import com.bytedance.primus.common.collections.Pair;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.metrics.PrimusMetrics.TimerMetric;
+import com.bytedance.primus.io.datasource.file.FileDataSource;
 import com.bytedance.primus.io.datasource.file.models.BaseSplit;
+import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.io.datasource.file.models.PrimusInput;
 import com.bytedance.primus.io.datasource.file.models.PrimusSplit;
-import com.bytedance.primus.utils.FileUtils;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
@@ -133,7 +133,8 @@ public class FileTaskBuilder {
       try {
         if (input instanceof PrimusInput) {
           PrimusInput primusInput = (PrimusInput) input;
-          result = new ArrayList<>(FileUtils.scanPattern(primusInput, fileSystem, conf));
+          FileDataSource source = FileDataSource.load(primusInput.getSpec());
+          result = new ArrayList<>(source.scanPattern(fileSystem, primusInput));
         }
         break;
       } catch (AccessControlException e) {

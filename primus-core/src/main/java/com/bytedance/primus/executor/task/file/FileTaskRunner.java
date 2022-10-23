@@ -25,14 +25,12 @@ import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskState;
 import com.bytedance.primus.api.records.TaskStatus;
 import com.bytedance.primus.api.records.impl.pb.TaskStatusPBImpl;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.task.TaskRemovedEvent;
 import com.bytedance.primus.executor.task.TaskRunner;
 import com.bytedance.primus.executor.task.WorkerFeeder;
 import com.bytedance.primus.executor.timeline.TimeLineConfigHelper;
-import com.bytedance.primus.io.datasource.file.impl.raw.RawInputFormat;
 import com.bytedance.primus.io.messagebuilder.MessageBuilder;
 import com.bytedance.primus.utils.PrimusConstants;
 import com.bytedance.primus.utils.timeline.TimelineLogger;
@@ -48,12 +46,8 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.hadoop.hdfs.BlockMissingException;
-import org.apache.hadoop.io.Writable;
-import org.apache.hadoop.mapred.InputFormat;
 import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
-import org.apache.hadoop.mapred.Reporter;
-import org.apache.hadoop.mapred.TextInputFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -67,7 +61,6 @@ public abstract class FileTaskRunner implements TaskRunner {
   protected JobConf jobConf;
   protected volatile TaskStatus taskStatus;
   protected volatile TaskCheckpoint taskCheckpoint;
-  protected Reporter taskReporter;
 
   private volatile boolean isStopped;
   private Thread feedThread;
@@ -90,7 +83,6 @@ public abstract class FileTaskRunner implements TaskRunner {
     this.taskStatus.setLastAssignTime(new Date().getTime());
     LOG.info("Start task, " + taskStatus);
     taskCheckpoint = new TaskCheckpoint();
-    this.taskReporter = new TaskReporter();
     this.isStopped = false;
     this.feedThread =
         new FeedThread(context.getTimelineLogger(), context.getExecutorId().toString());
@@ -357,26 +349,6 @@ public abstract class FileTaskRunner implements TaskRunner {
         feedThreadPool.shutdownNow();
       }
     }
-  }
-
-  public InputFormat createInputFormat(JobConf jobConf, InputTypeCase inputType) {
-    InputFormat inputFormat;
-    try {
-      switch (inputType) {
-        case RAW_INPUT:
-          inputFormat = (InputFormat<Writable, Writable>) Class
-              .forName(RawInputFormat.class.getCanonicalName()).newInstance();
-          break;
-        case TEXT_INPUT:
-        default:
-          inputFormat = (InputFormat<Writable, Writable>) Class
-              .forName(TextInputFormat.class.getCanonicalName()).newInstance();
-          break;
-      }
-    } catch (Exception e) {
-      throw new RuntimeException("Failed to create input format", e);
-    }
-    return inputFormat;
   }
 
   protected int getMessageBufferSize() {

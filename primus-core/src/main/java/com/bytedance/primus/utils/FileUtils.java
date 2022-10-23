@@ -24,11 +24,10 @@ import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.Inpu
 import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase.TEXT_INPUT;
 
 import com.bytedance.primus.am.datastream.file.FileSourceInput;
-import com.bytedance.primus.io.datasource.file.models.PrimusInput;
-import com.bytedance.primus.io.datasource.file.models.PrimusSplit;
-import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.apiserver.proto.DataProto;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;
+import com.bytedance.primus.io.datasource.file.models.Input;
+import com.bytedance.primus.io.datasource.file.models.PrimusInput;
 import com.bytedance.primus.proto.PrimusCommon.DayFormat;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.google.protobuf.Message;
@@ -41,15 +40,12 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.NoSuchFileException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.SortedSet;
-import java.util.TreeSet;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -113,52 +109,6 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
     } else {
       return RAW_INPUT;
     }
-  }
-
-  public static SortedSet<PrimusSplit> scanPattern(PrimusInput input, FileSystem fs,
-      Configuration conf) throws IllegalArgumentException, IOException {
-    SortedSet<PrimusSplit> ret = new TreeSet<>();
-    switch (input.getSpec().getInputTypeCase()) {
-      case RAW_INPUT:
-      case TEXT_INPUT: {
-        FileStatus[] matches = fs.globStatus(new Path(input.getPath()));
-        if (matches == null) {
-          throw new NoSuchFileException("Input path does not exist: " + input.getPath());
-        } else if (matches.length == 0) {
-          throw new NoSuchFileException("Input Pattern " + input.getPath() + " matches 0 files");
-        }
-        for (FileStatus globStat : matches) {
-          FileStatus[] fileStatuses;
-          if (globStat.isDirectory()) {
-            // scan sub-directory if current globStat directory is day+hour path (YYYYMMDD/HH)
-            fileStatuses = fs.listStatus(new Path(globStat.getPath().toUri().getPath()));
-          } else {
-            fileStatuses = new FileStatus[]{globStat};
-          }
-          for (FileStatus fileStatus : fileStatuses) {
-            Path pathForFilter = new Path(globStat.getPath(), fileStatus.getPath());
-            if (isIgnoredFile(pathForFilter)) {
-              continue;
-            }
-            PrimusSplit split = new PrimusSplit(
-                input.getSourceId(),
-                input.getSource(),
-                fileStatus.getPath().toString(),
-                0, // Start
-                fileStatus.getLen(), // Length
-                input.getKey(),
-                input.getSpec()
-            );
-            ret.add(split);
-          }
-        }
-        break;
-      }
-      default:
-        throw new IllegalArgumentException(
-            "Unsupported input type: " + input.getSpec().getInputTypeCase());
-    }
-    return ret;
   }
 
   public static Message buildMessageFromJson(String jsonPath, Message.Builder builder)
