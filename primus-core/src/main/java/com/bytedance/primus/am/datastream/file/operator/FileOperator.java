@@ -21,6 +21,7 @@ package com.bytedance.primus.am.datastream.file.operator;
 
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy;
 import com.bytedance.primus.common.collections.Pair;
+import com.bytedance.primus.io.datasource.file.models.Input;
 import java.util.List;
 
 public interface FileOperator<T extends Input> {

@@ -17,14 +17,14 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.io.messagebuilder;
+package com.bytedance.primus.io.datasource.kafka;
 
+import com.bytedance.primus.io.messagebuilder.MessageBuilder;
 import java.io.IOException;
-import org.apache.hadoop.io.BytesWritable;
 
-public class RawMessageBuilder extends MessageBuilder {
+public class KafkaRawMessageBuilder extends MessageBuilder {
 
-  public RawMessageBuilder(int bufferSize) {
+  public KafkaRawMessageBuilder(int bufferSize) {
     super(bufferSize);
   }
 
@@ -34,7 +34,8 @@ public class RawMessageBuilder extends MessageBuilder {
 
   @Override
   protected void writeValue(Object value) throws IOException {
-    BytesWritable tmpValue = (BytesWritable) value;
-    buffer.put(tmpValue.getBytes(), 0, tmpValue.getLength());
+    byte[] bval = (byte[]) value;
+    int valSize = bval.length;
+    buffer.put(bval, 0, valSize);
   }
 }

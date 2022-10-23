@@ -24,8 +24,8 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertTrue;
 
-import com.bytedance.primus.am.datastream.file.PrimusInput;
-import com.bytedance.primus.am.datastream.file.PrimusSplit;
+import com.bytedance.primus.io.datasource.file.models.PrimusInput;
+import com.bytedance.primus.io.datasource.file.models.PrimusSplit;
 import com.bytedance.primus.am.datastream.file.operator.op.MapDelay;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;

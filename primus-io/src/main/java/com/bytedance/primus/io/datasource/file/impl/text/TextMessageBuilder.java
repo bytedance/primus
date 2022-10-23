@@ -17,27 +17,50 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.io.messagebuilder;
+package com.bytedance.primus.io.datasource.file.impl.text;
 
+import com.bytedance.primus.io.messagebuilder.MessageBuilder;
 import java.io.IOException;
+import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.Text;
 
-public class KafkaJsonMessageBuilder extends MessageBuilder {
+public class TextMessageBuilder extends MessageBuilder {
 
+  private static final byte[] FIELD_SEPERATOR = "\t".getBytes();
   private static final byte[] LINE_SEPERATOR = "\n".getBytes();
 
-  public KafkaJsonMessageBuilder(int bufferSize) {
+  public TextMessageBuilder(int bufferSize) {
     super(bufferSize);
   }
 
   @Override
   protected void writeKey(Object key) throws IOException {
+    writeUTF8(key);
+    buffer.put(FIELD_SEPERATOR, 0, FIELD_SEPERATOR.length);
   }
 
   @Override
   protected void writeValue(Object value) throws IOException {
-    byte[] bval = (byte[]) value;
-    int valSize = bval.length;
-    buffer.put(bval, 0, valSize);
+    writeUTF8(value);
     buffer.put(LINE_SEPERATOR, 0, LINE_SEPERATOR.length);
+  }
+
+  private void writeUTF8(Object object) throws IOException {
+    byte[] bval;
+    int valSize;
+    if (object instanceof BytesWritable) {
+      BytesWritable val = (BytesWritable) object;
+      bval = val.getBytes();
+      valSize = val.getLength();
+    } else if (object instanceof Text) {
+      Text val = (Text) object;
+      bval = val.getBytes();
+      valSize = val.getLength();
+    } else {
+      String sval = object.toString();
+      bval = sval.getBytes("UTF-8");
+      valSize = bval.length;
+    }
+    buffer.put(bval, 0, valSize);
   }
 }

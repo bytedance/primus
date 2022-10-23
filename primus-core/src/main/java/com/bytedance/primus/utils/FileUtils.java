@@ -24,9 +24,9 @@ import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.Inpu
 import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase.TEXT_INPUT;
 
 import com.bytedance.primus.am.datastream.file.FileSourceInput;
-import com.bytedance.primus.am.datastream.file.PrimusInput;
-import com.bytedance.primus.am.datastream.file.PrimusSplit;
-import com.bytedance.primus.am.datastream.file.operator.Input;
+import com.bytedance.primus.io.datasource.file.models.PrimusInput;
+import com.bytedance.primus.io.datasource.file.models.PrimusSplit;
+import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.apiserver.proto.DataProto;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;
 import com.bytedance.primus.proto.PrimusCommon.DayFormat;

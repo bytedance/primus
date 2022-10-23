@@ -32,7 +32,7 @@ import com.bytedance.primus.executor.task.TaskRemovedEvent;
 import com.bytedance.primus.executor.task.TaskRunner;
 import com.bytedance.primus.executor.task.WorkerFeeder;
 import com.bytedance.primus.executor.timeline.TimeLineConfigHelper;
-import com.bytedance.primus.io.file.inputformat.RawInputFormat;
+import com.bytedance.primus.io.datasource.file.impl.raw.RawInputFormat;
 import com.bytedance.primus.io.messagebuilder.MessageBuilder;
 import com.bytedance.primus.utils.PrimusConstants;
 import com.bytedance.primus.utils.timeline.TimelineLogger;

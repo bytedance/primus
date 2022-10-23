@@ -17,28 +17,25 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.io.messagebuilder;
+package com.bytedance.primus.io.datasource.file.impl.raw;
 
+import com.bytedance.primus.io.messagebuilder.MessageBuilder;
 import java.io.IOException;
 import org.apache.hadoop.io.BytesWritable;
 
-public class PbMessageBuilder extends MessageBuilder {
+public class RawMessageBuilder extends MessageBuilder {
 
-  public PbMessageBuilder(int bufferSize) {
+  public RawMessageBuilder(int bufferSize) {
     super(bufferSize);
   }
 
   @Override
   protected void writeKey(Object key) throws IOException {
-    BytesWritable tmpKey = (BytesWritable) key;
-    buffer.putLong(Long.reverseBytes(tmpKey.getLength()));
-    buffer.put(tmpKey.getBytes(), 0, tmpKey.getLength());
   }
 
   @Override
   protected void writeValue(Object value) throws IOException {
     BytesWritable tmpValue = (BytesWritable) value;
-    buffer.putLong(Long.reverseBytes(tmpValue.getLength()));
     buffer.put(tmpValue.getBytes(), 0, tmpValue.getLength());
   }
 }

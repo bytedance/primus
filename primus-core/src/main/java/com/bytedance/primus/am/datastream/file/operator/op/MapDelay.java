@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.am.datastream.file.operator.op;
 
-import com.bytedance.primus.am.datastream.file.operator.Input;
+import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorConf;
 import com.bytedance.primus.common.collections.Pair;
 import com.bytedance.primus.utils.TimeUtils;

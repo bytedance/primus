@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.io.file.inputformat;
+package com.bytedance.primus.io.datasource.file.impl.raw;
 
 import java.io.DataInputStream;
 import java.io.IOException;

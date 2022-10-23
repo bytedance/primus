@@ -17,13 +17,16 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.io.messagebuilder;
+package com.bytedance.primus.io.datasource.kafka;
 
+import com.bytedance.primus.io.messagebuilder.MessageBuilder;
 import java.io.IOException;
 
-public class KafkaRawMessageBuilder extends MessageBuilder {
+public class KafkaJsonMessageBuilder extends MessageBuilder {
 
-  public KafkaRawMessageBuilder(int bufferSize) {
+  private static final byte[] LINE_SEPERATOR = "\n".getBytes();
+
+  public KafkaJsonMessageBuilder(int bufferSize) {
     super(bufferSize);
   }
 
@@ -36,5 +39,6 @@ public class KafkaRawMessageBuilder extends MessageBuilder {
     byte[] bval = (byte[]) value;
     int valSize = bval.length;
     buffer.put(bval, 0, valSize);
+    buffer.put(LINE_SEPERATOR, 0, LINE_SEPERATOR.length);
   }
 }

@@ -17,9 +17,8 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.am.datastream.file;
+package com.bytedance.primus.io.datasource.file.models;
 
-import com.bytedance.primus.am.datastream.file.operator.Input;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
