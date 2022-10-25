@@ -27,7 +27,7 @@ import com.bytedance.primus.executor.PrimusExecutorConf;
 import com.bytedance.primus.executor.exception.PrimusExecutorException;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.utils.FileUtils;
+import com.bytedance.primus.utils.ConfigurationUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.slf4j.Logger;
@@ -90,7 +90,7 @@ public class ContainerMain {
 
     PrimusConfOuterClass.PrimusConf primusConf;
     try {
-      primusConf = FileUtils.buildPrimusConf(configPath);
+      primusConf = ConfigurationUtils.loadPrimusConf(configPath);
     } catch (Exception e) {
       throw new PrimusExecutorException(
           "Config parse failed", e, ExecutorExitCode.CONFIG_PARSE_ERROR.getValue());

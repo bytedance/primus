@@ -33,7 +33,7 @@ import com.bytedance.primus.apiserver.records.ExecutorSpec;
 import com.bytedance.primus.apiserver.records.RoleSpec;
 import com.bytedance.primus.apiserver.records.impl.ExecutorSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.RoleSpecImpl;
-import com.bytedance.primus.client.SubmitCmdRunner;
+import com.bytedance.primus.client.ClientCmdRunner;
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
 import com.bytedance.primus.common.util.Sleeper;
 import com.bytedance.primus.common.util.StringUtils;
@@ -48,7 +48,7 @@ import com.bytedance.primus.runtime.kubernetesnative.common.pods.PrimusPodContex
 import com.bytedance.primus.runtime.kubernetesnative.runtime.monitor.MonitorInfoProviderImpl;
 import com.bytedance.primus.runtime.kubernetesnative.utils.StorageHelper;
 import com.bytedance.primus.utils.ConfigurationUtils;
-import com.bytedance.primus.utils.FileUtils;
+import com.bytedance.primus.utils.PrimusConstants;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Longs;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
@@ -57,18 +57,20 @@ import java.io.File;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class KubernetesSubmitCmdRunner extends SubmitCmdRunner {
+public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
 
   private static final Logger LOG = LoggerFactory.getLogger(KubernetesSubmitCmdRunner.class);
   private static final String DEFAULT_CONFIG_FILENAME = "default.conf";
@@ -118,7 +120,7 @@ public class KubernetesSubmitCmdRunner extends SubmitCmdRunner {
     File defaultConfFile = new File(defaultConfFilePath.toString());
     if (defaultConfFile.exists()) {
       LOG.info("Loading default config from {}", defaultConfFilePath);
-      PrimusConf dataCenterConf = FileUtils.buildPrimusConf(defaultConfFilePath.toString());
+      PrimusConf dataCenterConf = ConfigurationUtils.loadPrimusConf(defaultConfFilePath.toString());
       builder.mergeFrom(dataCenterConf);
     } else {
       LOG.warn("Missing default config file at {}", defaultConfFilePath);
@@ -287,7 +289,7 @@ public class KubernetesSubmitCmdRunner extends SubmitCmdRunner {
     defaultFileSystem.addToLocalResource(new Path(primusJarDir, PRIMUS_JAR), PRIMUS_JAR_PATH);
 
     // Kubernetes Native files!
-    defaultFileSystem.addToLocalResources(Environment.getKubernetesNativeLocalResourcePaths());
+    defaultFileSystem.addToLocalResources(getKubernetesNativeLocalResourcePaths());
 
     // User Specified files
     String[] files = primusConf.getFilesList().toArray(new String[0]);
@@ -340,5 +342,23 @@ public class KubernetesSubmitCmdRunner extends SubmitCmdRunner {
     context.setRuntimeConf(primusConf.getRuntimeConf());
 
     return context;
+  }
+
+  // Local resources needed for Kubernetes Native (HDFS + KubeConfig + Container scripts)
+  private Path[] getKubernetesNativeLocalResourcePaths() {
+    // Container scripts
+    Path containerScriptDir = new Path(
+        System.getenv(PrimusConstants.PRIMUS_SBIN_DIR_ENV_KEY),
+        KubernetesConstants.CONTAINER_SCRIPT_DIR_PATH
+    );
+
+    ArrayList<Path> ret = Arrays.stream(new String[]{
+            KubernetesConstants.CONTAINER_SCRIPT_START_DRIVER_FILENAME,
+            KubernetesConstants.CONTAINER_SCRIPT_START_EXECUTOR_FILENAME,
+        })
+        .map(filename -> new Path(containerScriptDir, filename))
+        .collect(Collectors.toCollection(ArrayList::new));
+
+    return ret.toArray(new Path[]{});
   }
 }

@@ -23,7 +23,7 @@ import com.bytedance.primus.am.AMCommandParser;
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.am.ApplicationMaster;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.utils.FileUtils;
+import com.bytedance.primus.utils.ConfigurationUtils;
 import org.apache.commons.cli.CommandLine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +35,7 @@ public class ApplicationMasterMain {
   public static void main(String[] args) throws Exception {
     CommandLine cmd = AMCommandParser.getCmd(args);
     String configPath = cmd.getOptionValue(AMCommandParser.CONFIGURATION_PATH);
-    PrimusConf primusConf = FileUtils.buildPrimusConf(configPath);
+    PrimusConf primusConf = ConfigurationUtils.loadPrimusConf(configPath);
 
     run(primusConf);
   }

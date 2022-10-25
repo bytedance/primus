@@ -20,17 +20,25 @@
 package com.bytedance.primus.utils;
 
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
+import com.google.protobuf.Message;
+import com.google.protobuf.util.JsonFormat;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
 
 public abstract class ConfigurationUtils {
 
-  static public PrimusConf getMergedPrimusConf(PrimusConf... confs) {
-    PrimusConf.Builder builder = PrimusConf.newBuilder();
-    for (PrimusConf conf : confs) {
-      builder.mergeFrom(conf);
+  public static PrimusConf loadPrimusConf(String configPath) throws IOException {
+    try {
+      return (PrimusConf) buildMessageFromJson(configPath, PrimusConf.newBuilder());
+    } catch (IOException e) {
+      throw new IOException("Config parse failed", e);
     }
-    return builder.build();
   }
 
   static public Configuration newEnvConf(PrimusConf primusConf) {
@@ -43,5 +51,19 @@ public abstract class ConfigurationUtils {
     org.apache.hadoop.conf.Configuration forged = new org.apache.hadoop.conf.Configuration();
     primusConf.getYarnConfMap().forEach(forged::set);
     return forged;
+  }
+
+  static private Message buildMessageFromJson(
+      String jsonPath,
+      Message.Builder builder
+  ) throws IOException {
+    try (InputStream in = Files.newInputStream(Paths.get(jsonPath))) {
+      Reader reader = new InputStreamReader(in);
+      JsonFormat.Parser parser = JsonFormat
+          .parser()
+          .ignoringUnknownFields();
+      parser.merge(reader, builder);
+      return builder.build();
+    }
   }
 }

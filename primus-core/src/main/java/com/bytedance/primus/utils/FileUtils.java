@@ -24,20 +24,12 @@ import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.Inpu
 import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase.TEXT_INPUT;
 
 import com.bytedance.primus.am.datastream.file.FileSourceInput;
-import com.bytedance.primus.apiserver.proto.DataProto;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;
 import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.io.datasource.file.models.PrimusInput;
 import com.bytedance.primus.proto.PrimusCommon.DayFormat;
-import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.google.protobuf.Message;
-import com.google.protobuf.util.JsonFormat;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.text.ParseException;
@@ -109,29 +101,6 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
     } else {
       return RAW_INPUT;
     }
-  }
-
-  public static Message buildMessageFromJson(String jsonPath, Message.Builder builder)
-      throws IOException {
-    InputStream in = new FileInputStream(jsonPath);
-    Reader reader = new InputStreamReader(in);
-    JsonFormat.Parser parser = JsonFormat.parser().ignoringUnknownFields();
-    parser.merge(reader, builder);
-    return builder.build();
-  }
-
-  public static PrimusConf buildPrimusConf(String configPath) throws IOException {
-    try {
-      return (PrimusConf) buildMessageFromJson(configPath, PrimusConf.newBuilder());
-    } catch (IOException e) {
-      throw new IOException("Config parse failed", e);
-    }
-  }
-
-  public static DataProto.DataSpec buildDataSpec(String dataSpecPath)
-      throws IOException {
-    return (DataProto.DataSpec) buildMessageFromJson(dataSpecPath,
-        DataProto.DataSpec.newBuilder());
   }
 
   private static boolean isFileExist(FileSystem fileSystem, Path path) throws IOException {

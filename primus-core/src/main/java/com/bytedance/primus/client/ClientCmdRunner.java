@@ -19,6 +19,35 @@
 
 package com.bytedance.primus.client;
 
+import com.bytedance.primus.utils.PrimusConstants;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public interface ClientCmdRunner {
-  void run(boolean waitAppCompletion) throws Exception;
+
+  void run(boolean waitForCompletion) throws Exception;
+
+  // Defaults
+  Logger LOG = LoggerFactory.getLogger(ClientCmdRunner.class);
+
+  default String getConfDir() {
+    Map<String, String> sysEnv = System.getenv();
+    String confDir = sysEnv.get(PrimusConstants.PRIMUS_CONF_DIR_ENV_KEY);
+    if (confDir == null) {
+      LOG.error("Environment " + PrimusConstants.PRIMUS_CONF_DIR_ENV_KEY + " is not set");
+      System.exit(1);
+    }
+    return confDir;
+  }
+
+  default String getSbinDir() {
+    Map<String, String> sysEnv = System.getenv();
+    String confDir = sysEnv.get(PrimusConstants.PRIMUS_SBIN_DIR_ENV_KEY);
+    if (confDir == null) {
+      LOG.error("Environment " + PrimusConstants.PRIMUS_SBIN_DIR_ENV_KEY + " is not set");
+      System.exit(1);
+    }
+    return confDir;
+  }
 }

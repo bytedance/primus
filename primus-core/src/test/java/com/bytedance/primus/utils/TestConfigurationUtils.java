@@ -26,17 +26,17 @@ import java.util.Objects;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class TestResourceUtils {
+public class TestConfigurationUtils {
 
   @Test
-  public void testBuildJob() {
+  public void testLoadPrimusConf() {
     String root = "../examples";
     Arrays
         .stream(Objects.requireNonNull(new File(root).list()))
         .map(file -> String.join("/", root, file, "primus_config.json"))
         .forEach(path -> {
           try {
-            ResourceUtils.buildJob(FileUtils.buildPrimusConf(path));
+            ResourceUtils.buildJob(ConfigurationUtils.loadPrimusConf(path));
           } catch (IOException e) {
             Assert.assertNull("Caught an exception when processing: " + path, e);
           }

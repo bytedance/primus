@@ -33,14 +33,32 @@ public class ClientCmdParser {
 
   private static final Logger LOG = LoggerFactory.getLogger(ClientCmdParser.class);
 
+  // TODO(hopang): move from `_` to `-`.
   public static final String COMMAND = "command";
   public static final String CONF = "primus_conf";
-  public static final String ENV_CONF = "env_conf";
   public static final String WAIT = "wait_app_completion";
 
-  public static CommandLine getCmd(String[] args) {
+  private static final Option[] DEFAULT_CLI_PARAMS = {
+      newOption(
+          COMMAND,
+          "sub-command to execute",
+          true /* hasArg */,
+          true /* required */),
+      newOption(
+          CONF,
+          "path to primus configuration for the application",
+          true /* hasArg */,
+          true /* required */),
+      newOption(
+          WAIT,
+          "whether return after sub-command completion, defaults to true",
+          true /* hasArg */,
+          false /* required */),
+  };
+
+  public static CommandLine parse(String[] args, Option... additionalOptions) {
     // get conf
-    Options options = generateOption();
+    Options options = generateOption(additionalOptions);
     CommandLineParser parser = new GnuParser();
     CommandLine cmd = null;
     try {
@@ -54,26 +72,29 @@ public class ClientCmdParser {
     return cmd;
   }
 
-  private static Options generateOption() {
+  private static Options generateOption(Option... additionalOptions) {
     Options options = new Options();
-
-    Option commandOp = new Option("c", COMMAND, true, "submit");
-    commandOp.setRequired(true);
-    options.addOption(commandOp);
-
-    Option confOp = new Option("cf", CONF, true, "primus configuration");
-    confOp.setRequired(false);
-    options.addOption(confOp);
-
-    Option envConfOp = new Option("ecf", ENV_CONF, true, "additional environmental configuration");
-    envConfOp.setRequired(false);
-    options.addOption(envConfOp);
-
-    Option waitOp = new Option("w", WAIT, true, "set client wait for app"
-        + " completion, default true");
-    waitOp.setRequired(false);
-    options.addOption(waitOp);
-
+    for (Option option : DEFAULT_CLI_PARAMS) {
+      options.addOption(option);
+    }
+    for (Option option : additionalOptions) {
+      options.addOption(option);
+    }
     return options;
+  }
+
+  static public Option newOption(
+      String name,
+      String description,
+      boolean hasArg,
+      boolean required
+  ) {
+    Option option = new Option(
+        name, // ShortOptionName
+        name, // LongOptionName
+        hasArg,
+        description);
+    option.setRequired(required);
+    return option;
   }
 }
