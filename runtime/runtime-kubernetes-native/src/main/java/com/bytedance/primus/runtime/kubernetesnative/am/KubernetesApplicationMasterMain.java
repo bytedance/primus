@@ -35,7 +35,7 @@ public class KubernetesApplicationMasterMain {
   public static void main(String[] args) throws Exception {
     CommandLine cmd = AMCommandParser.getCmd(args);
     String configPath = cmd.getOptionValue(AMCommandParser.CONFIGURATION_PATH);
-    PrimusConf primusConf = ConfigurationUtils.loadPrimusConf(configPath);
+    PrimusConf primusConf = ConfigurationUtils.load(configPath);
 
     run(primusConf);
   }

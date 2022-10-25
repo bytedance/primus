@@ -143,7 +143,7 @@ public class FileTaskStore implements TaskStore {
   private Path runningTaskStatusesPath;
   private ReentrantReadWriteLock taskFileLock;  // lock for tasks* file, not including running/success/failure task
   private Path snapshotDir;
-  private FileSystem fs;
+  private final FileSystem fs;
   private int copyThreadCnt;
   private volatile boolean isStopped = false;
   private TaskSaver taskSaver;
@@ -189,7 +189,7 @@ public class FileTaskStore implements TaskStore {
     taskFileLock = new ReentrantReadWriteLock();
     snapshotDir = new Path(storeDir, SNAPSHOT_FILENAME);
 
-    fs = FileSystem.get(context.getHadoopConf());
+    fs = context.getHadoopFileSystem();
     taskSaver = new TaskSaver();
     taskLoader = new TaskLoader();
     taskPreserver = new TaskPreserver();
@@ -355,7 +355,6 @@ public class FileTaskStore implements TaskStore {
     List<TaskWrapper> tasks =
         getFailureTasksFromFs(
             context.getPrimusConf(),
-            context.getHadoopConf(),
             -1);
     tasks.addAll(failureTasks);
     return tasks;
@@ -366,7 +365,6 @@ public class FileTaskStore implements TaskStore {
     List<TaskWrapper> tasks =
         getFailureTasksFromFs(
             context.getPrimusConf(),
-            context.getHadoopConf(),
             limit
         );
     tasks.addAll(failureTasks);
@@ -413,12 +411,10 @@ public class FileTaskStore implements TaskStore {
     return new Path(snapshotDir, Integer.toString(snapshotId)).toString();
   }
 
-  public List<TaskWrapper> getFailureTasksFromFs(PrimusConf primusConf,
-      Configuration yarnConf, int limit) {
+  public List<TaskWrapper> getFailureTasksFromFs(PrimusConf primusConf, int limit) {
     try {
       String storeDir = getStoreDir(context.getApplicationNameForStorage(), name, primusConf);
       Path taskStatusesPath = new Path(storeDir, FAILURE_TASK_STATUSES_FILENAME);
-      FileSystem fs = FileSystem.get(yarnConf);
       LOG.info("Start getFinishedTasksFromFs limit: {}", limit);
       return getFinishedTasksFromFs(fs, storeDir, taskStatusesPath, limit);
     } catch (IOException e) {

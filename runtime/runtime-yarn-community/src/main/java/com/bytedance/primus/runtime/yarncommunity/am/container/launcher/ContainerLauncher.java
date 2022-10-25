@@ -274,9 +274,10 @@ public class ContainerLauncher implements EventHandler<ContainerLauncherEvent> {
           .append(ApplicationConstants.Environment.CLASSPATH.$$())
           .append(":")
           .append(PRIMUS_JAR_PATH + "/*");
-      for (String c : context.getHadoopConf().getStrings(
+      for (String c : context.getYarnConfiguration().getStrings(
           YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-          YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+          YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)
+      ) {
         classpath.append(":").append(c.trim());
       }
       envs.put("CLASSPATH", classpath.toString());

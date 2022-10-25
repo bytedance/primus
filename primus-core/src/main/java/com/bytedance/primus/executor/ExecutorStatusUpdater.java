@@ -85,7 +85,7 @@ public class ExecutorStatusUpdater extends AbstractService {
 
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
-    PrimusExecutorConf primusExecutorConf = executorContext.getPrimusConf();
+    PrimusExecutorConf primusExecutorConf = executorContext.getPrimusExecutorConf();
     amManagedChannel = ManagedChannelBuilder
         .forAddress(
             primusExecutorConf.getAmHost(),
@@ -119,7 +119,8 @@ public class ExecutorStatusUpdater extends AbstractService {
     ClusterSpec clusterSpec = null;
     RegisterResponse response = null;
     for (int times = 0;
-        clusterSpec == null && times < executorContext.getPrimusConf().getRegisterRetryTimes();
+        clusterSpec == null && times < executorContext.getPrimusExecutorConf()
+            .getRegisterRetryTimes();
         ++times) {
       LOG.info("executor " + executorContext.getExecutorId().toString() +
           " is registering, retryTimes " + times);
@@ -127,7 +128,7 @@ public class ExecutorStatusUpdater extends AbstractService {
       try {
         response = new RegisterResponsePBImpl(amBlockingStub.register(request.getProto()));
         clusterSpec = response.getClusterSpec();
-        Thread.sleep(executorContext.getPrimusConf().getHeartbeatIntervalMs());
+        Thread.sleep(executorContext.getPrimusExecutorConf().getHeartbeatIntervalMs());
       } catch (InterruptedException e) {
         // ignore
       } catch (Exception e) {
@@ -248,7 +249,7 @@ public class ExecutorStatusUpdater extends AbstractService {
               break;
           }
           try {
-            Thread.sleep(executorContext.getPrimusConf().getHeartbeatIntervalMs());
+            Thread.sleep(executorContext.getPrimusExecutorConf().getHeartbeatIntervalMs());
           } catch (InterruptedException e) {
             // ignore
           }
@@ -294,7 +295,7 @@ public class ExecutorStatusUpdater extends AbstractService {
         ++retryTimes;
       }
 
-      if (retryTimes >= executorContext.getPrimusConf().getHeartbeatRetryTimes()) {
+      if (retryTimes >= executorContext.getPrimusExecutorConf().getHeartbeatRetryTimes()) {
         throw new PrimusExecutorException("heartbeat failed",
             ExecutorExitCode.HEARTBEAT_FAIL.getValue());
       }

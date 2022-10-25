@@ -44,29 +44,30 @@ public class WorkerLaunchPluginManager {
       WorkerContext workerContext) {
     ArrayList<ChildLaunchPlugin> pluginList = new ArrayList<>();
 
-    if (executorContext.getPrimusConf().getPrimusConf().getScheduler().getSchedulePolicy()
+    if (executorContext.getPrimusExecutorConf().getPrimusConf().getScheduler().getSchedulePolicy()
         .hasPonyPolicy()) {
       log.info("add PonyPlugin");
       pluginList.add(new PonyPlugin(executorContext, workerContext));
     }
     pluginList.add(new EnvPlugin(executorContext, workerContext));
 
-    switch (executorContext.getPrimusConf().getPrimusConf().getChannelConfigCase()) {
+    switch (executorContext.getPrimusExecutorConf().getPrimusConf().getChannelConfigCase()) {
       case FIFO_PIPE:
         pluginList.add(new FifoPlugin(executorContext, workerContext));
         break;
     }
     pluginList.add(new SocketPlugin(executorContext, workerContext));
 
-    if (executorContext.getPrimusConf().getInputManager().getGracefulShutdown()
-        && executorContext.getPrimusConf().getExecutorSpec().getInputPolicy()
+    if (executorContext.getPrimusExecutorConf().getInputManager().getGracefulShutdown()
+        && executorContext.getPrimusExecutorConf().getExecutorSpec().getInputPolicy()
         .hasStreamingInputPolicy()) {
       pluginList.add(new EofPlugin(executorContext, workerContext));
     }
     pluginList.add(new PrimusConfCompatiblePlugin());
 
     PluginManager pluginManager = new PluginManager(executorContext, workerContext);
-    PluginConfig pluginConfig = executorContext.getPrimusConf().getExecutorSpec().getPluginConfig();
+    PluginConfig pluginConfig = executorContext.getPrimusExecutorConf().getExecutorSpec()
+        .getPluginConfig();
     fullFillFrameworkDefaultPlugins(pluginList, pluginManager, pluginConfig);
     fullFillPlugins(pluginList, pluginManager, pluginConfig);
 

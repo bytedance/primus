@@ -28,12 +28,12 @@ import com.bytedance.primus.apiserver.records.RoleSpec;
 import com.bytedance.primus.common.child.ChildLaunchPlugin;
 import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.worker.WorkerContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.Map;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
-import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @LaunchPlugin(value = "TfConfigPlugin", frameworkDefault = true)
 public class TfConfigPlugin implements ChildLaunchPlugin {
@@ -55,7 +55,7 @@ public class TfConfigPlugin implements ChildLaunchPlugin {
 
   @Override
   public void preStart() throws Exception {
-    Job job = executorContext.getPrimusConf().getCoreApi().listJobs().get(0);
+    Job job = executorContext.getPrimusExecutorConf().getCoreApi().listJobs().get(0);
     int totalExecutorNum = 0;
     for (RoleSpec roleSpec : job.getSpec().getRoleSpecs().values()) {
       totalExecutorNum += roleSpec.getReplicas();

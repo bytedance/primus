@@ -71,9 +71,9 @@ public class WorkerFeeder implements EventHandler<WorkerFeederEvent> {
     this.executorId = executorContext.getExecutorId().toString();
     this.lastTime = System.currentTimeMillis();
 
-    if (executorContext.getPrimusConf().getPrimusConf().getCustomMetricTagsCount() > 0) {
+    if (executorContext.getPrimusExecutorConf().getPrimusConf().getCustomMetricTagsCount() > 0) {
       ArrayList<String> tags = new ArrayList<>();
-      for (Map.Entry<String, String> tag : executorContext.getPrimusConf().getPrimusConf()
+      for (Map.Entry<String, String> tag : executorContext.getPrimusExecutorConf().getPrimusConf()
           .getCustomMetricTagsMap().entrySet()) {
         tags.add(tag.getKey() + "=" + tag.getValue());
       }
@@ -90,7 +90,7 @@ public class WorkerFeeder implements EventHandler<WorkerFeederEvent> {
 
     if (serverSocketChannel != null) {
       maxNumWorkerFeederClients = Math.max(1,
-          executorContext.getPrimusConf().getPrimusConf().getInputManager()
+          executorContext.getPrimusExecutorConf().getPrimusConf().getInputManager()
               .getMaxNumWorkerFeederClients());
       LOG.info("maxNumWorkerFeederClients: " + maxNumWorkerFeederClients);
       messageQueue = new LinkedBlockingQueue<>(maxNumPendingMessages);
@@ -110,7 +110,8 @@ public class WorkerFeeder implements EventHandler<WorkerFeederEvent> {
             int sendBufferSize = channel.getOption(StandardSocketOptions.SO_SNDBUF);
             LOG.info("Socket channel sendBufferSize: " + sendBufferSize);
             // TODO: find the optimal send buffer size that maximize the throughput
-            sendBufferSize = executorContext.getPrimusConf().getPrimusConf().getInputManager()
+            sendBufferSize = executorContext.getPrimusExecutorConf().getPrimusConf()
+                .getInputManager()
                 .getSocketSendBufferSize();
             if (sendBufferSize <= 0) {
               sendBufferSize = 100 * 1024 * 1024;

@@ -40,6 +40,7 @@ import com.bytedance.primus.common.retry.RetryCallback;
 import com.bytedance.primus.common.retry.RetryContext;
 import com.bytedance.primus.common.retry.RetryTemplate;
 import com.bytedance.primus.common.service.CompositeService;
+import com.bytedance.primus.common.util.RuntimeUtils;
 import com.bytedance.primus.common.util.Sleeper;
 import com.bytedance.primus.executor.environment.RunningEnvironment;
 import com.bytedance.primus.executor.exception.PrimusExecutorException;
@@ -79,7 +80,7 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
 
   private static final Logger LOG = LoggerFactory.getLogger(ContainerImpl.class);
 
-  private PrimusExecutorConf primusConf;
+  private PrimusExecutorConf primusExecutorConf;
   private ExecutorContext context;
   private AsyncDispatcher dispatcher;
   private ChildLauncher workerLauncher;
@@ -97,11 +98,15 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
   }
 
   public void init(
-      PrimusExecutorConf primusConf,
+      PrimusExecutorConf primusExecutorConf,
       RunningEnvironment runningEnvironment
   ) throws Exception {
-    this.primusConf = primusConf;
-    context = new ExecutorContext(this.primusConf, runningEnvironment);
+    this.primusExecutorConf = primusExecutorConf;
+    context = new ExecutorContext(
+        this.primusExecutorConf,
+        RuntimeUtils.loadHadoopFileSystem(primusExecutorConf.getPrimusConf()),
+        runningEnvironment
+    );
 
     reservedPorts = new HashSet<>();
     setupPorts();
@@ -112,7 +117,7 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
     context.setTimelineLogger(timelineLogger);
 
     NetworkConfig netWorkConfig = NetworkConfigHelper
-        .getNetworkConfig(context.getPrimusConf().getPrimusConf());
+        .getNetworkConfig(context.getPrimusExecutorConf().getPrimusConf());
     LOG.info("container Network config: " + netWorkConfig);
     context.setNetworkConfig(netWorkConfig);
 
@@ -126,7 +131,7 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
 
     LOG.info("worker feeder init...");
     int workerFeederPort = -1;
-    if (primusConf.getPrimusConf().getInputManager().getMaxNumWorkerFeederClients() > 0) {
+    if (primusExecutorConf.getPrimusConf().getInputManager().getMaxNumWorkerFeederClients() > 0) {
       workerFeederPort = setupWorkerFeederServerSocketChannel();
     }
     workerFeeder = new WorkerFeeder(context, workerFeederServerSocketChannel, workerFeederPort);
@@ -139,7 +144,7 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
 
     LOG.info("worker launcher init...");
     workerLauncher = new ChildLauncher(
-        primusConf.getPrimusConf().getRuntimeConf(),
+        primusExecutorConf.getPrimusConf().getRuntimeConf(),
         workerFeederPort);
     addService(workerLauncher);
     context.setChildLauncher(workerLauncher);
@@ -156,7 +161,7 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
     dispatcher.register(TaskRunnerManagerEventType.class, taskRunnerManager);
 
     addService(dispatcher);
-    this.init(primusConf.getEnvConf());
+    super.init();
   }
 
   @Override
@@ -175,11 +180,11 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
   }
 
   private void setupPortsForFairScheduler() throws PrimusExecutorException {
-    int portBase = primusConf.getPrimusConf().getPortRange().getBase();
-    int portSize = primusConf.getPrimusConf().getPortRange().getSize();
+    int portBase = primusExecutorConf.getPrimusConf().getPortRange().getBase();
+    int portSize = primusExecutorConf.getPrimusConf().getPortRange().getSize();
 
     int port = 0;
-    int maxRetryTimes = primusConf.getPrimusConf().getSetupPortRetryMaxTimes();
+    int maxRetryTimes = primusExecutorConf.getPrimusConf().getSetupPortRetryMaxTimes();
     if (maxRetryTimes <= 0) {
       maxRetryTimes = PrimusConstants.DEFAULT_SETUP_PORT_RETRY_MAX_TIMES;
     }
@@ -193,7 +198,8 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
     while (retryTimes < maxRetryTimes) {
       try {
         int portNum = 0;
-        for (UtilsProto.ResourceRequest r : primusConf.getExecutorSpec().getResourceRequests()) {
+        for (UtilsProto.ResourceRequest r : primusExecutorConf.getExecutorSpec()
+            .getResourceRequests()) {
           if (r.getResourceType() == ResourceType.PORT) {
             portNum = r.getValue();
             break;
@@ -228,8 +234,8 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
 
 
   private void setupPorts() throws PrimusExecutorException {
-    if (context.getPrimusConf().getPortList() == null ||
-        context.getPrimusConf().getPortList().isEmpty()
+    if (context.getPrimusExecutorConf().getPortList() == null ||
+        context.getPrimusExecutorConf().getPortList().isEmpty()
     ) {
       LOG.info("random setup ports because port list is empty");
       setupPortsForFairScheduler();
@@ -273,7 +279,7 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
   private List<ServerSocket> getServerSocketList() throws IOException {
     InetAddress inetAddress = getOrComputeFastestNetworkInterfaceAddress();
     List<ServerSocket> frameworkSocketList = new ArrayList<>();
-    for (String portStr : context.getPrimusConf().getPortList()) {
+    for (String portStr : context.getPrimusExecutorConf().getPortList()) {
       int port = Integer.parseInt(portStr);
       try {
         ServerSocket serverSocket = new ServerSocket(port, 0, inetAddress);
@@ -291,8 +297,8 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
   }
 
   private int setupWorkerFeederServerSocketChannel() {
-    int portBase = primusConf.getPrimusConf().getPortRange().getBase();
-    int portSize = primusConf.getPrimusConf().getPortRange().getSize();
+    int portBase = primusExecutorConf.getPrimusConf().getPortRange().getBase();
+    int portSize = primusExecutorConf.getPrimusConf().getPortRange().getSize();
     if (portSize <= 0) {
       portBase = 0;
       portSize = 0;
@@ -422,7 +428,7 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
   }
 
   protected void setPrimusConf(PrimusExecutorConf primusConf) {
-    this.primusConf = primusConf;
+    this.primusExecutorConf = primusConf;
   }
 
   protected void setContext(ExecutorContext context) {

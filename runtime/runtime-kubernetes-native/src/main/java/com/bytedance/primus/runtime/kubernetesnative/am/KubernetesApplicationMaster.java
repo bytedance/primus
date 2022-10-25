@@ -112,7 +112,6 @@ public class KubernetesApplicationMaster extends CompositeService implements App
   private FinalApplicationStatus finalStatus;
   private boolean needUnregister;
   private boolean isStopped = false;
-  private URI defaultFs;
   private Path stagingDir;
   private KubernetesContainerManager containerManager;
   private KubernetesAMContext context;
@@ -143,7 +142,6 @@ public class KubernetesApplicationMaster extends CompositeService implements App
     context.setDispatcher(dispatcher);
     statusDispatcher = new AsyncDispatcher("statusDispatcher");
     context.setStatusDispatcher(statusDispatcher);
-    defaultFs = FileSystem.getDefaultUri(context.getHadoopConf());
     stagingDir = new Path(context.getEnvs().get(PRIMUS_REMOTE_STAGING_DIR_ENV));
     LOG.info("Kubernetes app stagingDir:" + stagingDir);
 
@@ -158,9 +156,8 @@ public class KubernetesApplicationMaster extends CompositeService implements App
     }
 
     maxAppAttempts = primusConf.getMaxAppAttempts();
-    if (maxAppAttempts == 0) {
-      maxAppAttempts = context.getHadoopConf().getInt(
-          YarnConfiguration.RM_AM_MAX_ATTEMPTS, YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
+    if (maxAppAttempts <= 0) {
+      maxAppAttempts = YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS;
     }
 
     LOG.info("Create API server");
@@ -297,7 +294,7 @@ public class KubernetesApplicationMaster extends CompositeService implements App
         dataStreamManager);
     addService(dataSavepointController);
 
-    super.init(context.getEnvConf());
+    super.init();
   }
 
   private void createOperatorStateAPIServer(
@@ -500,9 +497,8 @@ public class KubernetesApplicationMaster extends CompositeService implements App
         context.getHdfsStore().snapshot(true, finalStatus == FinalApplicationStatus.SUCCEEDED);
         Path stagingPath = stagingDir;
         LOG.info("Cleanup staging dir: " + stagingPath);
-        String defaultFsPrefix = defaultFs.toString();
         try {
-          FileSystem dfs = FileSystem.get(context.getHadoopConf());
+          FileSystem dfs = context.getHadoopFileSystem();
           if (!stagingPath.getName().startsWith("primus-")) {
             throw new IllegalStateException("kubernetes only delete staging folder under primus-");
           }

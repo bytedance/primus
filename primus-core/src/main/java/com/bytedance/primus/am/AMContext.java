@@ -47,9 +47,9 @@ import com.bytedance.primus.common.model.records.Container;
 import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.model.records.FinalApplicationStatus;
 import com.bytedance.primus.common.util.AbstractLivelinessMonitor;
+import com.bytedance.primus.common.util.RuntimeUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.monitor.MonitorInfoProvider;
-import com.bytedance.primus.utils.ConfigurationUtils;
 import com.bytedance.primus.utils.timeline.TimelineLogger;
 import com.bytedance.primus.webapp.HdfsStore;
 import java.io.IOException;
@@ -60,8 +60,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
-import org.apache.commons.configuration.Configuration;
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.http.HttpServer2;
 import org.apache.hadoop.net.NetUtils;
 import org.slf4j.Logger;
@@ -75,18 +75,16 @@ public abstract class AMContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(AMContext.class);
 
-  protected ApplicationMaster applicationMaster;
   protected Map<String, String> envs;
-
+  @Getter
   protected final PrimusConf primusConf;
-  // Derived from primusConf
-  protected final Configuration envConf;
-  // Derived from primusConf for interacting with Hadoop ecosystems such as HDFS
-  // TODO: Push hadoopConf down to the needing submodules
-  protected final org.apache.hadoop.conf.Configuration hadoopConf;
 
   protected Dispatcher dispatcher;
   protected Dispatcher statusDispatcher;
+
+  // Runtime Environment
+  @Getter
+  protected final FileSystem hadoopFileSystem; // TODO: Create Primus FileSystem interface and abstract direct dependencies on HDFS.
 
   // Common Components
   protected RoleInfoManager roleInfoManager;
@@ -132,34 +130,24 @@ public abstract class AMContext {
   @Getter
   private MonitorInfoProvider monitorInfoProvider;
 
-  public AMContext(PrimusConf primusConf) {
-    this.primusConf = primusConf;
-    this.envConf = ConfigurationUtils.newEnvConf(primusConf);
-    this.hadoopConf = ConfigurationUtils.newHadoopConf(primusConf);
-
+  public AMContext(PrimusConf primusConf) throws IOException {
     envs = new HashMap<>(System.getenv());
     executorNodeMap = new ConcurrentHashMap<>();
     timelineLogger = null;
     gangSchedulerQueue = new HashMap<>();
-    version = envs.get(PRIMUS_VERSION_ENV_KEY);
 
+    this.primusConf = primusConf;
+    this.version = envs.get(PRIMUS_VERSION_ENV_KEY);
     LOG.info("PRIMUS Version: " + version);
+
+    // Setting up runtime components
+    this.hadoopFileSystem = RuntimeUtils.loadHadoopFileSystem(primusConf);
   }
 
   // TODO: Scan Primus components in AMContext and make them final.
-  protected AMContext init(
-      MonitorInfoProvider monitorInfoProvider
-  ) {
+  protected AMContext init(MonitorInfoProvider monitorInfoProvider) {
     this.monitorInfoProvider = monitorInfoProvider;
     return this;
-  }
-
-  public ApplicationMaster getApplicationMaster() {
-    return applicationMaster;
-  }
-
-  public void setApplicationMaster(ApplicationMaster applicationMaster) {
-    this.applicationMaster = applicationMaster;
   }
 
   public Map<String, String> getEnvs() {
@@ -180,14 +168,6 @@ public abstract class AMContext {
 
   public void setStatusDispatcher(Dispatcher statusDispatcher) {
     this.statusDispatcher = statusDispatcher;
-  }
-
-  public Configuration getEnvConf() {
-    return envConf;
-  }
-
-  public org.apache.hadoop.conf.Configuration getHadoopConf() {
-    return hadoopConf;
   }
 
   public PrimusConf getPrimusConf() {

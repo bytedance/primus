@@ -24,7 +24,11 @@ option java_generate_equals_and_hash = true;
 import "primus_common.proto";
 
 message RuntimeConf {
-  // Orchestrator
+  // Resource Orchestrator
+  oneof orchestrator_conf {
+    KubernetesNativeConf kubernetes_native_conf = 1;
+    YarnCommunityConf yarn_community_conf = 2;
+  }
   message KubernetesNativeConf {
     KubernetesContainerConf init_container_conf = 1;
     KubernetesContainerConf driver_container_conf = 2;
@@ -47,6 +51,8 @@ message RuntimeConf {
     string container_history_log_url_format = 26;
   }
   message YarnCommunityConf {
+    map<string, string> hadoop_conf = 1;
+
     /**
      * url_formats are the string templates to build the corresponding urls,
      * where supported key-value pairs are listed below.
@@ -63,26 +69,30 @@ message RuntimeConf {
     string container_log_url_format = 25;
     string container_history_log_url_format = 26;
   }
-  oneof orchestrator_conf {
-    KubernetesNativeConf kubernetes_native_conf = 1;
-    YarnCommunityConf yarn_community_conf = 2;
+
+  // Storage
+  oneof storage_conf {
+    HadoopFileSystemConf hdfs_conf = 11;
+  }
+  message HadoopFileSystemConf {
+    map<string, string> hadoop_conf = 1;
+  }
+
+  // Logs, where runtime specific settings are encapsulated in their
+  // orchestrator_conf and corresponding log4j2.xml under deployment.
+  LoggerConf logger_conf = 21;
+  message LoggerConf {
+    bool redirect_child_process_logs = 1;
   }
 
   // Metrics
+  oneof metrics_conf {
+    PrometheusPushGatewayConf prometheus_push_gateway_conf = 31;
+  }
   message PrometheusPushGatewayConf {
     string host = 1;
     int32 port = 2;
   }
-  oneof metrics_conf {
-    PrometheusPushGatewayConf prometheus_push_gateway_conf = 21;
-  }
-
-  // Logs, where runtime specific settings are encapsulated in their
-  // orchestrator_conf and corresponding log4j2.xml in deployment.
-  message LoggerConf {
-    bool redirect_child_process_logs = 1;
-  }
-  LoggerConf logger_conf = 31;
 }
 
 message KubernetesContainerConf {

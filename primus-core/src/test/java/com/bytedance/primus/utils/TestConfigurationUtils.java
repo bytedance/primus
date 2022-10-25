@@ -36,7 +36,7 @@ public class TestConfigurationUtils {
         .map(file -> String.join("/", root, file, "primus_config.json"))
         .forEach(path -> {
           try {
-            ResourceUtils.buildJob(ConfigurationUtils.loadPrimusConf(path));
+            ResourceUtils.buildJob(ConfigurationUtils.load(path));
           } catch (IOException e) {
             Assert.assertNull("Caught an exception when processing: " + path, e);
           }

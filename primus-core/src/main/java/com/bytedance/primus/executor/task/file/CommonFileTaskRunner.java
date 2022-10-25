@@ -26,6 +26,7 @@ import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.task.WorkerFeeder;
 import com.bytedance.primus.io.datasource.file.FileDataSource;
 import com.bytedance.primus.io.messagebuilder.MessageBuilder;
+import com.bytedance.primus.proto.PrimusInput.InputManager;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.RecordReader;
@@ -74,8 +75,10 @@ public class CommonFileTaskRunner extends FileTaskRunner {
   @Override
   public void init() throws Exception {
     try {
-      this.recordReader = fileDataSource.createRecordReader(jobConf, fileSplit);
-      this.messageBuilder = fileDataSource.createMessageBuilder(getMessageBufferSize());
+      this.recordReader = fileDataSource
+          .createRecordReader(context.getHadoopFileSystem().getConf(), fileSplit);
+      this.messageBuilder = fileDataSource
+          .createMessageBuilder(getMessageBufferSize());
     } catch (Exception e) {
       this.taskStatus.setTaskState(TaskState.FAILED);
       throw e;
@@ -89,7 +92,10 @@ public class CommonFileTaskRunner extends FileTaskRunner {
 
   @Override
   public RecordReader<Object, Object> createRecordReader() throws Exception {
-    this.recordReader = fileDataSource.createRecordReader(jobConf, fileSplit);
+    this.recordReader = fileDataSource.createRecordReader(
+        context.getHadoopFileSystem().getConf(),
+        fileSplit
+    );
     return recordReader;
   }
 
@@ -105,11 +111,15 @@ public class CommonFileTaskRunner extends FileTaskRunner {
 
   @Override
   public int getRewindSkipNum() {
-    if (context.getPrimusConf().getInputManager().getSourceRewindSkipNumCount() != 0 &&
-        context.getPrimusConf().getInputManager().getSourceRewindSkipNumMap().containsKey(source)) {
-      return context.getPrimusConf().getInputManager().getSourceRewindSkipNumMap().get(source);
-    } else {
-      return context.getPrimusConf().getInputManager().getWorkPreserve().getRewindSkipNum();
+    InputManager inputManager = context
+        .getPrimusExecutorConf()
+        .getInputManager();
+
+    if (inputManager.getSourceRewindSkipNumCount() != 0 &&
+        inputManager.getSourceRewindSkipNumMap().containsKey(source)) {
+      return inputManager.getSourceRewindSkipNumMap().get(source);
     }
+
+    return inputManager.getWorkPreserve().getRewindSkipNum();
   }
 }

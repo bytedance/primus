@@ -46,7 +46,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.hadoop.hdfs.BlockMissingException;
-import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +57,6 @@ public abstract class FileTaskRunner implements TaskRunner {
 
   protected Task task;
   protected ExecutorContext context;
-  protected JobConf jobConf;
   protected volatile TaskStatus taskStatus;
   protected volatile TaskCheckpoint taskCheckpoint;
 
@@ -71,7 +69,6 @@ public abstract class FileTaskRunner implements TaskRunner {
   public FileTaskRunner(Task task, ExecutorContext context, WorkerFeeder workerFeeder) {
     this.task = task;
     this.context = context;
-    this.jobConf = new JobConf(context.getPrimusConf().getHadoopConf());
     this.taskStatus = new TaskStatusPBImpl();
     this.taskStatus.setGroup(task.getGroup());
     this.taskStatus.setTaskId(task.getTaskId());
@@ -88,7 +85,7 @@ public abstract class FileTaskRunner implements TaskRunner {
         new FeedThread(context.getTimelineLogger(), context.getExecutorId().toString());
     this.feedThread.setDaemon(true);
     this.workerFeeder = workerFeeder;
-    this.maxAllowedIOException = context.getPrimusConf().getInputManager()
+    this.maxAllowedIOException = context.getPrimusExecutorConf().getInputManager()
         .getMaxAllowedIoException();
     if (maxAllowedIOException <= 0) {
       maxAllowedIOException = PrimusConstants.DEFAULT_MAX_ALLOWED_IO_EXCEPTION;
@@ -205,7 +202,7 @@ public abstract class FileTaskRunner implements TaskRunner {
       MessageBuilder messageBuilder = getMessageBuilder();
       boolean succeed = false;
       int rewindSkipNum = getRewindSkipNum();
-      boolean skipping = context.getPrimusConf().getInputManager().getSkipRecords();
+      boolean skipping = context.getPrimusExecutorConf().getInputManager().getSkipRecords();
       PrimusMetrics.TimerMetric latency;
       feedThreadPool = Executors.newSingleThreadExecutor(threadFactory);
       try {
@@ -352,7 +349,8 @@ public abstract class FileTaskRunner implements TaskRunner {
   }
 
   protected int getMessageBufferSize() {
-    int messageBufferSize = context.getPrimusConf().getInputManager().getMessageBufferSize();
+    int messageBufferSize = context.getPrimusExecutorConf().getInputManager()
+        .getMessageBufferSize();
     if (messageBufferSize <= 0) {
       messageBufferSize = PrimusConstants.DEFAULT_MESSAGE_BUFFER_SIZE;
     }

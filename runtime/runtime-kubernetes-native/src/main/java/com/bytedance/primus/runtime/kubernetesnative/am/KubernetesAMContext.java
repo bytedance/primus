@@ -40,6 +40,7 @@ import com.bytedance.primus.runtime.kubernetesnative.common.KubernetesSchedulerC
 import com.bytedance.primus.runtime.kubernetesnative.runtime.monitor.MonitorInfoProviderImpl;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -72,7 +73,7 @@ public class KubernetesAMContext extends AMContext {
   @Getter
   private final List<Protocol> kubernetesApiProtocols;
 
-  public KubernetesAMContext(PrimusConf primusConf) {
+  public KubernetesAMContext(PrimusConf primusConf) throws IOException {
     super(primusConf);
 
     if (System.getenv().containsKey(PRIMUS_APP_NAME_ENV_KEY)) {

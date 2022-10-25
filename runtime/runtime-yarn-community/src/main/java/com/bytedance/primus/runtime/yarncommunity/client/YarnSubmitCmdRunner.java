@@ -32,9 +32,11 @@ import static com.bytedance.primus.utils.PrimusConstants.STAGING_DIR_KEY;
 
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.client.ClientCmdRunner;
+import com.bytedance.primus.common.util.RuntimeUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.yarncommunity.am.ApplicationMasterMain;
+import com.bytedance.primus.runtime.yarncommunity.am.YarnAMContext;
 import com.bytedance.primus.utils.ConfigurationUtils;
 import com.bytedance.primus.utils.ProtoJsonConverter;
 import java.io.IOException;
@@ -95,11 +97,9 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
 
   public YarnSubmitCmdRunner(PrimusConf primusConf) throws Exception {
     userPrimusConf = primusConf;
-    Configuration conf = ConfigurationUtils.newHadoopConf(userPrimusConf);
+    yarnConf = new YarnConfiguration(YarnAMContext.loadYarnConfiguration(primusConf));
 
-    yarnConf = new YarnConfiguration(conf);
-
-    dfs = FileSystem.get(conf);
+    dfs = RuntimeUtils.loadHadoopFileSystem(primusConf);
     defaultFsUri = dfs.getUri();
   }
 
@@ -181,7 +181,7 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
 
   private PrimusConf getMergedPrimusConf(PrimusConf userConf) throws IOException {
     String defaultConfigPath = getConfDir() + "/" + DEFAULT_PRIMUS_CONF_FILENAME;
-    PrimusConf defaultConf = ConfigurationUtils.loadPrimusConf(defaultConfigPath);
+    PrimusConf defaultConf = ConfigurationUtils.load(defaultConfigPath);
     return PrimusConf.newBuilder()
         .mergeFrom(defaultConf)
         .mergeFrom(userConf)

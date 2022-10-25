@@ -89,7 +89,7 @@ public class Worker implements Child {
         break;
       case CHILD_STARTED:
         try {
-          switch (executorContext.getPrimusConf().getPrimusConf().getChannelConfigCase()) {
+          switch (executorContext.getPrimusExecutorConf().getPrimusConf().getChannelConfigCase()) {
             case FIFO_PIPE:
               Map<String, String> env = workerContext.getEnvironment();
               String fifoName = env.get(FifoPlugin.FIFO_ENV_KEY);

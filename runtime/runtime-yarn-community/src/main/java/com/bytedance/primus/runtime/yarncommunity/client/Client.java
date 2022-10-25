@@ -39,7 +39,7 @@ public class Client {
     String command =
         commandLine.getOptionValue(ClientCmdParser.COMMAND);
     PrimusConf primusConf =
-        ConfigurationUtils.loadPrimusConf(commandLine.getOptionValue(ClientCmdParser.CONF));
+        ConfigurationUtils.load(commandLine.getOptionValue(ClientCmdParser.CONF));
     boolean waitAppCompletion =
         Boolean.parseBoolean(commandLine.getOptionValue(ClientCmdParser.WAIT, "true"));
 

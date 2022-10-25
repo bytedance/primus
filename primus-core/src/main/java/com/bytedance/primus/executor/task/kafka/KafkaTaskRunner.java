@@ -85,7 +85,7 @@ public class KafkaTaskRunner implements TaskRunner {
     props.putAll(task.getKafkaTask().getConfig());
     this.consumer = new KafkaConsumer<>(props);
     int messageBufferSize =
-        context.getPrimusConf().getPrimusConf().getInputManager().getMessageBufferSize();
+        context.getPrimusExecutorConf().getPrimusConf().getInputManager().getMessageBufferSize();
     if (messageBufferSize <= 0) {
       messageBufferSize = PrimusConstants.DEFAULT_MESSAGE_BUFFER_SIZE;
     }
@@ -137,7 +137,7 @@ public class KafkaTaskRunner implements TaskRunner {
     public void run() {
       consumer.subscribe(Collections.singletonList(topic));
       PrimusMetrics.TimerMetric latency;
-      boolean skipping = context.getPrimusConf().getInputManager().getSkipRecords();
+      boolean skipping = context.getPrimusExecutorConf().getInputManager().getSkipRecords();
       out:
       while (!isStopped) {
         PrimusMetrics.TimerMetric pollLatency =

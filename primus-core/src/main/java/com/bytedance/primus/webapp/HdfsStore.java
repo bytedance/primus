@@ -44,7 +44,7 @@ public class HdfsStore extends AbstractService {
 
   private AMContext context;
   private Thread snapshotThread;
-  private FileSystem fs;
+  private final FileSystem fs;
   private Path historyFilePath;
   private Path tmpSavePath;
   private boolean success;
@@ -57,6 +57,7 @@ public class HdfsStore extends AbstractService {
   public HdfsStore(AMContext context) {
     super(HdfsStore.class.getName());
     this.context = context;
+    this.fs = context.getHadoopFileSystem();
     this.success = true;
     this.readWriteLock = new ReentrantReadWriteLock();
   }
@@ -136,16 +137,6 @@ public class HdfsStore extends AbstractService {
     historyFilePath = new Path(snapshotDir, snapshotFileName);
     tmpSavePath = new Path(snapshotDir, snapshotFileName + ".tmp");
 
-    try {
-      LOG.info("History path: {}, TempHistory Path: {}, fs.defaultFS: {}",
-          historyFilePath, tmpSavePath,
-          context.getHadoopConf().get("fs.defaultFS"));
-
-      fs = FileSystem.get(context.getHadoopConf());
-    } catch (Exception e) {
-      LOG.error("Failed to get filesystem({}): with {}", historyFilePath, context.getHadoopConf());
-      throw new RuntimeException("Failed to get filesystem " + historyFilePath, e);
-    }
     this.running = true;
     super.serviceInit(conf);
   }

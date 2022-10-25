@@ -115,7 +115,7 @@ public class TestWorkerLaunch {
     ExecutorContext executorContext = mock(ExecutorContext.class);
     PrimusExecutorConf primusExecutorConf = mock(PrimusExecutorConf.class);
     Mockito.when(primusExecutorConf.getPrimusConf()).thenReturn(primusConf);
-    Mockito.when(executorContext.getPrimusConf()).thenReturn(primusExecutorConf);
+    Mockito.when(executorContext.getPrimusExecutorConf()).thenReturn(primusExecutorConf);
     Mockito.when(executorContext.getExecutorId()).thenReturn(executorId);
     Mockito.when(executorContext.getFrameworkSocketList())
         .thenReturn(Collections.singletonList(frameworkSocket));
@@ -151,7 +151,7 @@ public class TestWorkerLaunch {
     ExecutorContext executorContext = mock(ExecutorContext.class);
     PrimusExecutorConf primusExecutorConf = mock(PrimusExecutorConf.class);
     Mockito.when(primusExecutorConf.getPrimusConf()).thenReturn(primusConf);
-    Mockito.when(executorContext.getPrimusConf()).thenReturn(primusExecutorConf);
+    Mockito.when(executorContext.getPrimusExecutorConf()).thenReturn(primusExecutorConf);
     Mockito.when(executorContext.getExecutorId()).thenReturn(executorId);
     Mockito.when(executorContext.getFrameworkSocketList())
         .thenReturn(Collections.singletonList(frameworkSocket));
@@ -187,7 +187,7 @@ public class TestWorkerLaunch {
     ExecutorContext executorContext = mock(ExecutorContext.class);
     PrimusExecutorConf primusExecutorConf = mock(PrimusExecutorConf.class);
     Mockito.when(primusExecutorConf.getPrimusConf()).thenReturn(primusConf);
-    Mockito.when(executorContext.getPrimusConf()).thenReturn(primusExecutorConf);
+    Mockito.when(executorContext.getPrimusExecutorConf()).thenReturn(primusExecutorConf);
     Mockito.when(executorContext.getExecutorId()).thenReturn(executorId);
     Mockito.when(executorContext.getFrameworkSocketList())
         .thenReturn(Collections.singletonList(frameworkSocket));

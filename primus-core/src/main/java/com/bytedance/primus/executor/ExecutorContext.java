@@ -34,6 +34,8 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.UnknownHostException;
 import java.util.List;
+import lombok.Getter;
+import org.apache.hadoop.fs.FileSystem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +43,9 @@ public class ExecutorContext {
 
   private static final Logger log = LoggerFactory.getLogger(ExecutorContext.class);
 
-  private PrimusExecutorConf primusConf;
+  @Getter
+  private final PrimusExecutorConf primusExecutorConf;
+
   private ExecutorId executorId;
   private Executor executor;
   private WorkerFeeder workerFeeder;
@@ -58,9 +62,18 @@ public class ExecutorContext {
   private volatile boolean running;
   private RunningEnvironment runningEnvironment;
 
-  public ExecutorContext(PrimusExecutorConf primusConf, RunningEnvironment runningEnvironment) {
+  // Runtime Environment
+  @Getter
+  protected final FileSystem hadoopFileSystem; // TODO: Create Primus FileSystem interface and abstract direct dependencies on HDFS.
+
+  public ExecutorContext(
+      PrimusExecutorConf primusConf,
+      FileSystem hadoopFileSystem,
+      RunningEnvironment runningEnvironment
+  ) {
     this.running = true;
-    this.primusConf = primusConf;
+    this.primusExecutorConf = primusConf;
+    this.hadoopFileSystem = hadoopFileSystem;
     this.executorId = primusConf.getExecutorId();
     this.runningEnvironment = runningEnvironment;
     init();
@@ -69,14 +82,6 @@ public class ExecutorContext {
   private void init() {
     this.hostname = getHostName();
     log.info("Executor init");
-  }
-
-  public void setPrimusConf(PrimusExecutorConf primusConf) {
-    this.primusConf = primusConf;
-  }
-
-  public PrimusExecutorConf getPrimusConf() {
-    return primusConf;
   }
 
   public ExecutorId getExecutorId() {

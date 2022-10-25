@@ -23,8 +23,8 @@ import static com.bytedance.primus.apiserver.utils.Constants.API_SERVER_RPC_HOST
 import static com.bytedance.primus.apiserver.utils.Constants.API_SERVER_RPC_PORT_ENV;
 import static com.bytedance.primus.apiserver.utils.Constants.PRIMUS_EXECUTOR_UNIQID_ENV;
 
-import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.child.ChildLaunchPlugin;
+import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.worker.WorkerContext;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
@@ -48,7 +48,7 @@ public class EnvPlugin implements ChildLaunchPlugin {
     this.executorContext = executorContext;
     this.workerContext = workerContext;
     this.envs = new HashMap<>();
-    if (executorContext.getPrimusConf().isYarnRunningMode()) {
+    if (executorContext.getPrimusExecutorConf().isYarnRunningMode()) {
       String containerId = workerContext.getEnvironment().get(CONTAINER_ID_ENV_KEY);
       String applicationId = ContainerId.fromString(containerId)
           .getApplicationAttemptId()
@@ -57,11 +57,11 @@ public class EnvPlugin implements ChildLaunchPlugin {
       envs.put(APPLICATION_ID_ENV_KEY, applicationId);
     }
     envs.put(ORACLE_ID_ENV_KEY, String.valueOf(executorContext.getExecutorId().getIndex()));
-    if (executorContext.getPrimusConf().getPortList().size() != 0) {
+    if (executorContext.getPrimusExecutorConf().getPortList().size() != 0) {
       envs.put(PORT_LIST_ENV_KEY,
-          StringUtils.join(executorContext.getPrimusConf().getPortList(), ","));
+          StringUtils.join(executorContext.getPrimusExecutorConf().getPortList(), ","));
     }
-    PrimusConf primusConf = executorContext.getPrimusConf().getPrimusConf();
+    PrimusConf primusConf = executorContext.getPrimusExecutorConf().getPrimusConf();
     if (primusConf.getCoreDumpEnable()) {
       envs.put(CORE_DUMP_PROC_NAME, "primus_" + primusConf.getName());
     }
@@ -71,9 +71,9 @@ public class EnvPlugin implements ChildLaunchPlugin {
     // a '\0' and causes coredump_handler can not parse CORE_DUMP_PROC_NAME environment.
     envs.put("NM_AUX_SERVICE_mapreduce_shuffle", "USELESS_OVERWRITE");
 
-    envs.put(API_SERVER_RPC_HOST_ENV, executorContext.getPrimusConf().getApiServerHost());
+    envs.put(API_SERVER_RPC_HOST_ENV, executorContext.getPrimusExecutorConf().getApiServerHost());
     envs.put(API_SERVER_RPC_PORT_ENV,
-        String.valueOf(executorContext.getPrimusConf().getApiServerPort()));
+        String.valueOf(executorContext.getPrimusExecutorConf().getApiServerPort()));
     envs.put(PRIMUS_EXECUTOR_UNIQID_ENV, executorContext.getExecutorId().toUniqString());
   }
 

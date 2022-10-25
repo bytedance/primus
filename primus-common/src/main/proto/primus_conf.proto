@@ -292,7 +292,6 @@ message PrimusConf {
   repeated Role role = 7;
   Scheduler scheduler = 8;
   string history_hdfs_base = 12;
-  map<string, string> yarn_conf = 13;
   int32 priority = 14;
   PortRange port_range = 15;
   string region = 16;

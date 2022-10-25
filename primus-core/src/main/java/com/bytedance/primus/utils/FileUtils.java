@@ -169,7 +169,7 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
 
   public static List<Input> scanHourInput(FileSystem fileSystem,
       FileSourceInput fileSourceInput, int startDay, int startHour, int endDay, int endHour,
-      DayFormat dayFormat, boolean dayKey, boolean checkSuccess, Configuration conf)
+      DayFormat dayFormat, boolean dayKey, boolean checkSuccess)
       throws ParseException, IOException {
     List<Input> results = new LinkedList<>();
     int fileDay = startDay;
@@ -233,12 +233,11 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
   }
 
   public static void addResource(
+      FileSystem fs,
       Path path,
       String linkname,
-      Configuration conf,
       Map<String, LocalResource> cacheFiles
   ) throws IOException {
-    FileSystem fs = FileSystem.get(path.toUri(), conf);
     LocalResource rsrc = new LocalResourcePBImpl();
     FileStatus rsrcStat = fs.getFileStatus(path);
     URL resource = ConverterUtils.getYarnUrlFromPath(fs.resolvePath(rsrcStat.getPath()));

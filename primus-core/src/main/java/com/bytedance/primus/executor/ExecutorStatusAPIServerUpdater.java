@@ -39,7 +39,7 @@ public class ExecutorStatusAPIServerUpdater implements Runnable {
   private ExecutorContext executorContext;
 
   public ExecutorStatusAPIServerUpdater(ExecutorContext executorContext) {
-    this.coreApi = executorContext.getPrimusConf().getCoreApi();
+    this.coreApi = executorContext.getPrimusExecutorConf().getCoreApi();
     this.executorContext = executorContext;
   }
 
@@ -49,7 +49,7 @@ public class ExecutorStatusAPIServerUpdater implements Runnable {
       try {
         updateExecutorToApiServer(0, 0, 0, null);
         try {
-          Thread.sleep(executorContext.getPrimusConf().getHeartbeatIntervalMs());
+          Thread.sleep(executorContext.getPrimusExecutorConf().getHeartbeatIntervalMs());
         } catch (InterruptedException e) {
         }
       } catch (Exception e) {

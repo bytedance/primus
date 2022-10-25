@@ -35,6 +35,7 @@ import com.bytedance.primus.apiserver.records.impl.ExecutorSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.RoleSpecImpl;
 import com.bytedance.primus.client.ClientCmdRunner;
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
+import com.bytedance.primus.common.util.RuntimeUtils;
 import com.bytedance.primus.common.util.Sleeper;
 import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
@@ -64,8 +65,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,9 +86,6 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
     primusConf = getMergedPrimusConf(userPrimusConf);
     LOG.info("Merged primus conf: {}", primusConf);
 
-    // Prepare Hadoop Configuration and update CloudFS settings
-    Configuration hadoopConf = ConfigurationUtils.newHadoopConf(primusConf);
-
     // Generate application name
     appName = generateAppName(primusConf);
     LOG.info("Generated Kubernetes APP_NAME: {}", appName);
@@ -100,7 +96,7 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
 
     // Set up the default filesystem
     defaultFileSystem = new StorageHelper(
-        FileSystem.get(hadoopConf),
+        RuntimeUtils.loadHadoopFileSystem(primusConf),
         stagingDir
     );
   }
@@ -120,7 +116,7 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
     File defaultConfFile = new File(defaultConfFilePath.toString());
     if (defaultConfFile.exists()) {
       LOG.info("Loading default config from {}", defaultConfFilePath);
-      PrimusConf dataCenterConf = ConfigurationUtils.loadPrimusConf(defaultConfFilePath.toString());
+      PrimusConf dataCenterConf = ConfigurationUtils.load(defaultConfFilePath.toString());
       builder.mergeFrom(dataCenterConf);
     } else {
       LOG.warn("Missing default config file at {}", defaultConfFilePath);

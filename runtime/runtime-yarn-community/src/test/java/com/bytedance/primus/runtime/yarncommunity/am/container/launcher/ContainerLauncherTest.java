@@ -63,7 +63,7 @@ public class ContainerLauncherTest {
     PrimusConf primusConf = PrimusConf.newBuilder().build();
     when(yarnAMContext.getPrimusConf()).thenReturn(primusConf);
     Configuration conf = new YarnConfiguration();
-    when(yarnAMContext.getHadoopConf()).thenReturn(conf);
+    when(yarnAMContext.getYarnConfiguration()).thenReturn(conf);
     ContainerLauncher containerLauncher = new ContainerLauncher(yarnAMContext);
     RoleSpec roleSpec = new RoleSpecImpl();
     ExecutorId executorId = new ExecutorIdPBImpl();

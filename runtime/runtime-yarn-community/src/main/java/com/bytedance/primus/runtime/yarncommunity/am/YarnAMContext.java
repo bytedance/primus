@@ -23,6 +23,7 @@ import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ExecutorMonitor;
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
 import com.bytedance.primus.common.model.records.Container;
+import com.bytedance.primus.common.util.IntegerUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.yarncommunity.am.container.YarnContainerManager;
 import com.bytedance.primus.runtime.yarncommunity.runtime.monitor.MonitorInfoProviderImpl;
@@ -30,10 +31,13 @@ import com.bytedance.primus.runtime.yarncommunity.utils.YarnConvertor;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
+import lombok.Getter;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.NMClient;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +46,12 @@ public class YarnAMContext extends AMContext {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorMonitor.class);
 
+  @Getter
+  private final int maxAppAttempts;
+
+  @Getter
+  private final Configuration yarnConfiguration;
+
   private AMRMClient<ContainerRequest> amRMClient;
   private NMClient nmClient;
   private Map<String, LocalResource> localResources;
@@ -49,8 +59,17 @@ public class YarnAMContext extends AMContext {
   private int apiServerPort;
   private YarnContainerManager containerManager;
 
-  public YarnAMContext(PrimusConf primusConf) {
+  public YarnAMContext(PrimusConf primusConf) throws IOException {
     super(primusConf);
+
+    this.yarnConfiguration = loadYarnConfiguration(primusConf);
+    this.maxAppAttempts = IntegerUtils.selectIfPositiveOrDefault(
+        primusConf.getMaxAppAttempts(),
+        yarnConfiguration.getInt(
+            YarnConfiguration.RM_AM_MAX_ATTEMPTS,
+            YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS
+        ));
+
     super.init(new MonitorInfoProviderImpl(this));
   }
 
@@ -131,5 +150,18 @@ public class YarnAMContext extends AMContext {
   public void setContainerManager(
       YarnContainerManager containerManager) {
     this.containerManager = containerManager;
+  }
+
+  static public Configuration loadYarnConfiguration(PrimusConf primusConf) {
+    if (!primusConf.getRuntimeConf().hasYarnCommunityConf()) {
+      return new Configuration();
+    }
+
+    Configuration base = new Configuration();
+    primusConf.getRuntimeConf()
+        .getHdfsConf()
+        .getHadoopConfMap()
+        .forEach(base::set);
+    return base;
   }
 }

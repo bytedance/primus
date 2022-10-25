@@ -77,7 +77,7 @@ public class ContainerMain {
 
     PrimusConfOuterClass.PrimusConf primusConf;
     try {
-      primusConf = ConfigurationUtils.loadPrimusConf(configPath);
+      primusConf = ConfigurationUtils.load(configPath);
     } catch (Exception e) {
       throw new PrimusExecutorException(
           "Config parse failed", e, ExecutorExitCode.CONFIG_PARSE_ERROR.getValue());
