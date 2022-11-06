@@ -116,6 +116,36 @@ primus-ui
    kill primus application and wait for client  ${process}  ${application_id}
 
 
+input-file-customized
+  # Prepare test data
+  prepare hdfs data  ${PRIMUS_HOME}/examples/input-file-customized/data  /primus/examples/input-file-customized/
+
+  # Submit Primus application and check Primus client logs
+  ${application_id} =  Submit Primus Application  ${PRIMUS_HOME}/examples/input-file-customized/primus_config.json
+
+  # Check Primus application logs
+  ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep -a "Hello from input-file-customized"
+  ${hello_expected} =  Create List
+  Append To List  ${hello_expected}  KP-0-KS\tVP-Hello from input-file-customized: 0-0-VS
+  Append To List  ${hello_expected}  KP-38-KS\tVP-Hello from input-file-customized: 0-1-VS
+  Append To List  ${hello_expected}  KP-76-KS\tVP-Hello from input-file-customized: 0-2-VS
+  Append To List  ${hello_expected}  KP-114-KS\tVP-Hello from input-file-customized: 0-3-VS
+  Append To List  ${hello_expected}  KP-0-KS\tVP-Hello from input-file-customized: 1-0-VS
+  Append To List  ${hello_expected}  KP-38-KS\tVP-Hello from input-file-customized: 1-1-VS
+  Append To List  ${hello_expected}  KP-76-KS\tVP-Hello from input-file-customized: 1-2-VS
+  Append To List  ${hello_expected}  KP-114-KS\tVP-Hello from input-file-customized: 1-3-VS
+  Append To List  ${hello_expected}  KP-0-KS\tVP-Hello from input-file-customized: 2-0-VS
+  Append To List  ${hello_expected}  KP-38-KS\tVP-Hello from input-file-customized: 2-1-VS
+  Append To List  ${hello_expected}  KP-76-KS\tVP-Hello from input-file-customized: 2-2-VS
+  Append To List  ${hello_expected}  KP-114-KS\tVP-Hello from input-file-customized: 2-3-VS
+  Append To List  ${hello_expected}  KP-0-KS\tVP-Hello from input-file-customized: 3-0-VS
+  Append To List  ${hello_expected}  KP-38-KS\tVP-Hello from input-file-customized: 3-1-VS
+  Append To List  ${hello_expected}  KP-76-KS\tVP-Hello from input-file-customized: 3-2-VS
+  Append To List  ${hello_expected}  KP-114-KS\tVP-Hello from input-file-customized: 3-3-VS
+
+  Lists Should Be Equal  ${hello_captured}  ${hello_expected}  ignore_order=True
+
+
 input-file-text
   # Prepare test data
   prepare hdfs data  ${PRIMUS_HOME}/examples/input-file-text/data  /primus/examples/input-file-text/
