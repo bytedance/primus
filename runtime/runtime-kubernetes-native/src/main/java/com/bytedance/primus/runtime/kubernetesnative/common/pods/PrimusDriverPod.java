@@ -181,7 +181,6 @@ public class PrimusDriverPod extends PrimusBasePod {
               put(PRIMUS_DRIVER_SELECTOR_LABEL_NAME, driverPodName);
               put(PRIMUS_ROLE_SELECTOR_LABEL_NAME, PRIMUS_ROLE_DRIVER);
               put(KubernetesConstants.KUBERNETES_POD_META_LABEL_OWNER, context.getOwner());
-              put(KubernetesConstants.KUBERNETES_POD_META_LABEL_PSM, context.getPsm());
             }}))
         .spec(new V1PodSpec()
             .serviceAccountName(context.getKubernetesSchedulerConfig().getServiceAccountName())

@@ -31,7 +31,6 @@ public class PrimusPodContext {
   private String appName;
   private String kubernetesJobName;
   private String owner;
-  private String psm;
   private Path hdfsStagingDir;
   private V1OwnerReference driverPodOwnerReference;
   private String driverPodUid;
@@ -73,14 +72,6 @@ public class PrimusPodContext {
 
   public void setOwner(String owner) {
     this.owner = owner;
-  }
-
-  public String getPsm() {
-    return psm;
-  }
-
-  public void setPsm(String psm) {
-    this.psm = psm;
   }
 
   public Path getHdfsStagingDir() {
