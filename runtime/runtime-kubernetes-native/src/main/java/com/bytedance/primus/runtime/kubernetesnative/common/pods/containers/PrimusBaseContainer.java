@@ -20,8 +20,8 @@
 package com.bytedance.primus.runtime.kubernetesnative.common.pods.containers;
 
 import com.bytedance.primus.am.role.RoleInfo;
-import com.bytedance.primus.runtime.kubernetesnative.ResourceNameBuilder;
 import com.bytedance.primus.runtime.kubernetesnative.am.KubernetesResourceLimitConverter;
+import com.bytedance.primus.runtime.kubernetesnative.common.utils.ResourceNameBuilder;
 import io.kubernetes.client.custom.Quantity;
 import io.kubernetes.client.openapi.models.V1ConfigMapEnvSource;
 import io.kubernetes.client.openapi.models.V1EnvFromSource;
@@ -51,10 +51,10 @@ public abstract class PrimusBaseContainer {
         .collect(Collectors.toCollection(ArrayList::new));
   }
 
-  protected static V1EnvFromSource retrieveKubernetesConfigMap(String appName) {
+  protected static V1EnvFromSource retrieveKubernetesConfigMap(String appId) {
     return new V1EnvFromSource().configMapRef(
         new V1ConfigMapEnvSource().name(
-            ResourceNameBuilder.buildConfigMapName(appName)));
+            ResourceNameBuilder.buildConfigMapName(appId)));
   }
 
   protected static V1ResourceRequirements getResourceRequirements(RoleInfo roleInfo) {

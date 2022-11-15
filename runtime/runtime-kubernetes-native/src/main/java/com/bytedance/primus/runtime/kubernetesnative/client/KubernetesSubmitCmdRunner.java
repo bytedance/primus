@@ -19,35 +19,26 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.client;
 
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_ID_LABEL_NAME;
 import static com.bytedance.primus.utils.PrimusConstants.LOG4J_PROPERTIES;
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF_PATH;
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CORE_TARGET_KEY;
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_HOME_ENV_KEY;
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_JAR;
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_JAR_PATH;
-import static com.bytedance.primus.utils.PrimusConstants.SYSTEM_USER_ENV_KEY;
 
-import com.bytedance.primus.apiserver.proto.UtilsProto.ResourceRequest;
-import com.bytedance.primus.apiserver.proto.UtilsProto.ResourceType;
-import com.bytedance.primus.apiserver.records.ExecutorSpec;
-import com.bytedance.primus.apiserver.records.RoleSpec;
-import com.bytedance.primus.apiserver.records.impl.ExecutorSpecImpl;
-import com.bytedance.primus.apiserver.records.impl.RoleSpecImpl;
 import com.bytedance.primus.client.ClientCmdRunner;
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
 import com.bytedance.primus.common.util.RuntimeUtils;
 import com.bytedance.primus.common.util.Sleeper;
 import com.bytedance.primus.common.util.StringUtils;
+import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.proto.PrimusConfOuterClass.Scheduler;
-import com.bytedance.primus.proto.PrimusRuntime.KubernetesScheduler;
-import com.bytedance.primus.runtime.kubernetesnative.am.KubernetesResourceLimitConverter;
-import com.bytedance.primus.runtime.kubernetesnative.common.KubernetesSchedulerConfig;
 import com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.PrimusDriverPod;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.PrimusPodContext;
+import com.bytedance.primus.runtime.kubernetesnative.common.utils.StorageHelper;
 import com.bytedance.primus.runtime.kubernetesnative.runtime.monitor.MonitorInfoProviderImpl;
-import com.bytedance.primus.runtime.kubernetesnative.utils.StorageHelper;
 import com.bytedance.primus.utils.ConfigurationUtils;
 import com.bytedance.primus.utils.PrimusConstants;
 import com.google.common.base.Strings;
@@ -59,9 +50,6 @@ import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -75,23 +63,20 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
   private static final String DEFAULT_CONFIG_FILENAME = "default.conf";
 
   private final PrimusConf primusConf;
-  private final String appName;
+  private final String appId;
   private final StorageHelper defaultFileSystem;
 
   public KubernetesSubmitCmdRunner(PrimusConf userPrimusConf) throws Exception {
     // Preprocess configurations
-    // TODO: would it be a better idea that we merge the configuration in the main function?
-    //  so that we can subsequently make PrimusConf immutable in the entire Primus Application. Also
-    //  other sub-command in the future can be benefited from the design as well.
     primusConf = getMergedPrimusConf(userPrimusConf);
     LOG.info("Merged primus conf: {}", primusConf);
 
-    // Generate application name
-    appName = generateAppName(primusConf);
-    LOG.info("Generated Kubernetes APP_NAME: {}", appName);
+    // Generate application ID
+    appId = generateAppId(primusConf);
+    LOG.info("Generated Primus application ID: {}", appId);
 
     // Compute the staging direction path
-    Path stagingDir = new Path(primusConf.getStagingDir(), appName);
+    Path stagingDir = new Path(primusConf.getStagingDir(), appId);
     LOG.info("Staging Directory: {}", stagingDir);
 
     // Set up the default filesystem
@@ -101,12 +86,9 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
     );
   }
 
-  /**
-   * Merge userPrimusConf into system defaultPrimusConf if exists (overrides).
-   *
-   * @param userPrimusConf from user
-   * @return merged PrimusConfig combined with environment default configurations.
-   */
+  // TODO: Merge the configuration in the main function, so PrimusConf can be checked and then immutable throughout
+  //  the entire Primus Application. Also other sub-command in the future can be benefited from the
+  //  design as well.
   private PrimusConf getMergedPrimusConf(PrimusConf userPrimusConf) throws IOException {
     // Init builder
     PrimusConf.Builder builder = PrimusConf.newBuilder();
@@ -123,7 +105,10 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
     }
 
     // Override with userPrimusConf
-    return builder.mergeFrom(userPrimusConf).build();
+    return builder
+        .setRunningMode(RunningMode.KUBERNETES)
+        .mergeFrom(userPrimusConf)
+        .build();
   }
 
   @Override
@@ -132,18 +117,16 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
     uploadLocalResources();
 
     // Create and submit PrimusDriverPod
-    PrimusPodContext primusPodContext = newPrimusDriverPodContext(
-        appName, defaultFileSystem.getApplicationStagingDir(), primusConf);
+    PrimusPodContext primusPodContext = new PrimusPodContext(
+        appId, defaultFileSystem.getApplicationStagingDir(), primusConf);
 
-    LOG.info("Current Primus submission, Owner:{}, Job:{}, AppName: {}, StagingDir: {}",
-        primusPodContext.getOwner(), primusConf.getName(),
-        appName, defaultFileSystem.getApplicationStagingDir());
+    LOG.info("Submission information, User: {}, Job: {}, AppName: {}, StagingDir: {}",
+        primusPodContext.getUser(), primusConf.getName(),
+        appId, defaultFileSystem.getApplicationStagingDir());
 
     PrimusDriverPod driverPod = new PrimusDriverPod(
         primusPodContext,
-        createResourceLimitMap(primusConf),
-        primusConf.getRuntimeConf().getKubernetesNativeConf().getInitContainerConf(),
-        primusConf.getRuntimeConf().getKubernetesNativeConf().getDriverContainerConf()
+        primusConf.getRuntimeConf().getKubernetesNativeConf().getDriverPodConf()
     );
 
     LOG.info("Starting driver pod: {}", driverPod.getKubernetesPod());
@@ -173,24 +156,6 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
     );
   }
 
-  private static Map<String, String> getDriverStartEnvironment(PrimusConf conf) {
-    Map<String, String> environment = new HashMap<>();
-
-    environment.put(
-        KubernetesConstants.PRIMUS_AM_JAVA_MEMORY_XMX,
-        conf.getScheduler().getJvmMemoryMb() + "m"
-    );
-
-    if (!Strings.isNullOrEmpty(conf.getScheduler().getJavaOpts())) {
-      environment.put(
-          KubernetesConstants.PRIMUS_AM_JAVA_OPTIONS,
-          Integer.toString(conf.getScheduler().getJvmMemoryMb()));
-    }
-
-    environment.putAll(conf.getScheduler().getEnvMap());
-    return environment;
-  }
-
   /**
    * show debug info for k8s application 1: tracking url. 2: k8s log command.
    */
@@ -208,52 +173,20 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
         .orElseThrow(() -> new PrimusRuntimeException("Missing driver pod!"));
 
     LOG.info("=================================================================");
-    LOG.info("Kubernetes AM tracking URL: {}",
+    LOG.info("Primus Application ID: {}", appId);
+    LOG.info("Tracking URL: {}",
         MonitorInfoProviderImpl.getPreflightAmTrackingUrl(
-            primusConf, appName, namespace, driverPodName));
-    LOG.info("Kubernetes History tracking URL: {}",
+            primusConf, appId, namespace, driverPodName));
+    LOG.info("History tracking URL: {}",
         MonitorInfoProviderImpl.getPreflightHistoryTrackingUrl(
-            primusConf, appName, namespace, driverPodName));
+            primusConf, appId, namespace, driverPodName));
     LOG.info("Kubernetes logs command: {}",
-        String.format("kubectl -n %s logs %s", namespace, driverPodName));
-    LOG.info("Kubernetes exec command: {}",
-        String.format("kubectl -n %s exec -it %s -- bash", namespace, driverPodName));
+        String.format("kubectl -n %s logs --tail=-1 -l %s=%s", namespace,
+            PRIMUS_APP_ID_LABEL_NAME, appId));
     LOG.info("Kubernetes list pod command: {}",
-        String.format("kubectl -n %s get pods | grep %s", namespace, driverPodName));
+        String.format("kubectl -n %s get pods -l %s=%s", namespace,
+            PRIMUS_APP_ID_LABEL_NAME, appId));
     LOG.info("=================================================================");
-  }
-
-  private static Map<String, String> createResourceLimitMap(PrimusConf primusConf) {
-    RoleSpec roleSpec = new RoleSpecImpl();
-    ExecutorSpec executorSpec = new ExecutorSpecImpl();
-    List<ResourceRequest> resourceRequests = new ArrayList<>();
-
-    resourceRequests.add(
-        ResourceRequest.newBuilder()
-            .setResourceType(ResourceType.VCORES)
-            .setValue(primusConf.getScheduler().getVcores())
-            .build()
-    );
-    resourceRequests.add(
-        ResourceRequest.newBuilder()
-            .setResourceType(ResourceType.MEMORY_MB)
-            .setValue(primusConf.getScheduler().getMemoryMb())
-            .build()
-    );
-    if (primusConf.getScheduler().getGpuNum() != 0) {
-      resourceRequests.add(
-          ResourceRequest.newBuilder()
-              .setResourceType(ResourceType.GPU)
-              .setValue(primusConf.getScheduler().getGpuNum())
-              .build());
-    }
-
-    executorSpec.setResourceRequests(resourceRequests);
-    roleSpec.setExecutorSpecTemplate(executorSpec);
-    Map<String, String> stringStringMap = KubernetesResourceLimitConverter
-        .buildResourceLimitMap(roleSpec);
-    LOG.info("Total AM ResourceLimit:" + stringStringMap);
-    return stringStringMap;
   }
 
   // TODO: Refactor to make the upload logic more structured, also collecting all the files
@@ -292,52 +225,16 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
     defaultFileSystem.addToLocalResources(StorageHelper.newPaths(files));
   }
 
-  // TODO: unit tests
-  private static String generateAppName(PrimusConf primusConf) {
-    // Get the name override
-    String nameOverride = Optional.of(primusConf.getScheduler())
-        .map(Scheduler::getKubernetesScheduler)
-        .map(KubernetesScheduler::getDriverPodNameOverride)
-        .orElse(null);
-
-    if (!Strings.isNullOrEmpty(nameOverride)) {
-      return nameOverride;
-    }
-
-    // Let's generate one
-    LOG.info("Missing DriverPodNameOverride in PrimusConf, generating a random application name.");
-    return "primus" + "-" + UUID
-        .nameUUIDFromBytes(Longs.toByteArray(System.currentTimeMillis()))
-        .toString().toLowerCase()
-        .replaceAll("-", "")
-        .replaceAll("\\.", "-");
-  }
-
-  private static PrimusPodContext newPrimusDriverPodContext(
-      String appName,
-      Path stagingDir,
-      PrimusConf primusConf
-  ) {
-    PrimusPodContext context = new PrimusPodContext();
-    context.setAppName(appName);
-    context.setHdfsStagingDir(stagingDir);
-    context.setJobName(primusConf.getName());
-    context.setOwner(StringUtils.ensure(
-        primusConf.getKubernetesJobConf().getOwner(),
-        System.getenv().get(SYSTEM_USER_ENV_KEY)));
-    context.setSleepSecondsBeforePodExit(
-        primusConf
-            .getScheduler()
-            .getKubernetesScheduler()
-            .getRuntimeConfig()
-            .getSleepSecondsBeforePodExit());
-    context.setKubernetesSchedulerConfig(new KubernetesSchedulerConfig(primusConf));
-    context.setKubernetesJobName(primusConf.getKubernetesJobConf().getKubernetesJobName());
-    context.setJobEnvironMap(primusConf.getEnvMap()); // use for config map
-    context.setDriverEnvironMap(getDriverStartEnvironment(primusConf));
-    context.setRuntimeConf(primusConf.getRuntimeConf());
-
-    return context;
+  private static String generateAppId(PrimusConf primusConf) {
+    return StringUtils.ensure(
+        primusConf.getRuntimeConf().getKubernetesNativeConf().getApplicationIdOverride(),
+        "primus" + "-" + UUID
+            .nameUUIDFromBytes(Longs.toByteArray(System.currentTimeMillis()))
+            .toString()
+            .toLowerCase()
+            .replaceAll("-", "")
+            .replaceAll("\\.", "-")
+    );
   }
 
   // Local resources needed for Kubernetes Native (HDFS + KubeConfig + Container scripts)

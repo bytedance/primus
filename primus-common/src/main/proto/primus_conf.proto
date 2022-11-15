@@ -184,7 +184,6 @@ message Scheduler {
   string command = 14;
   YarnScheduler am_scheduler = 15;
   bool enable_update_resource = 16;
-  KubernetesScheduler kubernetes_scheduler = 17;
 
   // Experimental zone
   NetworkConfig network_config = 101;
@@ -246,12 +245,6 @@ message TimelineConfig {
   int32 flush_size = 2;
 
   MetricToTimelineEventBridgeConfig metric_to_timeline_event_bridge_config = 10;
-}
-
-message KubernetesJobConf {
-  string kubernetes_job_name = 1;
-  string owner = 2; // defaults to submit user
-  string psm = 3;
 }
 
 message UniqueNameConfig {
@@ -323,7 +316,6 @@ message PrimusConf {
   TimelineConfig timeline_config = 29;
   int32 graceful_shutdown_timeout_min = 30;
   int32 am_allocation_timeout_min = 31;
-  KubernetesJobConf kubernetes_job_conf = 32; // TODO: Move to runtime
   UniqueNameConfig unique_name_config = 33;
   ApiServerConf api_server_conf = 34;
 

@@ -21,9 +21,9 @@ package com.bytedance.primus.runtime.kubernetesnative.runtime.monitor;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutor;
-import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.kubernetesnative.am.KubernetesAMContext;
+import com.bytedance.primus.runtime.kubernetesnative.runtime.dictionary.Dictionary;
 import com.bytedance.primus.runtime.monitor.MonitorInfoProvider;
 import com.google.common.base.Preconditions;
 import java.util.Date;
@@ -35,10 +35,6 @@ import org.slf4j.LoggerFactory;
 public class MonitorInfoProviderImpl implements MonitorInfoProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(MonitorInfoProviderImpl.class);
-
-  private static final String URL_FORMAT_KEY_PRIMUS_APP_NAME = "\\{\\{PrimusAppName\\}\\}";
-  private static final String URL_FORMAT_KEY_KUBERNETES_NAMESPACE = "\\{\\{KubernetesNamespace\\}\\}";
-  private static final String URL_FORMAT_KEY_KUBERNETES_POD_NAME = "\\{\\{KubernetesPodName\\}\\}";
 
   private final KubernetesAMContext context;
 
@@ -52,7 +48,7 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
 
   @Override
   public String getApplicationId() {
-    return context.getAppName();
+    return context.getAppId();
   }
 
   @Override
@@ -65,36 +61,19 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
     return schedulerExecutor.getContainer().getNodeId().getHost();
   }
 
-
-  private Map<String, String> getAmUrlFormatterDictionary() {
-    return new HashMap<String, String>() {{
-      put(URL_FORMAT_KEY_PRIMUS_APP_NAME, context.getAppName());
-      put(URL_FORMAT_KEY_KUBERNETES_NAMESPACE, context.getKubernetesNamespace());
-      put(URL_FORMAT_KEY_KUBERNETES_POD_NAME, context.getDriverPodName());
-    }};
-  }
-
-  private Map<String, String> getExecutorUrlFormatterDictionary(SchedulerExecutor executor) {
-    return new HashMap<String, String>() {{
-      put(URL_FORMAT_KEY_PRIMUS_APP_NAME, context.getAppName());
-      put(URL_FORMAT_KEY_KUBERNETES_NAMESPACE, context.getKubernetesNamespace());
-      put(URL_FORMAT_KEY_KUBERNETES_POD_NAME, executor.getContainer().getNodeId().getHost());
-    }};
-  }
-
   // History file paths ============================================================================
   // ===============================================================================================
 
   @Override
   public String getHistorySnapshotSubdirectoryName() {
-    return context.getAppName();
+    return context.getAppId();
   }
 
   @Override
   public String getHistorySnapshotFileName() {
     return String.format("%s_%d",
-        context.getAppAttemptId().getApplicationId().toString(),
-        context.getAppAttemptId().getAttemptId()
+        context.getApplicationId(),
+        context.getAttemptId()
     );
   }
 
@@ -105,55 +84,54 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   public String getAmTrackingUrl() {
     return getPreflightAmTrackingUrl(
         context.getPrimusConf(),
-        context.getAppName(),
+        context.getAppId(),
         context.getKubernetesNamespace(),
         context.getDriverPodName());
   }
 
   public static String getPreflightAmTrackingUrl(
       PrimusConf primusConf,
-      String appName,
+      String appId,
       String kubernetesNamespace,
       String kubernetesDriverPodName
   ) {
-    return StringUtils.genFromTemplateAndDictionary(
-        primusConf
-            .getRuntimeConf()
-            .getKubernetesNativeConf()
-            .getAmTrackingUrlFormat(),
-        new HashMap<String, String>() {{
-          put(URL_FORMAT_KEY_PRIMUS_APP_NAME, appName);
-          put(URL_FORMAT_KEY_KUBERNETES_NAMESPACE, kubernetesNamespace);
-          put(URL_FORMAT_KEY_KUBERNETES_POD_NAME, kubernetesDriverPodName);
-        }}
-    );
+    return Dictionary.newDictionary(
+        appId,
+        primusConf.getName(),
+        kubernetesNamespace,
+        kubernetesDriverPodName
+    ).translate(primusConf
+        .getRuntimeConf()
+        .getKubernetesNativeConf()
+        .getPrimusUiConf()
+        .getTrackingUrlFormat());
   }
 
   @Override
   public String getHistoryTrackingUrl() {
     return getPreflightHistoryTrackingUrl(
         context.getPrimusConf(),
-        context.getAppName(),
+        context.getAppId(),
         context.getKubernetesNamespace(),
         context.getDriverPodName());
   }
 
   public static String getPreflightHistoryTrackingUrl(
       PrimusConf primusConf,
-      String appName,
+      String appId,
       String kubernetesNamespace,
       String kubernetesDriverPodName
   ) {
-    return StringUtils.genFromTemplateAndDictionary(
-        primusConf
-            .getRuntimeConf()
-            .getKubernetesNativeConf()
-            .getHistoryTrackingUrlFormat(),
-        new HashMap<String, String>() {{
-          put(URL_FORMAT_KEY_PRIMUS_APP_NAME, appName);
-          put(URL_FORMAT_KEY_KUBERNETES_NAMESPACE, kubernetesNamespace);
-          put(URL_FORMAT_KEY_KUBERNETES_POD_NAME, kubernetesDriverPodName);
-        }}
+    return Dictionary.newDictionary(
+        appId,
+        primusConf.getName(),
+        kubernetesNamespace,
+        kubernetesDriverPodName
+    ).translate(primusConf
+        .getRuntimeConf()
+        .getKubernetesNativeConf()
+        .getPrimusUiConf()
+        .getHistoryTrackingUrlFormat()
     );
   }
 
@@ -162,34 +140,53 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
 
   @Override
   public String getAmLogUrl() {
-    return StringUtils.genFromTemplateAndDictionary(
-        context.getPrimusConf()
+    return Dictionary
+        .newDriverDictionary(context)
+        .translate(context
+            .getPrimusConf()
             .getRuntimeConf()
             .getKubernetesNativeConf()
-            .getContainerLogUrlFormat(),
-        getAmUrlFormatterDictionary()
-    );
+            .getPrimusUiConf()
+            .getContainerLogUrlFormat()
+        );
   }
 
   @Override
   public String getAmHistoryLogUrl() {
-    return getAmLogUrl();
+    return Dictionary
+        .newDriverDictionary(context)
+        .translate(context.getPrimusConf()
+            .getRuntimeConf()
+            .getKubernetesNativeConf()
+            .getPrimusUiConf()
+            .getHistoryContainerLogUrlFormat()
+        );
   }
 
   @Override
   public String getExecutorLogUrl(SchedulerExecutor schedulerExecutor) {
-    return StringUtils.genFromTemplateAndDictionary(
-        context.getPrimusConf()
-            .getRuntimeConf()
-            .getKubernetesNativeConf()
-            .getContainerLogUrlFormat(),
-        getExecutorUrlFormatterDictionary(schedulerExecutor)
-    );
+    return Dictionary
+        .newExecutorDictionary(context, schedulerExecutor)
+        .translate(
+            context.getPrimusConf()
+                .getRuntimeConf()
+                .getKubernetesNativeConf()
+                .getPrimusUiConf()
+                .getContainerLogUrlFormat()
+        );
   }
 
   @Override
   public String getExecutorHistoryLogUrl(SchedulerExecutor schedulerExecutor) {
-    return getExecutorLogUrl(schedulerExecutor);
+    return Dictionary
+        .newExecutorDictionary(context, schedulerExecutor)
+        .translate(
+            context.getPrimusConf()
+                .getRuntimeConf()
+                .getKubernetesNativeConf()
+                .getPrimusUiConf()
+                .getHistoryContainerLogUrlFormat()
+        );
   }
 
   // Metrics =======================================================================================

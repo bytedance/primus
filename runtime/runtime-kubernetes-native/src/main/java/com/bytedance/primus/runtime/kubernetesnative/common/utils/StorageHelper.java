@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.runtime.kubernetesnative.utils;
+package com.bytedance.primus.runtime.kubernetesnative.common.utils;
 
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF;
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF_PATH;

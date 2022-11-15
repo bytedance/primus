@@ -17,31 +17,27 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.runtime.kubernetesnative.common.operator.status.model;
+package com.bytedance.primus.runtime.kubernetesnative.common.utils;
 
-public class APIServerEndPoint {
+public class ResourceNameBuilder {
 
-  public APIServerEndPoint(String host, int port) {
-    this.host = host;
-    this.port = port;
+  public static String buildConfigMapName(String appId) {
+    return appId + "-" + "config";
   }
 
-  private String host;
-  private int port;
-
-  public String getHost() {
-    return host;
+  public static String buildDriverPodName(String appId) {
+    return appId + "-" + "driver";
   }
 
-  public void setHost(String host) {
-    this.host = host;
+  public static String buildDriverShortServiceName(String appId) {
+    return buildDriverPodName(appId) + "-" + "svc";
   }
 
-  public int getPort() {
-    return port;
+  public static String buildDriverServiceName(String appId, String namespace) {
+    return buildDriverPodName(appId) + "-" + "svc." + namespace + ".svc";
   }
 
-  public void setPort(int port) {
-    this.port = port;
+  public static String buildExecutorPodName(String appId, String executorUniqId) {
+    return appId + "-" + executorUniqId.replace("_", "-");
   }
 }

@@ -29,27 +29,6 @@ message RuntimeConf {
     KubernetesNativeConf kubernetes_native_conf = 1;
     YarnCommunityConf yarn_community_conf = 2;
   }
-  message KubernetesNativeConf {
-    KubernetesContainerConf init_container_conf = 1;
-    KubernetesContainerConf driver_container_conf = 2;
-    KubernetesContainerConf executor_container_conf = 3;
-
-    repeated Protocol kubernetes_api_protocols = 10;
-
-    /**
-     * url_formats are the string templates to build the corresponding urls,
-     * where supported key-value pairs are listed below.
-     * - {{PrimusAppName}}       => Primus application name
-     * - {{KubernetesNamespace}} => Kubernetes namespace
-     * - {{KubernetesPodName}}   => Kubernetes pod name
-     *
-     * Example: "http://primus.log/?namespace={{KubernetesNamespace}}&pod={{KubernetesPodName}}"
-     */
-    string am_tracking_url_format = 20;
-    string history_tracking_url_format = 21;
-    string container_log_url_format = 25;
-    string container_history_log_url_format = 26;
-  }
   message YarnCommunityConf {
     map<string, string> hadoop_conf = 1;
 
@@ -95,19 +74,54 @@ message RuntimeConf {
   }
 }
 
-message KubernetesContainerConf {
-  string image_name = 1;
-  string image_pull_policy = 2; // Defaults to "Always"
-  repeated string command = 3;
-  repeated string args = 4;
+/**
+ * url_formats are the string templates to build the urls with the dictionary
+ * provided by the runtime. Take Kubernetes native runtime as an example, the
+ * url_format can be assigned as
+ *
+ * "http://primus.log/?namespace={{KubernetesNamespace}}&pod={{KubernetesPodName}}"
+ *
+ * with a dictionary like
+ * - {{PrimusAppName}}       => Primus application name
+ * - {{KubernetesNamespace}} => Kubernetes namespace
+ * - {{KubernetesPodName}}   => Kubernetes pod name
+ */
+message PrimusUiConf {
+  string tracking_url_format = 10;
+  string container_log_url_format = 11;
 
-  // User defined pod annotations, supported value templates are listed below
-  // {{AppName}}   => kubernetes application name
-  // {{QueueName}} => kubernetes queue name
-  map<string, string> annotations = 10;
+  string history_tracking_url_format = 20;
+  string history_container_log_url_format = 21;
+}
 
-  // HostPath to MountPath
-  map<string, string> mounts = 20;
+// Kubernetes Native Configuration =============================================
+// =============================================================================
+
+message KubernetesNativeConf {
+  string application_id_override = 1; // UNIQ Primus application ID, defaults to UUID generator.
+
+  string namespace = 10;       // Defaults to default
+  string service_account = 11; // Defaults to default
+  string scheduler_name = 12;  // Defaults to default Kubernetes scheduler
+  string user = 14;            // Defaults to $USER
+
+  repeated Protocol kubernetes_api_protocols = 20;
+  int32 sleep_seconds_before_pod_exit = 21;
+
+  /**
+   * Dictionary contains the templates for general runtime information, which
+   * are used to translate annotations, labels and Primus UI information.
+   *
+   * - {{PrimusAppId}}         => Primus application ID
+   * - {{PrimusAppName}}       => Primus application name
+   * - {{KubernetesNamespace}} => Kubernetes namespace
+   * - {{KubernetesPodName}}   => Kubernetes pod name
+   */
+
+  KubernetesPodConf driver_pod_conf = 30;
+  KubernetesPodConf executor_pod_conf = 31;
+
+  PrimusUiConf primus_ui_conf = 100;
 }
 
 message NetworkConfig {
@@ -119,20 +133,23 @@ message NetworkConfig {
   bool keep_ip_port_under_overlay = 2;
 }
 
-// TODO: Combine with the new runtime config
-message KubernetesScheduler {
-  KubernetesSchedulerRuntimeConfig runtime_config = 1;
-  string namespace = 2;
-  string service_account_name = 3;
-  string scheduler_name = 4;
-  string queue = 5;
-  NetworkConfig network_config = 6;
+message KubernetesPodConf {
+  // User defined labels and annotations, see PodMetaUtils.java for the supported dictionary.
+  map<string, string> labels = 10;
+  map<string, string> annotations = 11;
 
-  string driver_pod_name_override = 10;
+  KubernetesContainerConf init_container_conf = 20;
+  KubernetesContainerConf main_container_conf = 21;
 }
 
-message KubernetesSchedulerRuntimeConfig {
-  int32 sleep_seconds_before_pod_exit = 1;
+message KubernetesContainerConf {
+  string image_name = 1;
+  string image_pull_policy = 2; // ["IfNotPresent", "Always", "Never"], Defaults to "Always"
+
+  repeated string command = 3;
+  repeated string args = 4;
+
+  map<string, string> mounts = 10; // HostPath to MountPath
 }
 
 // TODO: Combine with the new runtime config

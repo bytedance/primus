@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.executor;
 
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_NAME_ENV_KEY;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_ID_ENV_KEY;
 
 import com.bytedance.primus.executor.environment.RunningEnvironment;
 import java.util.Map;
@@ -40,9 +40,9 @@ public class RunningEnvironmentImpl implements RunningEnvironment {
   @Override
   public String getApplicationId() {
     Map<String, String> systemEnvs = System.getenv();
-    if (!systemEnvs.containsKey(PRIMUS_APP_NAME_ENV_KEY)) {
-      throw new IllegalArgumentException("Missing PRIMUS_APP_NAME_ENV_KEY environment");
+    if (!systemEnvs.containsKey(PRIMUS_APP_ID_ENV_KEY)) {
+      throw new IllegalArgumentException("Missing PRIMUS_APP_ID_ENV_KEY environment");
     }
-    return systemEnvs.get(PRIMUS_APP_NAME_ENV_KEY);
+    return systemEnvs.get(PRIMUS_APP_ID_ENV_KEY);
   }
 }

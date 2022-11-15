@@ -64,10 +64,10 @@ public class KubernetesPodStarter {
     return namespacedPod;
   }
 
-  public Watch<V1Pod> createExecutorPodWatch(String namespace, String appName) {
+  public Watch<V1Pod> createExecutorPodWatch(String namespace, String appId) {
     CoreV1Api api = new CoreV1Api(client);
     try {
-      String labelSelector = KubernetesConstants.PRIMUS_APP_SELECTOR_LABEL_NAME + "=" + appName;
+      String labelSelector = KubernetesConstants.PRIMUS_APP_ID_LABEL_NAME + "=" + appId;
       Type watchType =
           new TypeToken<Response<V1Pod>>() {
           }.getType();

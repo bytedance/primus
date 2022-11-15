@@ -19,11 +19,16 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.am;
 
+import static com.bytedance.primus.am.ApplicationExitCode.KUBERNETES_ENV_MISSING;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_ID_ENV_KEY;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_DRIVER_POD_UNIQ_ID_ENV_KEY;
+
 import com.bytedance.primus.am.AMCommandParser;
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.am.ApplicationMaster;
+import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.utils.ConfigurationUtils;
+import java.util.HashSet;
 import org.apache.commons.cli.CommandLine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,14 +42,31 @@ public class KubernetesApplicationMasterMain {
     String configPath = cmd.getOptionValue(AMCommandParser.CONFIGURATION_PATH);
     PrimusConf primusConf = ConfigurationUtils.load(configPath);
 
-    run(primusConf);
+    for (String key : new HashSet<String>() {{
+      add(PRIMUS_APP_ID_ENV_KEY);
+      add(PRIMUS_DRIVER_POD_UNIQ_ID_ENV_KEY);
+    }}) {
+      if (!System.getenv().containsKey(key)) {
+        LOG.error("Missing Environment Key: " + key);
+        System.exit(KUBERNETES_ENV_MISSING.getValue());
+        throw new RuntimeException("placeholder to suppress compiler error");
+      }
+    }
+
+    run(primusConf,
+        System.getenv().get(PRIMUS_APP_ID_ENV_KEY),
+        System.getenv().get(PRIMUS_DRIVER_POD_UNIQ_ID_ENV_KEY)
+    );
   }
 
-  public static void run(PrimusConf primusConf) {
-    try {
-      ApplicationMaster am = new KubernetesApplicationMaster();
+  public static void run(PrimusConf primusConf, String appId, String driverPodUniqId) {
+    try (KubernetesApplicationMaster am = new KubernetesApplicationMaster(appId, driverPodUniqId)) {
+      LOG.info("Metrics init ...");
+      PrimusMetrics.init(primusConf.getRuntimeConf(), appId);
+
       LOG.info("Application master init...");
       am.init(primusConf);
+
       LOG.info("Application master start...");
       am.start();
 
@@ -55,8 +77,6 @@ public class KubernetesApplicationMasterMain {
     } catch (Throwable e) {
       LOG.error("Runtime error", e);
       System.exit(ApplicationExitCode.RUNTIME_ERROR.getValue());
-    } finally {
-      LOG.info("Application exit");
     }
   }
 }

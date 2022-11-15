@@ -23,7 +23,6 @@ set -eo pipefail
 cd "$(dirname "$0")"
 
 source __primus_conf__/primus-env.sh
-env | sort
 echo "================================"
 
 "$JAVA_HOME"/bin/java -cp ./*:./__primus_lib__/*:"$CLASSPATH" \
@@ -34,5 +33,5 @@ echo "================================"
 
 PRIMUS_EXIT_CODE=$?
 echo "PRIMUS PROCESS Exit:" ${PRIMUS_EXIT_CODE}
-sleep "$SLEEP_SECONDS_BEFORE_POD_EXIT_ENV_KEY"
+sleep "$SLEEP_SECONDS_BEFORE_POD_EXIT"
 exit $PRIMUS_EXIT_CODE

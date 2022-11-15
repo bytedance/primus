@@ -19,122 +19,116 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.common.pods;
 
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_AM_JAVA_MEMORY_XMX;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_AM_JAVA_OPTIONS;
+import static com.bytedance.primus.utils.PrimusConstants.SYSTEM_USER_ENV_KEY;
+
+import com.bytedance.primus.apiserver.proto.UtilsProto.ResourceRequest;
+import com.bytedance.primus.apiserver.proto.UtilsProto.ResourceType;
+import com.bytedance.primus.apiserver.records.ExecutorSpec;
+import com.bytedance.primus.apiserver.records.RoleSpec;
+import com.bytedance.primus.apiserver.records.impl.ExecutorSpecImpl;
+import com.bytedance.primus.apiserver.records.impl.RoleSpecImpl;
+import com.bytedance.primus.common.util.StringUtils;
+import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
+import com.bytedance.primus.proto.PrimusConfOuterClass.Scheduler;
 import com.bytedance.primus.proto.PrimusRuntime.RuntimeConf;
+import com.bytedance.primus.runtime.kubernetesnative.am.KubernetesResourceLimitConverter;
 import com.bytedance.primus.runtime.kubernetesnative.common.KubernetesSchedulerConfig;
-import io.kubernetes.client.openapi.models.V1OwnerReference;
+import com.google.common.base.Strings;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import lombok.Getter;
 import org.apache.hadoop.fs.Path;
 
 public class PrimusPodContext {
 
-  private String jobName;
-  private String appName;
-  private String kubernetesJobName;
-  private String owner;
-  private Path hdfsStagingDir;
-  private V1OwnerReference driverPodOwnerReference;
-  private String driverPodUid;
-  private Map<String, String> driverEnvironMap;
-  private Map<String, String> jobEnvironMap;
-  private int sleepSecondsBeforePodExit;
+  @Getter
+  private final String appId;
+  @Getter
+  private final String appName;
+  @Getter
+  private final String user;
+  @Getter
+  private final Path hdfsStagingDir;
+  @Getter
+  private final Map<String, String> driverEnvironMap;
+  @Getter
+  private final Map<String, String> jobEnvironMap;  // use for config map
+  @Getter
+  private final int sleepSecondsBeforePodExit;
+  @Getter
+  private final RuntimeConf runtimeConf;
+  @Getter
+  private final KubernetesSchedulerConfig kubernetesSchedulerConfig;
+  @Getter
+  private final Map<String, String> resourceLimitMap;
 
-  private RuntimeConf runtimeConf;
-
-  private KubernetesSchedulerConfig kubernetesSchedulerConfig;
-
-  public RuntimeConf getRuntimeConf() {
-    return runtimeConf;
+  public PrimusPodContext(
+      String appId,
+      Path stagingDir,
+      PrimusConf primusConf
+  ) {
+    this.appId = appId;
+    this.appName = primusConf.getName();
+    this.hdfsStagingDir = stagingDir;
+    this.user = StringUtils.ensure(
+        primusConf.getRuntimeConf().getKubernetesNativeConf().getUser(),
+        System.getenv().get(SYSTEM_USER_ENV_KEY));
+    this.sleepSecondsBeforePodExit = primusConf
+        .getRuntimeConf()
+        .getKubernetesNativeConf()
+        .getSleepSecondsBeforePodExit();
+    this.kubernetesSchedulerConfig = new KubernetesSchedulerConfig(primusConf);
+    this.jobEnvironMap = primusConf.getEnvMap();
+    this.driverEnvironMap = getDriverStartEnvironment(primusConf);
+    this.runtimeConf = primusConf.getRuntimeConf();
+    this.resourceLimitMap = createResourceLimitMap(primusConf.getScheduler());
   }
 
-  public void setRuntimeConf(RuntimeConf runtimeConf) {
-    this.runtimeConf = runtimeConf;
+  // TODO: Move it out of PrimusPodContext
+  private static Map<String, String> getDriverStartEnvironment(PrimusConf conf) {
+    Map<String, String> ret = new HashMap<String, String>() {{
+      put(PRIMUS_AM_JAVA_MEMORY_XMX, conf.getScheduler().getJvmMemoryMb() + "m");
+      putAll(conf.getScheduler().getEnvMap());
+    }};
+
+    if (!Strings.isNullOrEmpty(conf.getScheduler().getJavaOpts())) {
+      ret.put(PRIMUS_AM_JAVA_OPTIONS, Integer.toString(conf.getScheduler().getJvmMemoryMb()));
+    }
+
+    return ret;
   }
 
-  public String getJobName() {
-    return jobName;
-  }
+  private static Map<String, String> createResourceLimitMap(Scheduler scheduler) {
+    List<ResourceRequest> resourceRequests = new ArrayList<>();
+    resourceRequests.add(
+        ResourceRequest.newBuilder()
+            .setResourceType(ResourceType.VCORES)
+            .setValue(scheduler.getVcores())
+            .build()
+    );
+    resourceRequests.add(
+        ResourceRequest.newBuilder()
+            .setResourceType(ResourceType.MEMORY_MB)
+            .setValue(scheduler.getMemoryMb())
+            .build()
+    );
+    if (scheduler.getGpuNum() != 0) {
+      resourceRequests.add(
+          ResourceRequest.newBuilder()
+              .setResourceType(ResourceType.GPU)
+              .setValue(scheduler.getGpuNum())
+              .build());
+    }
 
-  public void setJobName(String jobName) {
-    this.jobName = jobName;
-  }
+    ExecutorSpec executorSpec = new ExecutorSpecImpl();
+    executorSpec.setResourceRequests(resourceRequests);
 
-  public String getAppName() {
-    return appName;
-  }
-
-  public void setAppName(String appName) {
-    this.appName = appName;
-  }
-
-  public String getOwner() {
-    return owner;
-  }
-
-  public void setOwner(String owner) {
-    this.owner = owner;
-  }
-
-  public Path getHdfsStagingDir() {
-    return hdfsStagingDir;
-  }
-
-  public void setHdfsStagingDir(Path hdfsStagingDir) {
-    this.hdfsStagingDir = hdfsStagingDir;
-  }
-
-  public void setOwnerReference(V1OwnerReference driverPodOwnerReference) {
-    this.driverPodOwnerReference = driverPodOwnerReference;
-  }
-
-  public V1OwnerReference getDriverPodOwnerReference() {
-    return driverPodOwnerReference;
-  }
-
-  public String getDriverPodUid() {
-    return driverPodUid;
-  }
-
-  public void setDriverPodUid(String driverPodUid) {
-    this.driverPodUid = driverPodUid;
-  }
-
-  public Map<String, String> getDriverEnvironMap() {
-    return driverEnvironMap;
-  }
-
-  public void setDriverEnvironMap(Map<String, String> driverEnvironMap) {
-    this.driverEnvironMap = driverEnvironMap;
-  }
-
-  public int getSleepSecondsBeforePodExit() {
-    return sleepSecondsBeforePodExit;
-  }
-
-  public void setSleepSecondsBeforePodExit(int sleepSecondsBeforePodExit) {
-    this.sleepSecondsBeforePodExit = sleepSecondsBeforePodExit;
-  }
-
-  public String getKubernetesJobName() {
-    return kubernetesJobName;
-  }
-
-  public void setKubernetesJobName(String kubernetesJobName) {
-    this.kubernetesJobName = kubernetesJobName;
-  }
-
-  public Map<String, String> getJobEnvironMap() {
-    return jobEnvironMap;
-  }
-
-  public void setJobEnvironMap(Map<String, String> jobEnvironMap) {
-    this.jobEnvironMap = jobEnvironMap;
-  }
-
-  public KubernetesSchedulerConfig getKubernetesSchedulerConfig() {
-    return kubernetesSchedulerConfig;
-  }
-
-  public void setKubernetesSchedulerConfig(KubernetesSchedulerConfig kubernetesSchedulerConfig) {
-    this.kubernetesSchedulerConfig = kubernetesSchedulerConfig;
+    RoleSpec roleSpec = new RoleSpecImpl();
+    roleSpec.setExecutorSpecTemplate(executorSpec);
+    return KubernetesResourceLimitConverter.buildResourceLimitMap(roleSpec);
   }
 }

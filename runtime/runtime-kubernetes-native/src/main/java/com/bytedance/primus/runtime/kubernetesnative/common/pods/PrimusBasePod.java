@@ -19,29 +19,18 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.common.pods;
 
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_AM_POD_UNIQ_ID_ENV_KEY;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_NAME_ENV_KEY;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_MOUNT_NAME;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_MOUNT_PATH;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.SLEEP_SECONDS_BEFORE_POD_EXIT_ENV_KEY;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.HADOOP_USER_NAME_ENV;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.PRIMUS_LOCAL_MOUNTING_DIR_ENV;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.PRIMUS_REMOTE_STAGING_DIR_ENV;
 
 import com.bytedance.primus.common.collections.Pair;
 import com.bytedance.primus.proto.PrimusRuntime.KubernetesContainerConf;
-import com.bytedance.primus.runtime.kubernetesnative.ResourceNameBuilder;
+import com.bytedance.primus.proto.PrimusRuntime.KubernetesPodConf;
 import com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants;
-import io.kubernetes.client.openapi.models.V1ConfigMap;
 import io.kubernetes.client.openapi.models.V1EmptyDirVolumeSource;
 import io.kubernetes.client.openapi.models.V1HostPathVolumeSource;
-import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Volume;
 import io.kubernetes.client.openapi.models.V1VolumeMount;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -71,10 +60,10 @@ public abstract class PrimusBasePod {
   @Getter
   private final List<V1VolumeMount> mainContainerMounts;
 
-  public PrimusBasePod(
-      KubernetesContainerConf initContainerConf,
-      KubernetesContainerConf mainContainerConf
-  ) {
+  public PrimusBasePod(KubernetesPodConf podConf) {
+    KubernetesContainerConf initContainerConf = podConf.getInitContainerConf();
+    KubernetesContainerConf mainContainerConf = podConf.getMainContainerConf();
+
     // Compute Volumes and VolumeMounts
     Map<String, Pair<String, String>> initMounts = loadMountMap(initContainerConf.getMountsMap());
     Map<String, Pair<String, String>> mainMounts = loadMountMap(mainContainerConf.getMountsMap());
@@ -91,35 +80,6 @@ public abstract class PrimusBasePod {
       addAll(defaultSharedVolumes);
       addAll(loadVolumes(initMounts, mainMounts));
     }};
-  }
-
-  protected static V1ConfigMap loadConfigMap(PrimusPodContext context) {
-    // Primus envs
-    Map<String, String> envs = new HashMap<String, String>() {{
-      // Primus Application
-      put(PRIMUS_APP_NAME_ENV_KEY, context.getAppName());
-      put(PRIMUS_AM_POD_UNIQ_ID_ENV_KEY, context.getDriverPodUid());
-      put(PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY, String.valueOf(new Date().getTime()));
-      put(SLEEP_SECONDS_BEFORE_POD_EXIT_ENV_KEY,
-          Integer.toString(context.getSleepSecondsBeforePodExit()));
-
-      put(PRIMUS_REMOTE_STAGING_DIR_ENV, context.getHdfsStagingDir().toString());
-      put(PRIMUS_LOCAL_MOUNTING_DIR_ENV, PRIMUS_MOUNT_PATH);
-
-      // TODO: Centralize to the future PrimusFileSystem interface
-      put(HADOOP_USER_NAME_ENV, context.getOwner());
-    }};
-
-    // User defined envs
-    envs.putAll(context.getJobEnvironMap());
-
-    // Assemble the result
-    return new V1ConfigMap()
-        .metadata(new V1ObjectMeta()
-            .name(ResourceNameBuilder.buildConfigMapName(context.getAppName()))
-            .namespace(context.getKubernetesSchedulerConfig().getNamespace())
-            .addOwnerReferencesItem(context.getDriverPodOwnerReference()))
-        .data(envs);
   }
 
   // Transforms {HostPath -> MountPath} to {name -> (HostPath, MountPath)}

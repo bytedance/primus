@@ -25,50 +25,39 @@ import static com.bytedance.primus.runtime.kubernetesnative.common.constants.Kub
 
 import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.proto.PrimusRuntime.KubernetesScheduler;
+import com.bytedance.primus.proto.PrimusRuntime.KubernetesNativeConf;
 import com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants;
+import lombok.Getter;
 
 // TODO: Maybe it's a better idea to bake the values into PrimusConf upfront during merging
 //  PrimusConf, so that it will be easier to share across multiple components and less error-prone.
 public class KubernetesSchedulerConfig {
 
-  private final String namespace;
-  private final String serviceAccountName;
-  private final String schedulerName;
+  @Getter
   private final String queue;
+  @Getter
+  private final String namespace;
+  @Getter
+  private final String serviceAccountName;
+  @Getter
+  private final String schedulerName;
 
   public KubernetesSchedulerConfig(PrimusConf primusConf) {
-    KubernetesScheduler kubernetesScheduler = primusConf
-        .getScheduler()
-        .getKubernetesScheduler();
+    KubernetesNativeConf conf = primusConf
+        .getRuntimeConf()
+        .getKubernetesNativeConf();
 
+    queue = StringUtils.ensure(
+        primusConf.getQueue(),
+        K8S_SCHEDULE_QUEUE_NAME_ANNOTATION_VALUE_DEFAULT);
     namespace = StringUtils.ensure(
-        kubernetesScheduler.getNamespace(),
+        conf.getNamespace(),
         KubernetesConstants.PRIMUS_DEFAULT_K8S_NAMESPACE);
     serviceAccountName = StringUtils.ensure(
-        kubernetesScheduler.getServiceAccountName(),
+        conf.getServiceAccount(),
         K8S_SCHEDULE_SERVICE_ACCOUNT_NAME_DEFAULT);
     schedulerName = StringUtils.ensure(
-        kubernetesScheduler.getSchedulerName(),
+        conf.getSchedulerName(),
         K8S_SCHEDULE_SCHEDULER_NAME_ANNOTATION_VALUE_DEFAULT);
-    queue = StringUtils.ensure(
-        kubernetesScheduler.getQueue(),
-        K8S_SCHEDULE_QUEUE_NAME_ANNOTATION_VALUE_DEFAULT);
-  }
-
-  public String getNamespace() {
-    return namespace;
-  }
-
-  public String getServiceAccountName() {
-    return serviceAccountName;
-  }
-
-  public String getSchedulerName() {
-    return schedulerName;
-  }
-
-  public String getQueue() {
-    return queue;
   }
 }

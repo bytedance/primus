@@ -20,9 +20,6 @@
 package com.bytedance.primus.runtime.kubernetesnative.common.pods.containers;
 
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_DEFAULT_IMAGE_PULL_POLICY;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_DRIVER_HOST_NAME_ENV_KEY;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.RUNTIME_IDC_NAME_DEFAULT_VALUE;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.RUNTIME_IDC_NAME_KEY;
 
 import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusRuntime.KubernetesContainerConf;
@@ -39,8 +36,7 @@ public class PrimusDriverContainer extends PrimusBaseContainer {
   private final V1Container kubernetesContainer;
 
   public PrimusDriverContainer(
-      String appName,
-      String driverServiceName,
+      String appId,
       Map<String, String> resourceLimitMap,
       KubernetesContainerConf containerConf,
       Map<String, String> environmentMap,
@@ -55,13 +51,10 @@ public class PrimusDriverContainer extends PrimusBaseContainer {
             PRIMUS_DEFAULT_IMAGE_PULL_POLICY))
         .resources(getResourceRequirements(resourceLimitMap))
         // Env
-        .addEnvFromItem(retrieveKubernetesConfigMap(appName))
+        .addEnvFromItem(retrieveKubernetesConfigMap(appId))
         .env(combineEnvironmentVariables(
             // Primus defaults
-            new HashMap<String, String>() {{
-              put(PRIMUS_DRIVER_HOST_NAME_ENV_KEY, driverServiceName);
-              put(RUNTIME_IDC_NAME_KEY, RUNTIME_IDC_NAME_DEFAULT_VALUE);
-            }},
+            new HashMap<>(),
             // Customized envs
             environmentMap)
         )

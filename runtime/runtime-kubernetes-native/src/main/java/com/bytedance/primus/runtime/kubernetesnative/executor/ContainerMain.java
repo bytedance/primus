@@ -50,15 +50,10 @@ public class ContainerMain {
     PrimusConf primusConf = primusExecutorConf.getPrimusConf();
 
     try {
-      LOG.info("init metric collector");
-      if (primusConf.getRuntimeConf().hasPrometheusPushGatewayConf()) {
-        PrimusMetrics.init(runningEnvironment.getApplicationId() + ".",
-            primusConf.getRuntimeConf().getPrometheusPushGatewayConf().getHost(),
-            primusConf.getRuntimeConf().getPrometheusPushGatewayConf().getPort(),
-            runningEnvironment.getApplicationId());
-      } else {
-        PrimusMetrics.init(runningEnvironment.getApplicationId() + ".");
-      }
+      LOG.info("init metrics");
+      PrimusMetrics.init(
+          primusConf.getRuntimeConf(),
+          runningEnvironment.getApplicationId());
 
       LOG.info("container init...");
       container.init(primusExecutorConf, runningEnvironment);

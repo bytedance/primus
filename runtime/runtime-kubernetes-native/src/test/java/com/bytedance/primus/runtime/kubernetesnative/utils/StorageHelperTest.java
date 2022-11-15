@@ -20,6 +20,7 @@
 package com.bytedance.primus.runtime.kubernetesnative.utils;
 
 
+import com.bytedance.primus.runtime.kubernetesnative.common.utils.StorageHelper;
 import org.apache.hadoop.fs.Path;
 import org.junit.Assert;
 import org.junit.Test;

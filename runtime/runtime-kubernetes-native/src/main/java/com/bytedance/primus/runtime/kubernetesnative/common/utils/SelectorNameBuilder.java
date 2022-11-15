@@ -17,11 +17,11 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.runtime.kubernetesnative.common.operator.status.service;
+package com.bytedance.primus.runtime.kubernetesnative.common.utils;
 
-import com.bytedance.primus.runtime.kubernetesnative.common.operator.status.model.OperatorJobStatus;
+public class SelectorNameBuilder {
 
-public interface JobStatusManagerService {
-
-  OperatorJobStatus fetchLatest() throws Exception;
+  public static String buildExecutorNamePrefix(String appId) {
+    return appId + "-" + "executor";
+  }
 }

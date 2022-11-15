@@ -22,7 +22,6 @@
 set -eo pipefail
 
 source __primus_conf__/primus-env.sh
-env | sort
 echo "================================"
 
 ls -ltr ./
@@ -46,5 +45,5 @@ ls -ltr ./__primus_conf__
 PRIMUS_EXIT_CODE=$?
 echo "PRIMUS PROCESS Exit:" ${PRIMUS_EXIT_CODE}
 
-sleep "$SLEEP_SECONDS_BEFORE_POD_EXIT_ENV_KEY"
+sleep "$SLEEP_SECONDS_BEFORE_POD_EXIT"
 exit $PRIMUS_EXIT_CODE

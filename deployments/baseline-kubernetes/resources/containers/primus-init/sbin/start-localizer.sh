@@ -20,7 +20,6 @@
 #
 
 set -eou pipefail
-env | sort
 echo "================================"
 
 # Localizing application files
@@ -28,5 +27,3 @@ echo "Start POD localization"
 echo "Src path:" "$PRIMUS_REMOTE_STAGING_DIR"
 echo "Dst path:" "$PRIMUS_LOCAL_MOUNTING_DIR"
 hdfs dfs -get "$PRIMUS_REMOTE_STAGING_DIR"/* "$PRIMUS_LOCAL_MOUNTING_DIR"
-
-tree "$PRIMUS_LOCAL_MOUNTING_DIR"
