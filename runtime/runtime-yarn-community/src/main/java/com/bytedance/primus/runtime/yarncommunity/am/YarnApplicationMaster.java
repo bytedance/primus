@@ -92,6 +92,7 @@ import com.bytedance.primus.common.child.ChildLauncherEventType;
 import com.bytedance.primus.common.event.AsyncDispatcher;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.model.records.ApplicationId;
+import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.model.records.FinalApplicationStatus;
 import com.bytedance.primus.common.service.CompositeService;
 import com.bytedance.primus.common.service.Service;
@@ -149,6 +150,8 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
   private static final Logger LOG = LoggerFactory.getLogger(YarnApplicationMaster.class);
   protected static int STOP_NM_CLIENT_TIMEOUT = 300;
 
+  private final ContainerId containerId;
+
   private PrimusConf primusConf;
   private YarnAMContext context;
 
@@ -161,29 +164,25 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
   private ApiServer apiServer;
 
   private volatile boolean isStopped;
-  private FinalApplicationStatus finalStatus;
-  private boolean needUnregister;
-  private String unregisterDiagnostics;
+  private FinalApplicationStatus finalStatus = FinalApplicationStatus.UNDEFINED;
+  private boolean needUnregister = false;
+  private String unregisterDiagnostics = "";
   private String historyUrl;
   private volatile boolean gracefulShutdown = false;
-  private int exitCode;
+  private int exitCode = ApplicationExitCode.UNDEFINED.getValue();
   private Set<String> distributedUris = new HashSet<>();
   private Set<String> distributedNames = new HashSet<>();
 
-  public YarnApplicationMaster() {
+  public YarnApplicationMaster(ContainerId containerId) {
     super(YarnApplicationMaster.class.getName());
-    finalStatus = FinalApplicationStatus.FAILED;
-    needUnregister = false;
-    unregisterDiagnostics = "";
-    exitCode = ApplicationExitCode.UNDEFINED.getValue();
+    this.containerId = containerId;
   }
 
-  @Override
   public void init(PrimusConf primusConf) throws Exception {
     this.primusConf = primusConf;
 
     LOG.info("Create AMContext");
-    context = new YarnAMContext(primusConf);
+    context = new YarnAMContext(primusConf, containerId);
 
     LOG.info("Create event dispatchers");
     dispatcher = new AsyncDispatcher();
@@ -194,13 +193,15 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     LOG.info("Init FileSystem");
     stagingDir = new Path(context.getEnvs().get(STAGING_DIR_KEY));
 
-    // Setup PrimusMetrics and timelineLogger
     // TODO: Move to a new private function
     ApplicationId appId = context.getAppAttemptId().getApplicationId();
-    PrimusMetrics.init(appId.toString() + ".");
+    PrimusMetrics.init(
+        primusConf.getRuntimeConf(),
+        appId.toString());
     historyUrl = context.getMonitorInfoProvider().getHistoryTrackingUrl();
 
     // TODO: Make it plugable
+    // Setup timelineLogger
     LOG.info("Create noop timeline listener");
     TimelineLogger timelineLogger = new NoopTimelineLogger();
     context.setTimelineLogger(timelineLogger);

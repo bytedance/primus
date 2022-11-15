@@ -47,11 +47,15 @@ public class ContainerMain {
     }), 1000);
 
     try {
-      LOG.info("init metric collector");
-      PrimusMetrics.init(runningEnvironment.getApplicationId() + ".");
+      PrimusExecutorConf primusExecutorConf = buildPrimusConf(args);
 
       LOG.info("container init...");
-      container.init(buildPrimusConf(args), runningEnvironment);
+      container.init(primusExecutorConf, runningEnvironment);
+
+      LOG.info("init metric collector");
+      PrimusMetrics.init(
+          primusExecutorConf.getPrimusConf().getRuntimeConf(),
+          runningEnvironment.getApplicationId());
 
       LOG.info("container start...");
       container.start();

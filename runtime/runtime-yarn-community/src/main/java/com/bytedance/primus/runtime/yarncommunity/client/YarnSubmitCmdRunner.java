@@ -33,6 +33,7 @@ import static com.bytedance.primus.utils.PrimusConstants.STAGING_DIR_KEY;
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.client.ClientCmdRunner;
 import com.bytedance.primus.common.util.RuntimeUtils;
+import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.yarncommunity.am.ApplicationMasterMain;
@@ -185,6 +186,7 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
     return PrimusConf.newBuilder()
         .mergeFrom(defaultConf)
         .mergeFrom(userConf)
+        .setRunningMode(RunningMode.YARN)
         .build();
   }
 

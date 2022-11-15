@@ -394,16 +394,6 @@ public abstract class YarnContainerManager extends ContainerManager {
           if (!gracefulShutdown) {
             askForContainers();
 
-            if (context.getPrimusConf().getScheduler().getDisableContainerSucceedApp()
-                && context.getMaster() != null && !context.getMaster().isSuccess()) {
-              if (disableContainerSucceedAppLogFlag.compareAndSet(true, false)) {
-                LOG.info(
-                    "Scheduler's disableContainerSucceedApp is true and master is not successful so not succeed app");
-              }
-              Thread.sleep(ALLOCATE_INTERVAL_MS);
-              continue;
-            }
-
             if (schedulerExecutorManager.isAllSuccess()) {
               finish();
             } else if (schedulerExecutorManager.isAllCompleted()) {

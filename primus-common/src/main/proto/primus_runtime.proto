@@ -29,25 +29,6 @@ message RuntimeConf {
     KubernetesNativeConf kubernetes_native_conf = 1;
     YarnCommunityConf yarn_community_conf = 2;
   }
-  message YarnCommunityConf {
-    map<string, string> hadoop_conf = 1;
-
-    /**
-     * url_formats are the string templates to build the corresponding urls,
-     * where supported key-value pairs are listed below.
-     * - {{YarnApplicationId}} => The YARN application ID
-     * - {{YarnUsername}}      => The username submitting the Primus application
-     * - {{YarnNodeHostname}}  => The hostname of the hosting YARN name node
-     * - {{YarnNodeHttpPort}}  => The http port of the hosting YARN name node
-     * - {{YarnNodeId}}        => The id of the hosting YARN node
-     * - {{YarnContainerId}}   => The id of the hosting YARN container
-     *
-     * Example: "http://localhost:{{YarnNodePort}}/node/containerlogs/{{YarnContainerId}}/{{YarnUsername}}
-     */
-    string history_tracking_url_format = 21;
-    string container_log_url_format = 25;
-    string container_history_log_url_format = 26;
-  }
 
   // Storage
   oneof storage_conf {
@@ -124,15 +105,6 @@ message KubernetesNativeConf {
   PrimusUiConf primus_ui_conf = 100;
 }
 
-message NetworkConfig {
-  enum NetworkType {
-    DEFAULT = 0;
-    OVERLAY = 1;
-  }
-  NetworkType network_type = 1;
-  bool keep_ip_port_under_overlay = 2;
-}
-
 message KubernetesPodConf {
   // User defined labels and annotations, see PodMetaUtils.java for the supported dictionary.
   map<string, string> labels = 10;
@@ -150,6 +122,26 @@ message KubernetesContainerConf {
   repeated string args = 4;
 
   map<string, string> mounts = 10; // HostPath to MountPath
+}
+
+// YARN Configuration ==========================================================
+// =============================================================================
+
+message YarnCommunityConf {
+  map<string, string> hadoop_conf = 1;
+
+  /**
+   * Supported Dictionary
+   * - {{YarnApplicationId}} => The YARN application ID
+   * - {{YarnUsername}}      => The username submitting the Primus application
+   * - {{YarnNodeHostname}}  => The hostname of the hosting YARN name node
+   * - {{YarnNodeHttpPort}}  => The http port of the hosting YARN name node
+   * - {{YarnNodeId}}        => The id of the hosting YARN node
+   * - {{YarnContainerId}}   => The id of the hosting YARN container
+   *
+   * NOTE: Customized tracking_url_format is not supported by YARN runtime.
+   */
+  PrimusUiConf primus_ui_conf = 100;
 }
 
 // TODO: Combine with the new runtime config
@@ -176,8 +168,6 @@ message YarnScheduler {
   YarnSchedulingType scheduling_type = 5;
   YarnGlobalConstraintType global_constraint_type = 6;
   YarnNeedGlobalNodesView need_global_nodes_view = 7;
-
-  NetworkConfig network_config = 8;
 }
 
 enum YarnResourceType {

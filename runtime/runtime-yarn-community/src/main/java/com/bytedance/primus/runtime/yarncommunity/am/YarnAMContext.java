@@ -22,7 +22,9 @@ package com.bytedance.primus.runtime.yarncommunity.am;
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ExecutorMonitor;
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
+import com.bytedance.primus.common.model.records.ApplicationAttemptId;
 import com.bytedance.primus.common.model.records.Container;
+import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.util.IntegerUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.yarncommunity.am.container.YarnContainerManager;
@@ -59,8 +61,19 @@ public class YarnAMContext extends AMContext {
   private int apiServerPort;
   private YarnContainerManager containerManager;
 
-  public YarnAMContext(PrimusConf primusConf) throws IOException {
+  @Getter
+  private final ContainerId containerId;
+  @Getter
+  private final ApplicationAttemptId appAttemptId;
+
+  public YarnAMContext(
+      PrimusConf primusConf,
+      ContainerId containerId
+  ) throws IOException {
     super(primusConf);
+
+    this.containerId = containerId;
+    this.appAttemptId = containerId.getApplicationAttemptId();
 
     this.yarnConfiguration = loadYarnConfiguration(primusConf);
     this.maxAppAttempts = IntegerUtils.selectIfPositiveOrDefault(
@@ -163,5 +176,13 @@ public class YarnAMContext extends AMContext {
         .getHadoopConfMap()
         .forEach(base::set);
     return base;
+  }
+
+  public String getApplicationId() {
+    return this.getAppAttemptId().getApplicationId().toString();
+  }
+
+  public int getAttemptId() {
+    return this.getAppAttemptId().getAttemptId();
   }
 }

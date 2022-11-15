@@ -40,10 +40,9 @@ public class YarnApplicationMasterTest {
       Thread.sleep(2 * 1000);
       return null;
     }).when(nmClient).stop();
-    YarnApplicationMaster yarnApplicationMaster = new YarnApplicationMaster();
+    YarnApplicationMaster yarnApplicationMaster = new YarnApplicationMaster(null);
     Assert.assertTrue(yarnApplicationMaster.stopNMClientWithTimeout(nmClient));
     YarnApplicationMaster.STOP_NM_CLIENT_TIMEOUT = 1;
     Assert.assertFalse(yarnApplicationMaster.stopNMClientWithTimeout(nmClient));
   }
-
 }
