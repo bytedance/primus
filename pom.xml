@@ -35,7 +35,7 @@
     <maven.compiler.source>1.8</maven.compiler.source>
     <maven.compiler.target>1.8</maven.compiler.target>
     <!-- General -->
-    <log4j-version>2.15.0</log4j-version>
+    <log4j-version>2.16.0</log4j-version>
     <prometheus.version>0.8.1</prometheus.version>
     <protobuf.version>3.6.1</protobuf.version>
     <grpc.version>1.10.1</grpc.version>

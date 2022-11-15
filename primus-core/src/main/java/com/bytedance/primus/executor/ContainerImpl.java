@@ -35,7 +35,6 @@ import com.bytedance.primus.common.child.ChildLauncherEventType;
 import com.bytedance.primus.common.event.AsyncDispatcher;
 import com.bytedance.primus.common.event.EventHandler;
 import com.bytedance.primus.common.network.NetworkConfig;
-import com.bytedance.primus.common.network.NetworkConfigHelper;
 import com.bytedance.primus.common.retry.RetryCallback;
 import com.bytedance.primus.common.retry.RetryContext;
 import com.bytedance.primus.common.retry.RetryTemplate;
@@ -116,8 +115,8 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
     TimelineLogger timelineLogger = new NoopTimelineLogger();
     context.setTimelineLogger(timelineLogger);
 
-    NetworkConfig netWorkConfig = NetworkConfigHelper
-        .getNetworkConfig(context.getPrimusExecutorConf().getPrimusConf());
+    NetworkConfig netWorkConfig =
+        new NetworkConfig(context.getPrimusExecutorConf().getPrimusConf());
     LOG.info("container Network config: " + netWorkConfig);
     context.setNetworkConfig(netWorkConfig);
 

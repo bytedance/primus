@@ -20,7 +20,6 @@
 package com.bytedance.primus.am;
 
 import com.bytedance.primus.am.eventlog.PrimusEvent;
-import com.bytedance.primus.common.model.records.ApplicationId;
 import java.util.concurrent.TimeUnit;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -53,12 +52,12 @@ public class ApplicationMasterEvent extends PrimusEvent<ApplicationMasterEventTy
     return diagnosis;
   }
 
-  public ApplicationId getApplicationId() {
-    return context.getAppAttemptId().getApplicationId();
+  public String getApplicationId() {
+    return context.getApplicationId();
   }
 
   public int getAttemptId() {
-    return context.getAppAttemptId().getAttemptId();
+    return context.getAttemptId();
   }
 
   public int getExitCode() {

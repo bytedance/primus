@@ -179,7 +179,7 @@ public class FileTaskStore implements TaskStore {
     nextTaskIdToLoad = 1;
 
     taskIdFileIdMap = new TreeMap<>();
-    storeDir = getStoreDir(context.getApplicationNameForStorage(), name, primusConf);
+    storeDir = getStoreDir(context.getApplicationId(), name, primusConf);
     tasksMetaPath = new Path(storeDir, TASKS_META_FILENAME);
     tasksIndexPath = new Path(storeDir, TASKS_INDEX_FILENAME);
     tasksPath = new Path(storeDir, TASKS_FILENAME);
@@ -413,7 +413,7 @@ public class FileTaskStore implements TaskStore {
 
   public List<TaskWrapper> getFailureTasksFromFs(PrimusConf primusConf, int limit) {
     try {
-      String storeDir = getStoreDir(context.getApplicationNameForStorage(), name, primusConf);
+      String storeDir = getStoreDir(context.getApplicationId(), name, primusConf);
       Path taskStatusesPath = new Path(storeDir, FAILURE_TASK_STATUSES_FILENAME);
       LOG.info("Start getFinishedTasksFromFs limit: {}", limit);
       return getFinishedTasksFromFs(fs, storeDir, taskStatusesPath, limit);
@@ -622,7 +622,7 @@ public class FileTaskStore implements TaskStore {
     public void logTaskBuildFailed(String errmsg) {
       String eventType = "BUILD_TASK_FAILED";
       JsonObject buildTaskFailed = new JsonObject();
-      buildTaskFailed.addProperty("attemptId", context.getAppAttemptId().getAttemptId());
+      buildTaskFailed.addProperty("attemptId", context.getAttemptId());
       buildTaskFailed.addProperty("errmsg", errmsg);
       context.getTimelineLogger().logEvent(eventType, buildTaskFailed.toString());
     }
@@ -825,8 +825,8 @@ public class FileTaskStore implements TaskStore {
           deleteStaleSnapshot(lastSnapshotId);
 
           // Add a metric to check if snapshot id is useful
-          PrimusMetrics.emitCounter("snapshot_id.app_count{app="
-              + context.getAppAttemptId().getApplicationId() + "}", 1);
+          PrimusMetrics.emitCounter(
+              "snapshot_id.app_count{app=" + context.getApplicationId() + "}", 1);
         }
         preserve();
         threadSleep(dumpIntervalSeconds);
@@ -1029,7 +1029,7 @@ public class FileTaskStore implements TaskStore {
 
     public void recover() throws IOException {
       int snapshotId = context.getPrimusConf().getInputManager().getWorkPreserve().getSnapshotId();
-      if (context.getAppAttemptId().getAttemptId() == 1 && snapshotId > 0) {
+      if (context.getAttemptId() == 1 && snapshotId > 0) {
         LOG.info("Start to recover snapshot, snapshot id " + snapshotId);
         recoverSnapshot(snapshotId);
       }

@@ -189,7 +189,7 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
       StatusRequest request,
       StreamObserver<StatusResponse> responseObserver
   ) {
-    String appId = context.getAppAttemptId().getApplicationId().toString();
+    String appId = context.getApplicationId();
     String finalStatus = (context.getFinalStatus() != null)
         ? context.getFinalStatus().toString()
         : "IN_PROGRESS";

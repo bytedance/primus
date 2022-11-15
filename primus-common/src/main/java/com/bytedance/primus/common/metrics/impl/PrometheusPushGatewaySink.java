@@ -17,8 +17,9 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.common.metrics;
+package com.bytedance.primus.common.metrics.impl;
 
+import com.bytedance.primus.common.metrics.MetricsSink;
 import com.codahale.metrics.MetricRegistry;
 import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.dropwizard.DropwizardExports;
@@ -34,23 +35,29 @@ import org.slf4j.LoggerFactory;
 
 public class PrometheusPushGatewaySink implements MetricsSink {
 
-  private static final Logger LOG =
-      LoggerFactory.getLogger(PrometheusPushGatewaySink.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PrometheusPushGatewaySink.class);
+  private static final String THREAD_NAME_PREFIX = "primus-prometheus-sink-thread-";
 
-  private PushGateway pushGateway;
-  private String jobName;
+  private final String appId;
+  private final PushGateway pushGateway;
   private final ScheduledExecutorService executor;
 
-  public PrometheusPushGatewaySink(String host, int port, String jobName, MetricRegistry metricRegistry) {
+  public PrometheusPushGatewaySink(
+      MetricRegistry metricRegistry,
+      String appId,
+      String host,
+      int port
+  ) {
+    this.appId = appId;
     this.pushGateway = new PushGateway(host + ":" + port);
-    this.jobName = jobName;
     CollectorRegistry.defaultRegistry.register(new DropwizardExports(metricRegistry));
+
     this.executor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
-      private final String namePrefix = "primus-prometheus-sink-thread-";
       private final AtomicInteger threadNumber = new AtomicInteger(1);
+
       @Override
       public Thread newThread(Runnable r) {
-        Thread t = new Thread(r, namePrefix + threadNumber.getAndIncrement());
+        Thread t = new Thread(r, THREAD_NAME_PREFIX + threadNumber.getAndIncrement());
         t.setDaemon(true);
         return t;
       }
@@ -68,9 +75,9 @@ public class PrometheusPushGatewaySink implements MetricsSink {
 
   private void report() {
     try {
-      pushGateway.push(CollectorRegistry.defaultRegistry, jobName);
+      pushGateway.push(CollectorRegistry.defaultRegistry, appId);
     } catch (Exception e) {
-      LOG.warn("Failed to push metrics to PushGateway with jobName {}.", jobName, e);
+      LOG.warn("Failed to push metrics to PushGateway with jobName {}.", appId, e);
     }
   }
 

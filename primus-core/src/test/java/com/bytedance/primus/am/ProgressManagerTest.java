@@ -49,6 +49,14 @@ public class ProgressManagerTest {
     public TestAMContext(PrimusConf primusConf) throws IOException {
       super(primusConf);
     }
+
+    public String getApplicationId() {
+      return "application_id_0";
+    }
+
+    public int getAttemptId() {
+      return 0;
+    }
   }
 
   private DataSpec createDummyDataSpec() throws Exception {

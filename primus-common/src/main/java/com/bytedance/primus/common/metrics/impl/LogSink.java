@@ -17,8 +17,9 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.common.metrics;
+package com.bytedance.primus.common.metrics.impl;
 
+import com.bytedance.primus.common.metrics.MetricsSink;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Slf4jReporter;
 import java.util.concurrent.TimeUnit;

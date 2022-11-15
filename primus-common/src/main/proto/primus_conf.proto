@@ -185,7 +185,18 @@ message Scheduler {
   YarnScheduler am_scheduler = 15;
   bool enable_update_resource = 16;
   KubernetesScheduler kubernetes_scheduler = 17;
-  bool disable_container_succeed_app = 18;
+
+  // Experimental zone
+  NetworkConfig network_config = 101;
+}
+
+message NetworkConfig {
+  enum NetworkType {
+    DEFAULT = 0;
+    OVERLAY = 1;
+  }
+  NetworkType network_type = 1;
+  bool keep_ip_port_under_overlay = 2;
 }
 
 enum ProgressManagerType {

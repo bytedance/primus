@@ -57,7 +57,7 @@ public class StatusEventWrapper {
     PrimusEventMsg.Builder msg = PrimusEventMsg.newBuilder();
     try {
       if (context.getStatusLoggingListener().canLogEvent()) {
-        msg.setYarnApplicationId(context.getAppAttemptId().getApplicationId().toString());
+        msg.setYarnApplicationId(context.getApplicationId());
         MsgDataPrimusJobStateChange.Builder builder = MsgDataPrimusJobStateChange.newBuilder();
         builder.setName(context.getPrimusConf().getName());
         builder.setTimeStamp(context.getStartTime().getTime());
@@ -79,7 +79,7 @@ public class StatusEventWrapper {
     PrimusEventMsg.Builder msg = PrimusEventMsg.newBuilder();
     try {
       if (context.getStatusLoggingListener().canLogEvent()) {
-        msg.setYarnApplicationId(context.getAppAttemptId().getApplicationId().toString());
+        msg.setYarnApplicationId(context.getApplicationId());
         MsgDataPrimusJobStateChange.Builder builder = MsgDataPrimusJobStateChange.newBuilder();
         builder.setName(context.getPrimusConf().getName());
         builder.setTimeStamp(System.currentTimeMillis());
@@ -113,7 +113,7 @@ public class StatusEventWrapper {
     try {
       if (context.getStatusLoggingListener() != null &&
           context.getStatusLoggingListener().canLogEvent()) {
-        msg.setYarnApplicationId(context.getAppAttemptId().getApplicationId().toString());
+        msg.setYarnApplicationId(context.getApplicationId());
         MsgDataWorkerStateChange.Builder builder = MsgDataWorkerStateChange.newBuilder();
         ExecutorId executorId = schedulerExecutor.getExecutorId();
         builder.setId(executorId.getIndex());
@@ -144,7 +144,7 @@ public class StatusEventWrapper {
             List<TaskWrapper> tasks = fileTaskManager.getTasksForHistory();
             for (TaskWrapper taskWrapper : tasks) {
               PrimusEventMsg.Builder msg = PrimusEventMsg.newBuilder();
-              msg.setYarnApplicationId(context.getAppAttemptId().getApplicationId().toString());
+              msg.setYarnApplicationId(context.getApplicationId());
               MsgDataTaskStateChange.Builder taskState = MsgDataTaskStateChange.newBuilder();
               Task task = taskWrapper.getTask();
               TaskStatus status = taskWrapper.getTaskStatus();
@@ -176,7 +176,7 @@ public class StatusEventWrapper {
     PrimusEventMsg.Builder msg = PrimusEventMsg.newBuilder();
     try {
       if (context.getStatusLoggingListener().canLogEvent()) {
-        msg.setYarnApplicationId(context.getAppAttemptId().getApplicationId().toString());
+        msg.setYarnApplicationId(context.getApplicationId());
         MsgDataTaskStateChange.Builder taskState = MsgDataTaskStateChange.newBuilder();
         Task task = taskWrapper.getTask();
         TaskStatus status = taskWrapper.getTaskStatus();

@@ -37,7 +37,6 @@ import com.bytedance.primus.api.records.impl.pb.EndpointPBImpl;
 import com.bytedance.primus.api.records.impl.pb.ExecutorSpecPBImpl;
 import com.bytedance.primus.common.event.Dispatcher;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
-import com.bytedance.primus.common.network.NetworkConfigHelper;
 import com.bytedance.primus.common.network.NetworkEndpointTypeEnum;
 import com.bytedance.primus.common.service.AbstractService;
 import com.bytedance.primus.executor.exception.PrimusExecutorException;
@@ -159,13 +158,14 @@ public class ExecutorStatusUpdater extends AbstractService {
     for (ServerSocket socket : executorContext.getFrameworkSocketList()) {
       EndpointPBImpl endpoint = new EndpointPBImpl();
 
-      NetworkEndpointTypeEnum networkEndpointType = NetworkConfigHelper
-          .getNetworkEndpointType(executorContext.getNetworkConfig());
-      if (NetworkEndpointTypeEnum.IPADDRESS == networkEndpointType) {
-        endpoint.setHostname(socket.getInetAddress().getHostAddress());
-      } else {
-        endpoint.setHostname(socket.getInetAddress().getHostName());
-      }
+      NetworkEndpointTypeEnum endpointType = executorContext
+          .getNetworkConfig()
+          .getNetworkEndpointType();
+      endpoint.setHostname(endpointType == NetworkEndpointTypeEnum.IPADDRESS
+          ? socket.getInetAddress().getHostAddress()
+          : socket.getInetAddress().getHostName()
+      );
+
       endpoint.setPort(socket.getLocalPort());
       endpoints.add(endpoint);
     }

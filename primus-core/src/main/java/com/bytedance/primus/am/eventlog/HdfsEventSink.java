@@ -51,9 +51,9 @@ public class HdfsEventSink implements EventSink {
   private String getLogPath(AMContext context) {
     return context.getPrimusConf().getEventLogConfig().getHdfsSink().getDir()
         + "/"
-        + context.getAppAttemptId().getApplicationId()
+        + context.getApplicationId()
         + "_"
-        + context.getAppAttemptId().getAttemptId();
+        + context.getAttemptId();
   }
 
   @Override

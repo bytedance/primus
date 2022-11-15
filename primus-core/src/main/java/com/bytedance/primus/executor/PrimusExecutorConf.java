@@ -76,17 +76,16 @@ public class PrimusExecutorConf {
     this.apiServerHost = apiServerHost;
     this.apiServerPort = apiServerPort;
 
-    if (!isLocalRunningMode()) {
-      try {
-        LOG.info("Create api client, current_executor:" + executorId.toUniqString());
-        Client client = new DefaultClient(apiServerHost, apiServerPort);
-        coreApi = new CoreApi(client);
-        executorSpec = coreApi.getExecutor(executorId.toUniqString()).getSpec();
-      } catch (Exception e) {
-        throw new PrimusExecutorException("Failed to get executor from api server", e,
-            ExecutorExitCode.GET_EXECUTOR_FAILED.getValue());
-      }
+    try {
+      LOG.info("Create api client, current_executor:" + executorId.toUniqString());
+      Client client = new DefaultClient(apiServerHost, apiServerPort);
+      coreApi = new CoreApi(client);
+      executorSpec = coreApi.getExecutor(executorId.toUniqString()).getSpec();
+    } catch (Exception e) {
+      throw new PrimusExecutorException("Failed to get executor from api server", e,
+          ExecutorExitCode.GET_EXECUTOR_FAILED.getValue());
     }
+
     inputManager = primusConf.getInputManager();
     registerRetryTimes = primusConf.getScheduler().getRegisterRetryTimes();
     heartbeatIntervalMs = primusConf.getScheduler().getHeartbeatIntervalMs();
@@ -151,9 +150,5 @@ public class PrimusExecutorConf {
 
   public boolean isYarnRunningMode() {
     return primusConf.getRunningMode() == RunningMode.YARN;
-  }
-
-  public boolean isLocalRunningMode() {
-    return primusConf.getRunningMode() == RunningMode.LOCAL;
   }
 }

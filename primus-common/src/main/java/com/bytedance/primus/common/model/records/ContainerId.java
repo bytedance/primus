@@ -30,7 +30,7 @@ import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
  * for a {@link Container} in the cluster.</p>
  */
 
-
+// TODO: Remove or streamline this class to further decouple from YARN.
 public abstract class ContainerId implements Comparable<ContainerId> {
 
   public static final long CONTAINER_ID_BITMASK = 0xffffffffffL;

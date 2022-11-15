@@ -42,9 +42,7 @@ import com.bytedance.primus.common.event.Event;
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
 import com.bytedance.primus.common.exceptions.PrimusUnsupportedException;
 import com.bytedance.primus.common.model.ApplicationConstants.Environment;
-import com.bytedance.primus.common.model.records.ApplicationAttemptId;
 import com.bytedance.primus.common.model.records.Container;
-import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.model.records.FinalApplicationStatus;
 import com.bytedance.primus.common.util.AbstractLivelinessMonitor;
 import com.bytedance.primus.common.util.RuntimeUtils;
@@ -60,7 +58,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import lombok.Getter;
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.http.HttpServer2;
 import org.apache.hadoop.net.NetUtils;
@@ -92,9 +89,7 @@ public abstract class AMContext {
   protected SchedulePolicyManager schedulePolicyManager;
   protected SchedulerExecutorManager schedulerExecutorManager;
   protected AbstractLivelinessMonitor monitor;
-  protected ContainerId containerId;
   protected String nodeId;
-  protected ApplicationAttemptId appAttemptId;
   protected String username;
   protected ProgressManager progressManager;
   protected DataStreamManager dataStreamManager;
@@ -170,10 +165,6 @@ public abstract class AMContext {
     this.statusDispatcher = statusDispatcher;
   }
 
-  public PrimusConf getPrimusConf() {
-    return primusConf;
-  }
-
   public void setRoleInfoManager(RoleInfoManager roleInfoManager) {
     this.roleInfoManager = roleInfoManager;
   }
@@ -214,28 +205,6 @@ public abstract class AMContext {
 
   public void setMonitor(AbstractLivelinessMonitor monitor) {
     this.monitor = monitor;
-  }
-
-  public ContainerId getContainerId() {
-    if (containerId == null) {
-      String cid = envs.get(Environment.CONTAINER_ID.name());
-      if (StringUtils.isEmpty(cid)) {
-        cid = System.getProperty(Environment.CONTAINER_ID.name());
-      }
-      containerId = ContainerId.fromString(cid);
-      String nmHost = envs.get(Environment.NM_HOST.name());
-      if (nmHost != null) {
-        nodeId = nmHost + ":" + envs.get(Environment.NM_PORT.name());
-      }
-    }
-    return containerId;
-  }
-
-  public ApplicationAttemptId getAppAttemptId() {
-    if (appAttemptId == null) {
-      appAttemptId = getContainerId().getApplicationAttemptId();
-    }
-    return appAttemptId;
   }
 
   public String getUsername() {
@@ -470,7 +439,7 @@ public abstract class AMContext {
     throw new PrimusUnsupportedException("retrieveContainerMetric is not implemented.");
   }
 
-  public String getApplicationNameForStorage() {
-    return this.getAppAttemptId().getApplicationId().toString();
-  }
+  public abstract String getApplicationId();
+
+  public abstract int getAttemptId();
 }

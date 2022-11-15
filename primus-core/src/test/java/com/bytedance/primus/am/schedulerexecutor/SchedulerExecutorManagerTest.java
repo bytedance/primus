@@ -28,6 +28,7 @@ import com.bytedance.primus.api.records.ExecutorSpec;
 import com.bytedance.primus.api.records.impl.pb.EndpointPBImpl;
 import com.bytedance.primus.api.records.impl.pb.ExecutorIdPBImpl;
 import com.bytedance.primus.api.records.impl.pb.ExecutorSpecPBImpl;
+import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Scheduler;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler;
@@ -48,6 +49,7 @@ public class SchedulerExecutorManagerTest {
   @Before
   public void init() {
     PrimusConf primusConf = PrimusConf.newBuilder()
+        .setRunningMode(RunningMode.YARN)
         .setScheduler(Scheduler.newBuilder()
             .setYarnScheduler(YarnScheduler.newBuilder().build()).build())
         .build();

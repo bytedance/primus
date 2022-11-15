@@ -19,6 +19,10 @@
 
 package com.bytedance.primus.common.metrics;
 
+import com.bytedance.primus.common.metrics.impl.LogSink;
+import com.bytedance.primus.common.metrics.impl.PrometheusPushGatewaySink;
+import com.bytedance.primus.proto.PrimusRuntime.RuntimeConf;
+import com.bytedance.primus.proto.PrimusRuntime.RuntimeConf.PrometheusPushGatewayConf;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Metric;
@@ -29,27 +33,38 @@ import com.google.common.util.concurrent.AtomicDouble;
 import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PrimusMetrics {
 
+  private static final Logger LOG = LoggerFactory.getLogger(PrimusMetrics.class);
+
   private static final TimerMetric emptyTimerMetric = new TimerMetric(null);
-  private static MetricRegistry metrics = new MetricRegistry();
-  private static MetricsSink sink = null;
-  private static ConcurrentHashMap<String, AtomicLong> storeValues = new ConcurrentHashMap<>();
-  private static ConcurrentHashMap<String, AtomicDouble> storeValuesDouble = new ConcurrentHashMap<>();
-  private static ConcurrentHashMap<String, Timer> timerValues = new ConcurrentHashMap<>();
+  private static final MetricRegistry metrics = new MetricRegistry();
+  private static final ConcurrentHashMap<String, AtomicLong> storeValues = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, AtomicDouble> storeValuesDouble = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, Timer> timerValues = new ConcurrentHashMap<>();
+
   private static String optionalPrefix;
+  private static MetricsSink sink = null;
 
-  // TODO: Create init(String optionalPrefix, RuntimeConf conf) instead.
-  public static void init(String optionalPrefix) {
-    PrimusMetrics.optionalPrefix = optionalPrefix;
-    sink = new LogSink(metrics);
-  }
+  public static void init(RuntimeConf runtimeConf, String appId) {
+    PrimusMetrics.optionalPrefix = appId + ".";
 
-  public static void init(String optionalPrefix, String host, int port, String jobName) {
-    PrimusMetrics.optionalPrefix = optionalPrefix;
+    if (runtimeConf.hasPrometheusPushGatewayConf()) {
+      PrometheusPushGatewayConf conf = runtimeConf.getPrometheusPushGatewayConf();
+      sink = new PrometheusPushGatewaySink(
+          metrics,
+          appId,
+          conf.getHost(),
+          conf.getPort()
+      );
+    } else {
+      LOG.warn("Metrics isn't configured in RuntimeConf, default to LogSink.");
+      sink = new LogSink(metrics);
+    }
 
-    sink = new PrometheusPushGatewaySink(host, port, jobName, metrics);
     sink.start();
   }
 
@@ -66,10 +81,6 @@ public class PrimusMetrics {
   public static SortedMap<String, Gauge> getGauges(String pattern) {
     PrimusMetricFilter filter = new PrimusMetricFilter(pattern);
     return metrics.getGauges(filter);
-  }
-
-  public static long getGauge(String key) {
-    return storeValues.get(key).get();
   }
 
   public static void emitCounterWithOptionalPrefix(String name, long count) {
@@ -92,11 +103,10 @@ public class PrimusMetrics {
       return;
     }
     storeValues.computeIfAbsent(name, k -> {
-          final AtomicLong newGauge = new AtomicLong(0);
-          metrics.register(name, (Gauge) () -> newGauge.longValue());
-          return newGauge;
-        }
-    );
+      final AtomicLong newGauge = new AtomicLong(0);
+      metrics.register(name, (Gauge<Long>) newGauge::longValue);
+      return newGauge;
+    });
     AtomicLong gauge = storeValues.get(name);
     gauge.set(count);
   }
@@ -109,13 +119,11 @@ public class PrimusMetrics {
     if (sink == null) {
       return;
     }
-    storeValuesDouble.computeIfAbsent(
-        name,
-        k -> {
-          final AtomicDouble newGauge = new AtomicDouble(0);
-          metrics.register(name, (Gauge<Double>) newGauge::doubleValue);
-          return newGauge;
-        });
+    storeValuesDouble.computeIfAbsent(name, k -> {
+      final AtomicDouble newGauge = new AtomicDouble(0);
+      metrics.register(name, (Gauge<Double>) newGauge::get);
+      return newGauge;
+    });
     AtomicDouble gauge = storeValuesDouble.get(name);
     gauge.set(count);
   }
@@ -136,10 +144,9 @@ public class PrimusMetrics {
     return new TimerMetric(t.time());
   }
 
-
   public static class TimerMetric {
 
-    private Timer.Context context;
+    private final Timer.Context context;
 
     public TimerMetric(Timer.Context context) {
       this.context = context;
@@ -153,9 +160,9 @@ public class PrimusMetrics {
     }
   }
 
-  public static class PrimusMetricFilter implements MetricFilter {
+  private static class PrimusMetricFilter implements MetricFilter {
 
-    private String pattern;
+    private final String pattern;
 
     public PrimusMetricFilter(String pattern) {
       this.pattern = pattern;
@@ -168,8 +175,6 @@ public class PrimusMetrics {
   }
 
   public static String prefixWithSingleTag(String prefix, String tag, String value) {
-    StringBuilder stringBuilder = new StringBuilder();
-    stringBuilder.append(prefix).append("{").append(tag).append("=").append(value).append("}");
-    return stringBuilder.toString();
+    return String.format("%s{%s=%s}", prefix, tag, value);
   }
 }
