@@ -47,7 +47,7 @@ public class ProgressManagerTest {
   private class TestAMContext extends AMContext {
 
     public TestAMContext(PrimusConf primusConf) throws IOException {
-      super(primusConf);
+      super(primusConf, null);
     }
 
     public String getApplicationId() {

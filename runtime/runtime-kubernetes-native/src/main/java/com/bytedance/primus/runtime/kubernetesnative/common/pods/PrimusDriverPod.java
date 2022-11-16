@@ -31,7 +31,6 @@ import static com.bytedance.primus.runtime.kubernetesnative.common.constants.Kub
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_ROLE_DRIVER;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_ROLE_SELECTOR_LABEL_NAME;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.SLEEP_SECONDS_BEFORE_POD_EXIT_ENV_KEY;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.WEB_UI_SERVER_PORT;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.HADOOP_USER_NAME_ENV;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.PRIMUS_LOCAL_MOUNTING_DIR_ENV;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.PRIMUS_REMOTE_STAGING_DIR_ENV;
@@ -119,7 +118,8 @@ public class PrimusDriverPod extends PrimusBasePod {
       createConfigMap(api, driverPodOwnerReference);
 
       // Create Kubernetes services to expose Primus AM services
-      createDriverService(api, driverPodOwnerReference);
+      createDriverService(api, driverPodOwnerReference,
+          context.getPrimusUiConf().getWebUiPort());
 
     } catch (ApiException ex) {
       LOG.error("Error when submitting pod: response={}", ex.getResponseBody());
@@ -213,7 +213,8 @@ public class PrimusDriverPod extends PrimusBasePod {
 
   private V1Service createDriverService(
       CoreV1Api api,
-      V1OwnerReference ownerReference
+      V1OwnerReference ownerReference,
+      int primusWebUiPort
   ) throws ApiException {
     V1Service raw = new V1Service()
         .metadata(new V1ObjectMeta()
@@ -232,7 +233,7 @@ public class PrimusDriverPod extends PrimusBasePod {
                     .port(DRIVER_EXECUTOR_TRACKER_SERVICE_PORT),
                 new V1ServicePort()
                     .name("web-server")
-                    .port(WEB_UI_SERVER_PORT)
+                    .port(primusWebUiPort)
             )));
 
     LOG.info("Service to create: {}", raw);

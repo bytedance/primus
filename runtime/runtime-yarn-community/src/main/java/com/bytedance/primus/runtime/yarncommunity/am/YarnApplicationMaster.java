@@ -735,12 +735,13 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     FileUtils.addResource(fs, path, linkname, localResources);
   }
 
-  private HttpServer2 createWebAppHttpServer(AMContext amContext)
-      throws URISyntaxException, IOException {
+  private HttpServer2 createWebAppHttpServer(
+      AMContext amContext
+  ) throws URISyntaxException, IOException {
     HttpServer2 httpServer = new HttpServer2.Builder()
         .setFindPort(true)
         .setName("primus")
-        .addEndpoint(new URI("http://0.0.0.0:44444"))
+        .addEndpoint(new URI("http://0.0.0.0:" + amContext.getPrimusUiConf().getWebUiPort()))
         .build();
 
     new HashMap<String, Class<? extends HttpServlet>>() {{

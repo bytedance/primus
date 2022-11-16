@@ -23,6 +23,7 @@ import static com.bytedance.primus.runtime.kubernetesnative.common.constants.Kub
 
 import com.bytedance.blacklist.BlacklistTracker;
 import com.bytedance.blacklist.BlacklistTrackerImpl;
+import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.AMService;
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.am.ApplicationMaster;
@@ -175,7 +176,7 @@ public class KubernetesApplicationMaster extends CompositeService implements App
     context.setCoreApi(coreApi);
 
     LOG.info("Create http server");
-    createHttpServer();
+    createHttpServer(context);
 
     LOG.info("Create progress manager");
     ProgressManager progressManager = ProgressManagerFactory.getProgressManager(context);
@@ -302,11 +303,13 @@ public class KubernetesApplicationMaster extends CompositeService implements App
    * @throws IOException
    * @throws URISyntaxException
    */
-  private void createHttpServer() throws IOException, URISyntaxException {
+  private void createHttpServer(
+      AMContext context
+  ) throws IOException, URISyntaxException {
     HttpServer2 httpServer = new HttpServer2.Builder()
         .setFindPort(true)
         .setName("primus")
-        .addEndpoint(new URI("http://0.0.0.0:44444"))
+        .addEndpoint(new URI("http://0.0.0.0:" + context.getPrimusUiConf().getWebUiPort()))
         .build();
 
     // Add servlets

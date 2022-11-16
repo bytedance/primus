@@ -73,7 +73,13 @@ public class KubernetesAMContext extends AMContext {
       String appId,
       String driverPodUniqId
   ) throws IOException {
-    super(primusConf);
+    super(
+        primusConf,
+        primusConf
+            .getRuntimeConf()
+            .getKubernetesNativeConf()
+            .getPrimusUiConf()
+    );
 
     this.appId = appId;
     this.driverPodUniqId = driverPodUniqId;

@@ -47,6 +47,7 @@ import com.bytedance.primus.common.model.records.FinalApplicationStatus;
 import com.bytedance.primus.common.util.AbstractLivelinessMonitor;
 import com.bytedance.primus.common.util.RuntimeUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
+import com.bytedance.primus.proto.PrimusRuntime.PrimusUiConf;
 import com.bytedance.primus.runtime.monitor.MonitorInfoProvider;
 import com.bytedance.primus.utils.timeline.TimelineLogger;
 import com.bytedance.primus.webapp.HdfsStore;
@@ -75,6 +76,8 @@ public abstract class AMContext {
   protected Map<String, String> envs;
   @Getter
   protected final PrimusConf primusConf;
+  @Getter
+  protected final PrimusUiConf primusUiConf; // A pointer to PrimusUiConf in primusConf
 
   protected Dispatcher dispatcher;
   protected Dispatcher statusDispatcher;
@@ -125,13 +128,15 @@ public abstract class AMContext {
   @Getter
   private MonitorInfoProvider monitorInfoProvider;
 
-  public AMContext(PrimusConf primusConf) throws IOException {
+  public AMContext(PrimusConf primusConf, PrimusUiConf primusUiConf) throws IOException {
     envs = new HashMap<>(System.getenv());
     executorNodeMap = new ConcurrentHashMap<>();
     timelineLogger = null;
     gangSchedulerQueue = new HashMap<>();
 
     this.primusConf = primusConf;
+    this.primusUiConf = primusUiConf;
+
     this.version = envs.get(PRIMUS_VERSION_ENV_KEY);
     LOG.info("PRIMUS Version: " + version);
 

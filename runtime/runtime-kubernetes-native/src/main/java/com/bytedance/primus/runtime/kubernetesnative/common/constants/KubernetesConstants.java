@@ -51,7 +51,6 @@ public class KubernetesConstants {
    */
   public static final int DRIVER_API_SERVER_PORT = 18080;
   public static final int DRIVER_EXECUTOR_TRACKER_SERVICE_PORT = 18090;
-  public static final int WEB_UI_SERVER_PORT = 44444;
 
   /**
    * Pod

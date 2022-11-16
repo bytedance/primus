@@ -32,6 +32,7 @@ import com.bytedance.primus.apiserver.records.impl.RoleSpecImpl;
 import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Scheduler;
+import com.bytedance.primus.proto.PrimusRuntime.PrimusUiConf;
 import com.bytedance.primus.proto.PrimusRuntime.RuntimeConf;
 import com.bytedance.primus.runtime.kubernetesnative.am.KubernetesResourceLimitConverter;
 import com.bytedance.primus.runtime.kubernetesnative.common.KubernetesSchedulerConfig;
@@ -62,6 +63,8 @@ public class PrimusPodContext {
   @Getter
   private final RuntimeConf runtimeConf;
   @Getter
+  protected final PrimusUiConf primusUiConf; // A pointer to PrimusUiConf in primusConf
+  @Getter
   private final KubernetesSchedulerConfig kubernetesSchedulerConfig;
   @Getter
   private final Map<String, String> resourceLimitMap;
@@ -85,6 +88,7 @@ public class PrimusPodContext {
     this.jobEnvironMap = primusConf.getEnvMap();
     this.driverEnvironMap = getDriverStartEnvironment(primusConf);
     this.runtimeConf = primusConf.getRuntimeConf();
+    this.primusUiConf = runtimeConf.getKubernetesNativeConf().getPrimusUiConf();
     this.resourceLimitMap = createResourceLimitMap(primusConf.getScheduler());
   }
 

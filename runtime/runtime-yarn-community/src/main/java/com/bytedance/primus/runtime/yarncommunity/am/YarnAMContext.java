@@ -70,7 +70,13 @@ public class YarnAMContext extends AMContext {
       PrimusConf primusConf,
       ContainerId containerId
   ) throws IOException {
-    super(primusConf);
+    super(
+        primusConf,
+        primusConf
+            .getRuntimeConf()
+            .getYarnCommunityConf()
+            .getPrimusUiConf()
+    );
 
     this.containerId = containerId;
     this.appAttemptId = containerId.getApplicationAttemptId();

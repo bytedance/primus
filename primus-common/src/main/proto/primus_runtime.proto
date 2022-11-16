@@ -68,6 +68,8 @@ message RuntimeConf {
  * - {{KubernetesPodName}}   => Kubernetes pod name
  */
 message PrimusUiConf {
+  int32 web_ui_port = 1;
+
   string tracking_url_format = 10;
   string container_log_url_format = 11;
 
