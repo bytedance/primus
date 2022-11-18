@@ -46,6 +46,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -126,8 +127,8 @@ public class FileTaskBuilder {
   }
 
   public List<BaseSplit> getFileSplits(FileSystem fileSystem, Input input) {
-    TimerMetric latency =
-        PrimusMetrics.getTimerContextWithOptionalPrefix("am.taskbuilder.splitter.latency");
+    TimerMetric latency = PrimusMetrics.getTimerContextWithAppIdTag(
+        "am.taskbuilder.splitter.latency", new HashMap<>());
     List<BaseSplit> result = new LinkedList<>();
     int ioExceptions = 0;
     while (true) {
@@ -189,7 +190,8 @@ public class FileTaskBuilder {
 
   private List<Task> buildTask(List<BaseSplit> splits) {
     TimerMetric latency =
-        PrimusMetrics.getTimerContextWithOptionalPrefix("am.taskbuilder.builder.latency");
+        PrimusMetrics.getTimerContextWithAppIdTag(
+            "am.taskbuilder.builder.latency", new HashMap<>());
     List<Task> tasks = new LinkedList<>();
     for (BaseSplit split : splits) {
       if (isBuilt(split, lastSavedTask)) {

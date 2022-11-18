@@ -225,15 +225,17 @@ public class ContainerLauncher implements EventHandler<ContainerLauncherEvent> {
       while (true) {
         try {
           PrimusMetrics.TimerMetric rpcLatency =
-              PrimusMetrics.getTimerContextWithOptionalPrefix(
-                  "am.container_launcher.start_container.latency");
+              PrimusMetrics.getTimerContextWithAppIdTag(
+                  "am.container_launcher.start_container.latency",
+                  new HashMap<>());
 
           ContainerLaunchContext ctx = genContainerLaunchContext(container, executorId, roleInfo);
           nmClient.startContainer(container, ctx);
 
           rpcLatency.stop();
-          PrimusMetrics.emitCounterWithOptionalPrefix(
-              "am.container_launcher.start_container", 1);
+          PrimusMetrics.emitCounterWithAppIdTag(
+              "am.container_launcher.start_container",
+              new HashMap<>(), 1);
           break;
 
         } catch (YarnException | IOException e) {

@@ -51,6 +51,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -271,11 +272,12 @@ public class ExecutorStatusUpdater extends AbstractService {
       try {
         LOG.debug("Sending heartbeat: {}", gson.toJson(request));
         PrimusMetrics.TimerMetric heartbeatLatency =
-            PrimusMetrics.getTimerContextWithOptionalPrefix(
-                PrimusMetrics.prefixWithSingleTag(
-                    "executor.heartbeat.latency",
-                    "executor_id",
-                    executorContext.getExecutorId().toString()));
+            PrimusMetrics.getTimerContextWithAppIdTag(
+                "executor.heartbeat.latency",
+                new HashMap<String, String>() {{
+                  put("executor_id", executorContext.getExecutorId().toString());
+                }}
+            );
 
         HeartbeatResponse response =
             new HeartbeatResponsePBImpl(amBlockingStub.heartbeat(request.getProto()));

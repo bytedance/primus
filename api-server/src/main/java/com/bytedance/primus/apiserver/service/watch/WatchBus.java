@@ -21,6 +21,7 @@ package com.bytedance.primus.apiserver.service.watch;
 
 import com.bytedance.primus.apiserver.proto.ResourceServiceProto.WatchEvent;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
@@ -93,8 +94,11 @@ public class WatchBus {
         counter += 1;
       }
     }
-    PrimusMetrics.emitCounterWithOptionalPrefix(
-        "apiserver.watch_dispatch_count{key=" + watchTask.watchKey + "}",
+    PrimusMetrics.emitCounterWithAppIdTag(
+        "apiserver.watch_dispatch_count",
+        new HashMap<String, String>() {{
+          put("key", watchTask.watchKey);
+        }},
         counter
     );
   }

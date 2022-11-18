@@ -107,7 +107,8 @@ public class FairContainerManager extends YarnContainerManager {
             + ", graceful shutdown: " + gracefulShutdown);
         amRMClient.releaseAssignedContainer(container.getId());
         amRMClient.removeContainerRequest(roleInfo.getContainerRequest());
-        PrimusMetrics.emitCounterWithOptionalPrefix("am.container_manager.remove_request", 1);
+        PrimusMetrics.emitCounterWithAppIdTag(
+            "am.container_manager.remove_request", new HashMap<>(), 1);
         continue;
       }
 
@@ -139,7 +140,8 @@ public class FairContainerManager extends YarnContainerManager {
       for (int index = 0; index < newContainerToBeRequested; index++) {
         ContainerRequest containerRequest = roleInfo.getContainerRequest();
         amRMClient.addContainerRequest(containerRequest);
-        PrimusMetrics.emitCounterWithOptionalPrefix("am.container_manager.add_request", 1);
+        PrimusMetrics.emitCounterWithAppIdTag(
+            "am.container_manager.add_request", new HashMap<>(), 1);
       }
       priorityNeedRequestNumMap.put(priority, needNum + newContainerToBeRequested);
     }

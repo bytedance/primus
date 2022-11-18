@@ -68,6 +68,7 @@ import io.grpc.stub.StreamObserver;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -688,8 +689,11 @@ public class ResourceService extends ResourceServiceImplBase {
   }
 
   private void emitRequestCounterMetric(String api, String kind) {
-    PrimusMetrics.emitCounterWithOptionalPrefix(
-        "apiserver." + api + "_count{kind=" + kind + "}",
+    PrimusMetrics.emitCounterWithAppIdTag(
+        "apiserver." + api + "_count",
+        new HashMap<String, String>() {{
+          put("kind", kind);
+        }},
         1
     );
   }

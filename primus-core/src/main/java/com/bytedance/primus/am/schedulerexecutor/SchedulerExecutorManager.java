@@ -290,7 +290,11 @@ public class SchedulerExecutorManager extends AbstractService
       ExecutorEvent executorEvent = new ExecutorStartEvent(Integer.toString(executorIndex),
           executorId);
       context.getDispatcher().getEventHandler().handle(executorEvent);
-      PrimusMetrics.emitStoreWithOptionalPrefix("am.executor_num{role=" + roleName + "}",
+      PrimusMetrics.emitStoreWithAppIdTag(
+          "am.executor_num",
+          new HashMap<String, String>() {{
+            put("role", roleName);
+          }},
           bitSet.cardinality());
       return executorId;
     } catch (Exception e) {
@@ -334,7 +338,10 @@ public class SchedulerExecutorManager extends AbstractService
       ExecutorEvent executorEvent =
           new ExecutorStartEvent(container.getId().toString(), executorId);
       context.getDispatcher().getEventHandler().handle(executorEvent);
-      PrimusMetrics.emitStoreWithOptionalPrefix("am.executor_num{role=" + roleName + "}",
+      PrimusMetrics.emitStoreWithAppIdTag("am.executor_num",
+          new HashMap<String, String>() {{
+            put("role", roleName);
+          }},
           bitSet.cardinality());
       return executorId;
     } catch (Exception e) {
@@ -612,8 +619,10 @@ public class SchedulerExecutorManager extends AbstractService
             ExecutorEvent executorEvent = new ExecutorCompleteEvent(context, schedulerExecutor);
             context.getDispatcher().getEventHandler().handle(executorEvent);
           }
-          PrimusMetrics
-              .emitCounterWithOptionalPrefix("am.scheduler_manager.container_released", 1);
+          PrimusMetrics.emitCounterWithAppIdTag(
+              "am.scheduler_manager.container_released",
+              new HashMap<>(),
+              1);
           break;
         }
         case EXECUTOR_EXPIRED: {
@@ -626,8 +635,10 @@ public class SchedulerExecutorManager extends AbstractService
             schedulerExecutor.handle(
                 new SchedulerExecutorEvent(SchedulerExecutorEventType.EXPIRED));
           }
-          PrimusMetrics
-              .emitCounterWithOptionalPrefix("am.scheduler_manager.executor_expired", 1);
+          PrimusMetrics.emitCounterWithAppIdTag(
+              "am.scheduler_manager.executor_expired",
+              new HashMap<>(),
+              1);
           break;
         }
         case EXECUTOR_REQUEST_CREATED: {
@@ -668,7 +679,6 @@ public class SchedulerExecutorManager extends AbstractService
       writeLock.unlock();
     }
   }
-
 
   private void killExecutors(int priority, int startIndex, int endIndex) {
     for (; startIndex < endIndex; startIndex++) {

@@ -516,7 +516,7 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
   public void gracefulShutdown(long timeoutMs) {
     LOG.info("start gracefulShutdown, timeout:{}", timeoutMs);
     PrimusMetrics.TimerMetric gracefulShutdownLatency =
-        PrimusMetrics.getTimerContextWithOptionalPrefix("am.graceful_shutdown.latency");
+        PrimusMetrics.getTimerContextWithAppIdTag("am.graceful_shutdown.latency", new HashMap<>());
     this.gracefulShutdown = true;
     try {
       Thread.sleep(primusConf.getSleepBeforeExitMs());
@@ -556,18 +556,18 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     LOG.info("Abort application");
     try {
       PrimusMetrics.TimerMetric saveHistoryLatency =
-          PrimusMetrics.getTimerContextWithOptionalPrefix("am.save_history.latency");
+          PrimusMetrics.getTimerContextWithAppIdTag("am.save_history.latency", new HashMap<>());
       saveHistory();
       context.getTimelineLogger()
           .logEvent(PRIMUS_APP_SAVE_HISTORY.name(), String.valueOf(saveHistoryLatency.stop()));
       PrimusMetrics.TimerMetric stopComponentLatency =
-          PrimusMetrics.getTimerContextWithOptionalPrefix("am.stop_component.latency");
+          PrimusMetrics.getTimerContextWithAppIdTag("am.stop_component.latency", new HashMap<>());
       stop();
       context.getTimelineLogger()
           .logEvent(PRIMUS_APP_STOP_COMPONENT.name(), String.valueOf(stopComponentLatency.stop()));
       cleanup();
       PrimusMetrics.TimerMetric stopNMLatency =
-          PrimusMetrics.getTimerContextWithOptionalPrefix("am.stop_nm.latency");
+          PrimusMetrics.getTimerContextWithAppIdTag("am.stop_nm.latency", new HashMap<>());
       unregisterApp();
       stopNMClientWithTimeout(nmClient);
       amRMClient.stop();

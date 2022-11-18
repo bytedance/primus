@@ -109,12 +109,15 @@ public class PodLauncher {
     try {
       LOG.info("Starting executor pod: {}", executorPod.getKubernetesPod());
       executorPodStarter.startPod(context.getKubernetesNamespace(), executorPod.getKubernetesPod());
-      PrimusMetrics.emitCounterWithOptionalPrefix("am.pod_launcher.start_pod", 1);
-      PrimusMetrics.emitCounterWithOptionalPrefix("am.container_launcher.start_container", 1);
+      PrimusMetrics.emitCounterWithAppIdTag(
+          "am.pod_launcher.start_pod", new HashMap<>(), 1);
+      PrimusMetrics.emitCounterWithAppIdTag(
+          "am.container_launcher.start_container", new HashMap<>(), 1);
       return PodLauncherResult.succeed(container);
 
     } catch (ApiException e) {
-      PrimusMetrics.emitCounterWithOptionalPrefix("am.pod_launcher.start_pod_error", 1);
+      PrimusMetrics.emitCounterWithAppIdTag(
+          "am.pod_launcher.start_pod_error", new HashMap<>(), 1);
       LOG.error(
           "error when start Pod: {}, reason: {}, err: {}",
           executorPod.getPodName(), e.getResponseBody(), e);

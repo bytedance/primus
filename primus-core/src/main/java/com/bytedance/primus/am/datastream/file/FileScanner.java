@@ -41,6 +41,7 @@ import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.text.ParseException;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -208,7 +209,8 @@ public class FileScanner {
       boolean dayKey,
       boolean checkSuccess) throws IOException, ParseException {
     TimerMetric latency = PrimusMetrics
-        .getTimerContextWithOptionalPrefix("am.filescanner.scan_inputs.latency");
+        .getTimerContextWithAppIdTag(
+            "am.filescanner.scan_inputs.latency", new HashMap<>());
     try {
       if (isDayGranularity) {
         return FileUtils.scanDayInput(fileSystem, fileSourceInput, startDay, endDay,

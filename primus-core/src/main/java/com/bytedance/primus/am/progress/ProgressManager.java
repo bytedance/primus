@@ -21,6 +21,7 @@ package com.bytedance.primus.am.progress;
 
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.service.AbstractService;
+import java.util.HashMap;
 import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -92,7 +93,9 @@ public abstract class ProgressManager extends AbstractService {
         try {
           Thread.sleep(UPDATE_INTERVAL_MS);
           update();
-          PrimusMetrics.emitStoreWithOptionalPrefix("progress", (int) (getProgress() * 100));
+          PrimusMetrics.emitStoreWithAppIdTag(
+              "progress", new HashMap<>(),
+              (int) (getProgress() * 100));
         } catch (Exception e) {
           LOG.warn("Update progress catches error, retry", e);
         }

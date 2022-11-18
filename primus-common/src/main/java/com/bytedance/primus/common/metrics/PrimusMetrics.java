@@ -30,6 +30,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.util.concurrent.AtomicDouble;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
@@ -39,6 +40,7 @@ import org.slf4j.LoggerFactory;
 public class PrimusMetrics {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrimusMetrics.class);
+  private static final String APP_ID_TAG_NAME = "app_id";
 
   private static final TimerMetric emptyTimerMetric = new TimerMetric(null);
   private static final MetricRegistry metrics = new MetricRegistry();
@@ -46,17 +48,18 @@ public class PrimusMetrics {
   private static final ConcurrentHashMap<String, AtomicDouble> storeValuesDouble = new ConcurrentHashMap<>();
   private static final ConcurrentHashMap<String, Timer> timerValues = new ConcurrentHashMap<>();
 
-  private static String optionalPrefix;
   private static MetricsSink sink = null;
+  private static String appId = null;
+  private static boolean sanitizeMetricName = false;
 
   public static void init(RuntimeConf runtimeConf, String appId) {
-    PrimusMetrics.optionalPrefix = appId + ".";
+    PrimusMetrics.appId = appId;
 
     if (runtimeConf.hasPrometheusPushGatewayConf()) {
       PrometheusPushGatewayConf conf = runtimeConf.getPrometheusPushGatewayConf();
+      sanitizeMetricName = true;
       sink = new PrometheusPushGatewaySink(
           metrics,
-          appId,
           conf.getHost(),
           conf.getPort()
       );
@@ -83,22 +86,22 @@ public class PrimusMetrics {
     return metrics.getGauges(filter);
   }
 
-  public static void emitCounterWithOptionalPrefix(String name, long count) {
-    emitCounter(optionalPrefix + name, count);
+  public static void emitCounterWithAppIdTag(String name, Map<String, String> tags, long count) {
+    emitCounter(buildTaggedMetricNameWithAppId(name, tags), count);
   }
 
-  public static void emitCounter(String name, long count) {
+  private static void emitCounter(String name, long count) {
     if (sink == null) {
       return;
     }
     metrics.counter(name).inc(count);
   }
 
-  public static void emitStoreWithOptionalPrefix(String name, int count) {
-    emitStore(optionalPrefix + name, count);
+  public static void emitStoreWithAppIdTag(String name, Map<String, String> tags, int count) {
+    emitStore(buildTaggedMetricNameWithAppId(name, tags), count);
   }
 
-  public static void emitStore(String name, int count) {
+  private static void emitStore(String name, int count) {
     if (sink == null) {
       return;
     }
@@ -111,11 +114,11 @@ public class PrimusMetrics {
     gauge.set(count);
   }
 
-  public static void emitStoreWithOptionalPrefix(String name, double count) {
-    emitStore(optionalPrefix + name, count);
+  public static void emitStoreWithAppIdTag(String name, Map<String, String> tags, double count) {
+    emitStore(buildTaggedMetricNameWithAppId(name, tags), count);
   }
 
-  public static void emitStore(String name, double count) {
+  private static void emitStore(String name, double count) {
     if (sink == null) {
       return;
     }
@@ -128,11 +131,11 @@ public class PrimusMetrics {
     gauge.set(count);
   }
 
-  public static TimerMetric getTimerContextWithOptionalPrefix(String name) {
-    return getTimerContext(optionalPrefix + name);
+  public static TimerMetric getTimerContextWithAppIdTag(String name, Map<String, String> tags) {
+    return getTimerContext(buildTaggedMetricNameWithAppId(name, tags));
   }
 
-  public static TimerMetric getTimerContext(String name) {
+  private static TimerMetric getTimerContext(String name) {
     if (sink == null) {
       return emptyTimerMetric;
     }
@@ -174,7 +177,22 @@ public class PrimusMetrics {
     }
   }
 
-  public static String prefixWithSingleTag(String prefix, String tag, String value) {
-    return String.format("%s{%s=%s}", prefix, tag, value);
+  public static String buildTaggedMetricNameWithAppId(String name, Map<String, String> tags) {
+    String combinedTags = tags.entrySet().stream()
+        .map(e -> buildTag(e.getKey(), e.getValue()))
+        .reduce(
+            buildTag(APP_ID_TAG_NAME, appId),
+            (a, b) -> a + "," + b
+        );
+
+    return String.format("%s{%s}",
+        sanitizeMetricName
+            ? name.replaceAll("[^0-9a-zA-Z_]", "__")
+            : name,
+        combinedTags);
+  }
+
+  private static String buildTag(String name, String value) {
+    return name + "=" + value;
   }
 }

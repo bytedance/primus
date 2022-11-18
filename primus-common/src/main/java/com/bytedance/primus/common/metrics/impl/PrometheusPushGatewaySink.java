@@ -37,20 +37,22 @@ public class PrometheusPushGatewaySink implements MetricsSink {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrometheusPushGatewaySink.class);
   private static final String THREAD_NAME_PREFIX = "primus-prometheus-sink-thread-";
+  private static final String PROMETHEUS_PUSH_GATEWAY_JOB_NAME = "primus";
 
-  private final String appId;
   private final PushGateway pushGateway;
   private final ScheduledExecutorService executor;
 
   public PrometheusPushGatewaySink(
       MetricRegistry metricRegistry,
-      String appId,
       String host,
       int port
   ) {
-    this.appId = appId;
     this.pushGateway = new PushGateway(host + ":" + port);
-    CollectorRegistry.defaultRegistry.register(new DropwizardExports(metricRegistry));
+    CollectorRegistry.defaultRegistry.register(
+        new DropwizardExports(
+            metricRegistry,
+            new PrometheusPrimusSampleBuilder()
+        ));
 
     this.executor = Executors.newSingleThreadScheduledExecutor(new ThreadFactory() {
       private final AtomicInteger threadNumber = new AtomicInteger(1);
@@ -75,9 +77,12 @@ public class PrometheusPushGatewaySink implements MetricsSink {
 
   private void report() {
     try {
-      pushGateway.push(CollectorRegistry.defaultRegistry, appId);
+      LOG.info("Pushing metrics");
+      pushGateway.push(CollectorRegistry.defaultRegistry, PROMETHEUS_PUSH_GATEWAY_JOB_NAME);
     } catch (Exception e) {
-      LOG.warn("Failed to push metrics to PushGateway with jobName {}.", appId, e);
+      LOG.warn(
+          "Failed to push metrics to PushGateway with jobName {}: {}.",
+          PROMETHEUS_PUSH_GATEWAY_JOB_NAME, e);
     }
   }
 

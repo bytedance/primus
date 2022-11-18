@@ -52,6 +52,7 @@ import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.util.Watch;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -138,7 +139,8 @@ public class KubernetesContainerManager extends AbstractService implements
               schedulerExecutor.getExecutorExitMsg());
         }
         expiredPodQueue.add(schedulerExecutor.getExecutorId());
-        PrimusMetrics.emitCounterWithOptionalPrefix("am.container_manager.executor_expired", 1);
+        PrimusMetrics.emitCounterWithAppIdTag(
+            "am.container_manager.executor_expired", new HashMap<>(), 1);
         break;
       }
       case GRACEFUL_SHUTDOWN: {
@@ -173,7 +175,9 @@ public class KubernetesContainerManager extends AbstractService implements
         new SchedulerExecutorManagerContainerCompletedEvent(
             SchedulerExecutorManagerEventType.CONTAINER_RELEASED,
             container, exitStatus, diag));
-    PrimusMetrics.emitCounterWithOptionalPrefix("am.container_manager.release_container", 1);
+    PrimusMetrics.emitCounterWithAppIdTag(
+        "am.container_manager.release_container",
+        new HashMap<>(), 1);
   }
 
   protected void handleContainerRequestCreated() {

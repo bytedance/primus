@@ -42,6 +42,7 @@ import com.bytedance.primus.runtime.yarncommunity.am.container.launcher.Containe
 import com.bytedance.primus.runtime.yarncommunity.utils.YarnConvertor;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -164,7 +165,8 @@ public abstract class YarnContainerManager extends ContainerManager {
               schedulerExecutor.getExecutorExitCode(),
               schedulerExecutor.getExecutorExitMsg());
         }
-        PrimusMetrics.emitCounterWithOptionalPrefix("am.container_manager.executor_expired", 1);
+        PrimusMetrics.emitCounterWithAppIdTag(
+            "am.container_manager.executor_expired", new HashMap<>(), 1);
         break;
       }
       case GRACEFUL_SHUTDOWN: {
@@ -231,7 +233,8 @@ public abstract class YarnContainerManager extends ContainerManager {
             YarnConvertor.toPrimusContainer(container),
             exitStatus, context.getErrMsg()));
 
-    PrimusMetrics.emitCounterWithOptionalPrefix("am.container_manager.release_container", 1);
+    PrimusMetrics.emitCounterWithAppIdTag(
+        "am.container_manager.release_container", new HashMap<>(), 1);
   }
 
   @SuppressWarnings("unchecked")
