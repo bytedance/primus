@@ -19,10 +19,10 @@
 
 package com.bytedance.primus.am.datastream.file;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.RawInput;
@@ -34,7 +34,7 @@ import com.bytedance.primus.utils.TimeUtils;
 import java.text.ParseException;
 import java.util.LinkedList;
 import java.util.List;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 // TODO: Tests for DateHour
 // TODO: Provide negative test cases

@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.am;
 
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.bytedance.primus.am.datastream.DataStreamManager;
 import com.bytedance.primus.am.datastream.DataStreamManagerEvent;
@@ -40,7 +40,7 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class ProgressManagerTest {
 

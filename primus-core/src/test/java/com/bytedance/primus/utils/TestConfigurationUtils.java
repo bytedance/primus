@@ -23,8 +23,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Objects;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class TestConfigurationUtils {
 
@@ -38,7 +38,7 @@ public class TestConfigurationUtils {
           try {
             ResourceUtils.buildJob(ConfigurationUtils.load(path));
           } catch (IOException e) {
-            Assert.assertNull("Caught an exception when processing: " + path, e);
+            Assertions.assertNull(e, "Caught an exception when processing: " + path);
           }
         });
   }

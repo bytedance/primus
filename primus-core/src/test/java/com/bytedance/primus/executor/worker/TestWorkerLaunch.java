@@ -40,8 +40,8 @@ import java.net.ServerSocket;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
@@ -51,7 +51,7 @@ public class TestWorkerLaunch {
   PrimusConfOuterClass.Role role1;
   PrimusConfOuterClass.Role role2;
 
-  @Before
+  @BeforeEach
   public void setup() throws IOException {
     role1 = PrimusConfOuterClass.Role.newBuilder()
         .setRoleName("aaa")

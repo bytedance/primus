@@ -29,7 +29,7 @@ import com.bytedance.primus.common.model.records.Priority;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.Before;
+import org.junit.jupiter.api.BeforeEach;
 
 public class TestSchedulerExecutorManager {
 
@@ -38,7 +38,7 @@ public class TestSchedulerExecutorManager {
   PrimusConfOuterClass.Role role1;
   PrimusConfOuterClass.Role role2;
 
-  @Before
+  @BeforeEach
   public void setup() {
     priorityContainerIndexMap = new HashMap<>();
     role1 = PrimusConfOuterClass.Role.newBuilder()

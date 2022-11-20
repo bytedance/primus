@@ -32,7 +32,7 @@ import com.bytedance.primus.common.model.records.Container;
 import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.model.records.impl.pb.ContainerPBImpl;
 import java.util.Optional;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 public class AddHostToBlacklistByContainerExitCodeStrategyTest {
 

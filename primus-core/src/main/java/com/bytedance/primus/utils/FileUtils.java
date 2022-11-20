@@ -20,11 +20,7 @@
 package com.bytedance.primus.utils;
 
 
-import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase.RAW_INPUT;
-import static com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase.TEXT_INPUT;
-
 import com.bytedance.primus.am.datastream.file.FileSourceInput;
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputTypeCase;
 import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.io.datasource.file.models.PrimusInput;
 import com.bytedance.primus.proto.PrimusCommon.DayFormat;
@@ -54,54 +50,6 @@ import org.slf4j.LoggerFactory;
 public class FileUtils { // TODO: Rename this class as it's actually serving HDFS
 
   private static final Logger LOG = LoggerFactory.getLogger(FileUtils.class);
-
-  public static InputTypeCase getInputType(Path path, FileSystem fs)
-      throws IllegalArgumentException, IOException {
-    FileStatus[] fss;
-    if ((fss = fs.globStatus(path)).length > 0) {
-      for (FileStatus globStat : fss) {
-        FileStatus[] fileStatuses = fs.listStatus(new Path(globStat.getPath().toUri().getPath()));
-        for (FileStatus fileStatus : fileStatuses) {
-          if (isIgnoredFile(fileStatus.getPath())) {
-            continue;
-          }
-          InputTypeCase inputType = getInputType(fileStatus.getPath().getName());
-          LOG.info("FileType compute:{}, path:{}, file path:{}", inputType, path,
-              fileStatus.getPath().getName());
-          return inputType;
-        }
-      }
-    }
-    if (fs.isDirectory(path)) {
-      FileStatus[] fileStatuses = fs.listStatus(path);
-      for (FileStatus fileStatus : fileStatuses) {
-        if (isIgnoredFile(fileStatus.getPath())) {
-          continue;
-        }
-        InputTypeCase inputType = getInputType(fileStatus.getPath().getName());
-        LOG.info("FileType compute:{}, path:{}, file path:{}", inputType, path,
-            fileStatus.getPath().getName());
-        return inputType;
-      }
-    }
-    InputTypeCase inputType = getInputType(path.getName());
-    LOG.info("FileType compute:{}, path:{}, name:{}", inputType, path, path.getName());
-    return inputType;
-  }
-
-  public static boolean isIgnoredFile(Path path) {
-    return path.getName().endsWith("_SUCCESS")
-        || path.getName().equals("_temporary")
-        || path.toUri().getPath().contains("/_temporary/");
-  }
-
-  public static InputTypeCase getInputType(String path) {
-    if (path.contains(".txt")) {
-      return TEXT_INPUT;
-    } else {
-      return RAW_INPUT;
-    }
-  }
 
   private static boolean isFileExist(FileSystem fileSystem, Path path) throws IOException {
     boolean result = fileSystem.exists(path);

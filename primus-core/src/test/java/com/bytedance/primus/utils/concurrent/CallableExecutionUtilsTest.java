@@ -19,29 +19,30 @@
 
 package com.bytedance.primus.utils.concurrent;
 
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class CallableExecutionUtilsTest {
 
-  @Test(expected = TimeoutException.class)
-  public void testExecuteCallableWithTimeout()
-      throws InterruptedException, ExecutionException, TimeoutException {
-    CallableExecutionUtilsBuilder builder = new CallableExecutionUtilsBuilder()
-        .setCallable(() -> {
-          TimeUnit.SECONDS.sleep(10);
-          return true;
-        })
-        .setThreadName("testThread")
-        .setTimeout(1)
-        .setTimeUnit(TimeUnit.SECONDS);
-    CallableExecutionUtils callableExecutionUtils = builder.createCallableExecutionUtils();
-    callableExecutionUtils.doExecuteCallable(true);
+  @Test
+  public void testExecuteCallableWithTimeout() {
+    Assertions.assertThrows(TimeoutException.class, () -> {
+      CallableExecutionUtilsBuilder builder =
+          new CallableExecutionUtilsBuilder()
+              .setCallable(() -> {
+                TimeUnit.SECONDS.sleep(10);
+                return true;
+              })
+              .setThreadName("testThread")
+              .setTimeout(1)
+              .setTimeUnit(TimeUnit.SECONDS);
+      CallableExecutionUtils callableExecutionUtils = builder.createCallableExecutionUtils();
+      callableExecutionUtils.doExecuteCallable(true);
+    });
   }
-
 }

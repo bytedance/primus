@@ -33,25 +33,26 @@ import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Scheduler;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler;
 import java.util.Arrays;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class SchedulerExecutorManagerTest {
 
   @Mock
   private AMContext context;
 
-  @Before
+  @BeforeEach
   public void init() {
     PrimusConf primusConf = PrimusConf.newBuilder()
         .setRunningMode(RunningMode.YARN)
         .setScheduler(Scheduler.newBuilder()
-            .setYarnScheduler(YarnScheduler.newBuilder().build()).build())
+            .setYarnScheduler(YarnScheduler.getDefaultInstance())
+            .build())
         .build();
     when(context.getPrimusConf()).thenReturn(primusConf);
   }
@@ -69,10 +70,13 @@ public class SchedulerExecutorManagerTest {
     ExecutorSpec previousExecutorSpec = getExecutorSpec(previousPB, "10.0.0.1", 8080);
     suit.updateRegisterRequestWithPreviousSpec(registerRequest, previousExecutorSpec);
 
-    Assert.assertEquals(8080, registerRequest.getExecutorSpec().getEndpoints().get(0).getPort());
-    Assert.assertEquals("10.0.0.1", registerRequest.getExecutorSpec().getEndpoints().get(0).getHostname());
-    Assert .assertEquals("worker-2", registerRequest.getExecutorSpec().getExecutorId().getRoleName());
-    Assert.assertEquals(1, registerRequest.getExecutorSpec().getExecutorId().getUniqId());
+    Assertions.assertEquals(8080,
+        registerRequest.getExecutorSpec().getEndpoints().get(0).getPort());
+    Assertions.assertEquals("10.0.0.1",
+        registerRequest.getExecutorSpec().getEndpoints().get(0).getHostname());
+    Assertions.assertEquals("worker-2",
+        registerRequest.getExecutorSpec().getExecutorId().getRoleName());
+    Assertions.assertEquals(1, registerRequest.getExecutorSpec().getExecutorId().getUniqId());
 
   }
 
@@ -95,5 +99,4 @@ public class SchedulerExecutorManagerTest {
     executorId.setUniqId(uniqId);
     return executorId;
   }
-
 }

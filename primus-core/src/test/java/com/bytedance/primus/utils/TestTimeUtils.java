@@ -19,10 +19,9 @@
 
 package com.bytedance.primus.utils;
 
-import static junit.framework.TestCase.assertFalse;
-import static junit.framework.TestCase.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.bytedance.primus.common.exceptions.PrimusUnsupportedException;
 import com.bytedance.primus.proto.PrimusCommon.Time;
@@ -31,7 +30,8 @@ import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import java.text.ParseException;
 import java.util.Calendar;
 import java.util.Date;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 // TODO: Tests for DateHour
 public class TestTimeUtils {
@@ -51,18 +51,20 @@ public class TestTimeUtils {
     assertEquals(TimeUtils.plusHour(2020101010, -11), 2020100923);
   }
 
-  @Test(expected = PrimusUnsupportedException.class)
+  @Test
   public void testPlusDayWithTime() throws ParseException {
     // Time with Now
-    Time base = Time.newBuilder()
-        .setNow(Now.getDefaultInstance())
-        .build();
-
-    when(TimeUtils.plusDay(base, 0))
-        .thenThrow(new PrimusUnsupportedException("Time::Now cannot be computed"));
+    Assertions.assertThrows(
+        PrimusUnsupportedException.class,
+        () -> {
+          Time now = Time.newBuilder()
+              .setNow(Now.getDefaultInstance())
+              .build();
+          TimeUtils.plusDay(now, 0);
+        });
 
     // Time with Day
-    base = TimeUtils.newDate(20200501);
+    Time base = TimeUtils.newDate(20200501);
 
     assertEquals(TimeUtils.plusDay(base, 0), base);
     assertEquals(
