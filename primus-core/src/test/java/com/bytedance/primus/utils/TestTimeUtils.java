@@ -20,27 +20,48 @@
 package com.bytedance.primus.utils;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.bytedance.primus.common.exceptions.PrimusUnsupportedException;
 import com.bytedance.primus.proto.PrimusCommon.Time;
-import com.bytedance.primus.proto.PrimusCommon.Time.Now;
-import com.bytedance.primus.proto.PrimusCommon.TimeRange;
+import com.bytedance.primus.proto.PrimusCommon.Time.Date;
+import com.bytedance.primus.proto.PrimusCommon.Time.DateHour;
 import java.text.ParseException;
 import java.util.Calendar;
-import java.util.Date;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-// TODO: Tests for DateHour
 public class TestTimeUtils {
+
+  private static final Time now = TimeUtils.newNow();
+  private static final Time dtA = TimeUtils.newDate(20191231);
+  private static final Time dtB = TimeUtils.newDate(20200101);
+  private static final Time dtC = TimeUtils.newDate(20200102);
+  private static final Time dhA = TimeUtils.newDateHour(20191231, 23);
+  private static final Time dhB = TimeUtils.newDateHour(20200101, 0);
+  private static final Time dhC = TimeUtils.newDateHour(20200101, 1);
+
+  private void assertBooleanEquals(boolean result, boolean expectation) {
+    Assertions.assertEquals(result, expectation);
+  }
 
   @Test
   public void testPlusDay() throws ParseException {
     assertEquals(TimeUtils.plusDay(20201010, 5), 20201015);
     assertEquals(TimeUtils.plusDay(20201010, 25), 20201104);
     assertEquals(TimeUtils.plusDay(20201010, -10), 20200930);
+  }
+
+  @Test
+  public void testPlusDayWithDate() throws ParseException {
+    Date base = TimeUtils.newDate(20200501).getDate();
+    assertEquals(
+        TimeUtils.plusDay(base, 0),
+        base);
+    assertEquals(
+        TimeUtils.plusDay(base, 1),
+        TimeUtils.newDate(20200502).getDate());
+    assertEquals(
+        TimeUtils.plusDay(base, -1),
+        TimeUtils.newDate(20200430).getDate());
   }
 
   @Test
@@ -52,227 +73,73 @@ public class TestTimeUtils {
   }
 
   @Test
-  public void testPlusDayWithTime() throws ParseException {
-    // Time with Now
-    Assertions.assertThrows(
-        PrimusUnsupportedException.class,
-        () -> {
-          Time now = Time.newBuilder()
-              .setNow(Now.getDefaultInstance())
-              .build();
-          TimeUtils.plusDay(now, 0);
-        });
+  public void testPlusHourWithDateHour() throws ParseException {
+    DateHour base = TimeUtils.newDateHour(20200101, 0).getDateHour();
 
-    // Time with Day
-    Time base = TimeUtils.newDate(20200501);
-
-    assertEquals(TimeUtils.plusDay(base, 0), base);
     assertEquals(
-        TimeUtils.plusDay(base, 1),
-        TimeUtils.newDate(20200502));
+        TimeUtils.plusHour(base, 0),
+        base);
     assertEquals(
-        TimeUtils.plusDay(base, -1),
-        TimeUtils.newDate(20200430));
-
-    // Time with Day and Hour
-    base = TimeUtils.newDateHour(20200501, 12);
-
-    assertEquals(TimeUtils.plusDay(base, 0), base);
+        TimeUtils.plusHour(base, 1),
+        TimeUtils.newDateHour(20200101, 1).getDateHour());
     assertEquals(
-        TimeUtils.plusDay(base, 1),
-        TimeUtils.newDateHour(20200502, 12));
-    assertEquals(
-        TimeUtils.plusDay(base, -1),
-        TimeUtils.newDateHour(20200430, 12));
+        TimeUtils.plusHour(base, -1),
+        TimeUtils.newDateHour(20191231, 23).getDateHour());
   }
 
   @Test
-  public void testIsTimeBefore() {
-    Time anchor = TimeUtils.newDateHour(new java.util.Date());
+  public void testIsBefore() {
+    // Test with TimeCase::Now
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isBefore(now, now));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isBefore(now, dtB));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isBefore(now, dhB));
 
-    Time time1 = TimeUtils.newDateHour(20200501, 0);
-    assertEquals(TimeUtils.isTimeBefore(anchor, time1, TimeUtils.newDateHour(20200501, 0)), false);
-    assertEquals(TimeUtils.isTimeBefore(anchor, time1, TimeUtils.newDateHour(20200501, 1)), true);
-    assertEquals(TimeUtils.isTimeBefore(anchor, time1, TimeUtils.newDateHour(20200410, 0)), false);
+    // Test with TimeCase::Date
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isBefore(dtB, now));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isBefore(dtB, dhB));
 
-    Time time2 = Time.newBuilder()
-        .setDate(
-            Time.Date.newBuilder()
-                .setDate(20200501))
-        .build();
-    assertEquals(TimeUtils.isTimeBefore(anchor, time2, TimeUtils.newDateHour(20200501, 0)), false);
-    assertEquals(TimeUtils.isTimeBefore(anchor, time2, TimeUtils.newDateHour(20200501, 1)), false);
-    assertEquals(TimeUtils.isTimeBefore(anchor, time1, TimeUtils.newDateHour(20200502, 1)), true);
-    assertEquals(TimeUtils.isTimeBefore(anchor, time2, TimeUtils.newDateHour(20200410, 0)), false);
+    assertBooleanEquals(TimeUtils.isBefore(dtB, dtA), false);
+    assertBooleanEquals(TimeUtils.isBefore(dtB, dtB), false);
+    assertBooleanEquals(TimeUtils.isBefore(dtB, dtC), true);
 
-    Time time3 = Time.newBuilder()
-        .setNow(Now.getDefaultInstance())
-        .build();
-    assertEquals(TimeUtils.isTimeBefore(anchor, time3, TimeUtils.newDateHour(20200501, 0)), false);
+    // Test with TimeCase::DateHour
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isBefore(dhB, now));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isBefore(dhB, dtB));
+
+    assertBooleanEquals(TimeUtils.isBefore(dhB, dhA), false);
+    assertBooleanEquals(TimeUtils.isBefore(dhB, dhB), false);
+    assertBooleanEquals(TimeUtils.isBefore(dhB, dhC), true);
   }
 
   @Test
-  public void testIsTimeBeforeWithTime() {
-    Time anchor = TimeUtils.newDateHour(new java.util.Date());
+  public void testIsAfter() {
+    // Test with TimeCase::Now
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isAfter(now, now));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isAfter(now, dtB));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isAfter(now, dhB));
 
-    Time lower = TimeUtils.newDate(20000101);
-    Time upper = TimeUtils.newDate(30000101);
-    Time now = Time.newBuilder()
-        .setNow(Now.getDefaultInstance())
-        .build();
+    // Test with TimeCase::Date
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isAfter(dtB, now));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isAfter(dtB, dhB));
 
-    // With Now
-    assertFalse(TimeUtils.isTimeBefore(anchor, now, now));
-    assertFalse(TimeUtils.isTimeBefore(anchor, upper, now));
-    assertTrue(TimeUtils.isTimeBefore(anchor, lower, now));
+    assertBooleanEquals(TimeUtils.isAfter(dtB, dtA), true);
+    assertBooleanEquals(TimeUtils.isAfter(dtB, dtB), false);
+    assertBooleanEquals(TimeUtils.isAfter(dtB, dtC), false);
 
-    // With two normalized times
-    assertFalse(TimeUtils.isTimeBefore(anchor, lower, lower));
-    assertFalse(TimeUtils.isTimeBefore(anchor, upper, lower));
-    assertTrue(TimeUtils.isTimeBefore(anchor, lower, upper));
+    // Test with TimeCase::DateHour
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isAfter(dhB, now));
+    Assertions.assertThrows(IllegalArgumentException.class, () -> TimeUtils.isAfter(dhB, dtB));
+
+    assertBooleanEquals(TimeUtils.isAfter(dhB, dhA), true);
+    assertBooleanEquals(TimeUtils.isAfter(dhB, dhB), false);
+    assertBooleanEquals(TimeUtils.isAfter(dhB, dhC), false);
   }
 
   @Test
-  public void testIsTimeAfter() {
-    Time anchor = TimeUtils.newDateHour(new java.util.Date());
-
-    Time time1 = TimeUtils.newDateHour(20200501, 0);
-    assertEquals(TimeUtils.isTimeAfter(anchor, time1, TimeUtils.newDateHour(20200501, 0)), false);
-    assertEquals(TimeUtils.isTimeAfter(anchor, time1, TimeUtils.newDateHour(20200430, 23)), true);
-    assertEquals(TimeUtils.isTimeAfter(anchor, time1, TimeUtils.newDateHour(20200410, 0)), true);
-
-    Time time2 = Time.newBuilder()
-        .setDate(Time.Date.newBuilder()
-            .setDate(20200501))
-        .build();
-    assertEquals(TimeUtils.isTimeAfter(anchor, time2, TimeUtils.newDateHour(20200501, 0)), false);
-    assertEquals(TimeUtils.isTimeAfter(anchor, time2, TimeUtils.newDateHour(20200420, 10)), true);
-
-    Time time3 = Time.newBuilder()
-        .setNow(Now.getDefaultInstance())
-        .build();
-    assertEquals(TimeUtils.isTimeAfter(anchor, time3, TimeUtils.newDateHour(20200501, 0)), true);
-    assertEquals(TimeUtils.isTimeAfter(anchor, time3, TimeUtils.newDateHour(20200420, 10)), true);
-  }
-
-  @Test
-  public void testIsTimeAfterWithTime() {
-    Time anchor = TimeUtils.newDateHour(new java.util.Date());
-
-    Time lower = TimeUtils.newDate(20000101);
-    Time upper = TimeUtils.newDate(30000101);
-    Time now = Time.newBuilder()
-        .setNow(Now.getDefaultInstance())
-        .build();
-
-    // With Now
-    assertFalse(TimeUtils.isTimeAfter(anchor, now, now));
-    assertTrue(TimeUtils.isTimeAfter(anchor, upper, now));
-    assertFalse(TimeUtils.isTimeAfter(anchor, lower, now));
-
-    // With two normalized times
-    assertFalse(TimeUtils.isTimeAfter(anchor, lower, lower));
-    assertTrue(TimeUtils.isTimeAfter(anchor, upper, lower));
-    assertFalse(TimeUtils.isTimeAfter(anchor, lower, upper));
-  }
-
-  @Test
-  public void testGetDateHour() {
-    java.util.Date anchor = new Date(2020 - 1900, Calendar.MAY, 1, 12, 34);
+  public void testNewDateHour() {
+    java.util.Date anchor = new java.util.Date(2020 - 1900, Calendar.MAY, 1, 12, 34);
     assertEquals(
         TimeUtils.newDateHour(anchor),
         TimeUtils.newDateHour(20200501, 12));
-  }
-
-  @Test
-  public void testMaxTime() {
-    Time anchor = TimeUtils.newDateHour(new java.util.Date());
-
-    Time lower = TimeUtils.newDate(20000101);
-    Time upper = TimeUtils.newDate(30000101);
-    Time now = Time.newBuilder()
-        .setNow(Now.getDefaultInstance())
-        .build();
-
-    assertEquals(TimeUtils.maxTime(anchor, now, now), now);
-    assertEquals(TimeUtils.maxTime(anchor, lower, now), now);
-    assertEquals(TimeUtils.maxTime(anchor, lower, upper), upper);
-    assertEquals(TimeUtils.maxTime(anchor, upper, upper), upper);
-  }
-
-  @Test
-  public void testMinTime() {
-    Time anchor = TimeUtils.newDateHour(new java.util.Date());
-
-    Time lower = TimeUtils.newDate(20000101);
-    Time upper = TimeUtils.newDate(30000101);
-    Time now = Time.newBuilder()
-        .setNow(Now.getDefaultInstance())
-        .build();
-
-    assertEquals(TimeUtils.minTime(anchor, now, now), now);
-    assertEquals(TimeUtils.minTime(anchor, lower, now), lower);
-    assertEquals(TimeUtils.minTime(anchor, lower, upper), lower);
-    assertEquals(TimeUtils.minTime(anchor, lower, lower), lower);
-  }
-
-  private TimeRange newTimeRange(Time s, Time e) {
-    return TimeRange.newBuilder()
-        .setFrom(s)
-        .setTo(e)
-        .build();
-  }
-
-  @Test
-  public void testOverlapped() {
-    Time anchor = TimeUtils.newDateHour(new java.util.Date());
-
-    Time a = TimeUtils.newDate(20200101);
-    Time b = TimeUtils.newDate(20200102);
-    Time c = TimeUtils.newDate(20200103);
-    Time d = TimeUtils.newDate(20200104);
-    Time now = Time.newBuilder()
-        .setNow(Now.getDefaultInstance())
-        .build();
-
-    assertFalse(TimeUtils.overlapped(anchor, null, null));
-    assertFalse(TimeUtils.overlapped(anchor, null, newTimeRange(b, d)));
-    assertFalse(TimeUtils.overlapped(anchor, newTimeRange(a, c), null));
-
-    assertFalse(TimeUtils.overlapped( // Disjoint
-        anchor,
-        newTimeRange(a, b),
-        newTimeRange(c, d)
-    ));
-
-    assertTrue(TimeUtils.overlapped( // just touched
-        anchor,
-        newTimeRange(a, b),
-        newTimeRange(b, c)
-    ));
-
-    assertTrue(TimeUtils.overlapped( // interleaved
-        anchor,
-        newTimeRange(a, c),
-        newTimeRange(b, d)
-    ));
-
-    assertTrue(TimeUtils.overlapped( // interleaved with now
-        anchor,
-        newTimeRange(a, c),
-        newTimeRange(b, now)
-    ));
-
-    assertTrue(TimeUtils.overlapped( // Contains
-        anchor,
-        newTimeRange(a, d),
-        newTimeRange(b, c)
-    ));
-
-    assertTrue(TimeUtils.overlapped( // Contains with now
-        anchor,
-        newTimeRange(a, now),
-        newTimeRange(b, c)
-    ));
   }
 }

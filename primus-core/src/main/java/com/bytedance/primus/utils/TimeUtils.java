@@ -23,6 +23,7 @@ import com.bytedance.primus.common.exceptions.PrimusUnsupportedException;
 import com.bytedance.primus.proto.PrimusCommon.Time;
 import com.bytedance.primus.proto.PrimusCommon.Time.Date;
 import com.bytedance.primus.proto.PrimusCommon.Time.DateHour;
+import com.bytedance.primus.proto.PrimusCommon.Time.Now;
 import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -53,29 +54,8 @@ public class TimeUtils {
     return Integer.parseInt(defaultDateFormat.format(calendar.getTime()));
   }
 
-  public static Time plusDay(Time time, int days) throws ParseException {
-    switch (time.getTimeCase()) {
-      case DATE:
-        Date date = time.getDate();
-        return Time
-            .newBuilder()
-            .setDate(Date
-                .newBuilder()
-                .setDate(plusDay(date.getDate(), days)))
-            .build();
-      case DATE_HOUR:
-        DateHour dateHour = time.getDateHour();
-        return Time
-            .newBuilder()
-            .setDateHour(DateHour
-                .newBuilder()
-                .setDate(plusDay(dateHour.getDate(), days))
-                .setHour(dateHour.getHour()))
-            .build();
-      case NOW:
-      default:
-        throw new PrimusUnsupportedException("Unsupported TimeCase: " + time.getTimeCase());
-    }
+  public static Date plusDay(Date date, int days) throws ParseException {
+    return newDate(plusDay(date.getDate(), days)).getDate();
   }
 
   /**
@@ -92,130 +72,101 @@ public class TimeUtils {
     return Integer.parseInt(defaultDateHourFormat.format(calendar.getTime()));
   }
 
-  public static Time plusHour(Time time, int hours) throws ParseException {
-    switch (time.getTimeCase()) {
-      case DATE_HOUR:
-        DateHour dateHour = time.getDateHour();
-        long numericDateHour = plusHour(dateHour.getDate() * 100 + dateHour.getHour(), hours);
-        return Time
-            .newBuilder()
-            .setDateHour(DateHour
-                .newBuilder()
-                .setDate((int) (numericDateHour / 100))
-                .setHour((int) (numericDateHour % 100)))
-            .build();
-      case DATE:
-      case NOW:
-      default:
-        throw new PrimusUnsupportedException("Unsupported TimeCase: " + time.getTimeCase());
-    }
-  }
-
-  public static boolean isTimeBefore(Time anchor, Time a, Time b) {
-    Time concludedA = a.hasNow() ? anchor : a;
-    switch (b.getTimeCase()) {
-      case DATE:
-        return isTimeBefore(
-            concludedA,
-            b.getDate().getDate(),
-            0);
-      case DATE_HOUR:
-        return isTimeBefore(
-            concludedA,
-            b.getDateHour().getDate(),
-            b.getDateHour().getHour());
-      case NOW:
-      default:
-        return isTimeBefore(null /* crash intentionally */, concludedA, anchor);
-    }
-  }
-
-  private static boolean isTimeBefore(Time time, int date, int hour) {
-    switch (time.getTimeCase()) {
-      case DATE:
-        Date d = time.getDate();
-        return d.getDate() < date;
-      case DATE_HOUR:
-        DateHour dh = time.getDateHour();
-        return dh.getDate() < date || dh.getDate() == date && dh.getHour() < hour;
-      case NOW:
-      default:
-        throw new PrimusUnsupportedException("Unsupported TimeCase: " + time.getTimeCase());
-    }
-  }
-
-  public static boolean isTimeAfter(Time anchor, Time a, Time b) {
-    Time concludedA = a.hasNow() ? anchor : a;
-    switch (b.getTimeCase()) {
-      case DATE:
-        return isTimeAfter(
-            concludedA,
-            b.getDate().getDate(),
-            23);
-      case DATE_HOUR:
-        return isTimeAfter(
-            concludedA,
-            b.getDateHour().getDate(),
-            b.getDateHour().getHour());
-      case NOW:
-      default:
-        return isTimeAfter(null /* crash intentionally */, concludedA, anchor);
-    }
-  }
-
-  private static boolean isTimeAfter(Time time, int date, int hour) {
-    switch (time.getTimeCase()) {
-      case DATE:
-        Date d = time.getDate();
-        return d.getDate() > date;
-      case DATE_HOUR:
-        DateHour dh = time.getDateHour();
-        return dh.getDate() > date || dh.getDate() == date && dh.getHour() > hour;
-      case NOW:
-      default:
-        throw new PrimusUnsupportedException("Unsupported TimeCase: " + time.getTimeCase());
-    }
-  }
-
-  // TODO: Change return type to Date
-  public static Time newDate(int date) {
-    return Time.newBuilder()
-        .setDate(Date.newBuilder()
-            .setDate(date))
+  public static DateHour plusHour(DateHour dateHour, int hours) throws ParseException {
+    long numericDateHour = plusHour(dateHour.getDate() * 100L + dateHour.getHour(), hours);
+    return DateHour.newBuilder()
+        .setDate((int) (numericDateHour / 100))
+        .setHour((int) (numericDateHour % 100))
         .build();
   }
 
-  // TODO: Change return type to DateHour
+  public static Time newNow() {
+    return Time.newBuilder()
+        .setNow(Now.getDefaultInstance())
+        .build();
+  }
+
+  public static Time newDate(int date) {
+    return Time.newBuilder()
+        .setDate(Date.newBuilder()
+            .setDate(date)
+            .build())
+        .build();
+  }
+
+  public static Time newDate(Date date) {
+    return Time.newBuilder()
+        .setDate(date)
+        .build();
+  }
+
+  public static Time newDate(Time time) {
+    switch (time.getTimeCase()) {
+      case DATE:
+        return time;
+      case DATE_HOUR:
+        return newDate(time.getDateHour().getDate());
+      case NOW:
+      default:
+        throw new PrimusUnsupportedException("Unsupported TimeCase: " + time.getTimeCase());
+    }
+  }
+
   public static Time newDateHour(int date, int hour) {
     return Time.newBuilder()
         .setDateHour(DateHour.newBuilder()
             .setDate(date)
-            .setHour(hour))
+            .setHour(hour)
+            .build())
         .build();
   }
 
-  // TODO: Change return type to DateHour
   public static Time newDateHour(java.util.Date current) {
     return newDateHour(
         Integer.parseInt(defaultDateFormat.format(current)),
         Integer.parseInt(defaultHourFormat.format(current)));
   }
 
-  public static Time maxTime(Time anchor, Time a, Time b) {
-    return isTimeBefore(anchor, a, b) ? b : a;
+  public static TimeRange newTimeRange(Time from, Time to) {
+    return TimeRange.newBuilder()
+        .setFrom(from)
+        .setTo(to)
+        .build();
   }
 
-  public static Time minTime(Time anchor, Time a, Time b) {
-    return isTimeBefore(anchor, a, b) ? a : b;
-  }
-
-  public static boolean overlapped(Time anchor, TimeRange a, TimeRange b) {
-    if (a == null || b == null) {
-      return false;
+  // Returns timeA is before timeB,
+  public static boolean isBefore(Time timeA, Time timeB) {
+    if (timeA.getTimeCase() != timeB.getTimeCase()) {
+      throw new IllegalArgumentException("Cannot compare with different TimeCases"
+          + timeA.getTimeCase().name()
+          + timeB.getTimeCase().name());
     }
 
-    boolean isBefore = isTimeBefore(anchor, a.getTo(), b.getFrom());
-    boolean isAfter = isTimeAfter(anchor, a.getFrom(), b.getTo());
-    return !isBefore && !isAfter;
+    switch (timeA.getTimeCase()) {
+      case DATE:
+        return timeA.getDate().getDate() < timeB.getDate().getDate();
+      case DATE_HOUR:
+        int dateA = timeA.getDateHour().getDate();
+        int dateB = timeB.getDateHour().getDate();
+        int hourA = timeA.getDateHour().getHour();
+        int hourB = timeB.getDateHour().getHour();
+        return dateA < dateB || dateA == dateB && hourA < hourB;
+      case NOW:
+      default:
+        throw new IllegalArgumentException("Illegal TimeCase: " + timeA.getTimeCase().name());
+    }
+  }
+
+  // Returns timeA is after timeB,
+  public static boolean isAfter(Time timeA, Time timeB) {
+    return isBefore(timeB, timeA);
+  }
+
+  public static Time max(Time timeA, Time timeB) {
+    return isBefore(timeA, timeB) ? timeB : timeA;
+  }
+
+  public static Time min(Time timeA, Time timeB) {
+    return isBefore(timeA, timeB) ? timeA : timeB;
   }
 }
