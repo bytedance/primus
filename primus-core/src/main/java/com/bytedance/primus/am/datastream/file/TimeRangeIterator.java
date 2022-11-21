@@ -20,66 +20,118 @@
 package com.bytedance.primus.am.datastream.file;
 
 import com.bytedance.primus.proto.PrimusCommon.Time;
+import com.bytedance.primus.proto.PrimusCommon.Time.TimeCase;
 import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import com.bytedance.primus.utils.TimeUtils;
 import java.text.ParseException;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Optional;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// TODO: Move to UTC and always down to hourly granularity
-// TODO: Create DateHour class to replace using Time to avoid overly complicated exceptions.
-// TimeRangeIterator iterates the appointed FileSourceInputs with a moving window to yield
-// FileSourceInputs with smaller TimeRanges comprised of specified dates and hours.
-// NOTE: Now is interpreted in local timezone and TimeRanges are denoted as closed intervals.
+/**
+ * TimeRangeIterator iterates the appointed FileSourceInputs with a moving window to yield
+ * FileSourceInputs with smaller TimeRanges comprised of specified dates and hours. Notes
+ * <li> - TimeRanges are denoted as closed intervals.</li>
+ * <li> - Now is interpreted as infinity.</li>
+ */
 public class TimeRangeIterator {
 
+  public enum IterationMode {
+    NONE,
+    HOURLY,
+    DAILY
+  }
+
   private static final Logger LOG = LoggerFactory.getLogger(FileScanner.class.getName());
-  private static final int DAY_WINDOW_SIZE = 4; // Generates smaller intervals to allow pipelining.
+
+  @Getter
+  private final IterationMode mode;
 
   // originalInputs functions as the template used to yield new inputs and shouldn't be modified.
   private final List<FileSourceInput> originalInputs;
   private final TimeRange originalInputWindow; // [minTime, maxTime] among originalInputs
 
   // The states for each single batch
-  private boolean valid = false;
-  private Time generatedBatchStartTime = null; // Aligned to day
-  private Time generatedBatchEndTime = null;   // Aligned to day
+  @Getter
+  private boolean valid;
+  @Getter
+  private Time currentBatchCursor;
   private List<FileSourceInput> generatedBatch = null;
 
   public TimeRangeIterator(List<FileSourceInput> inputs) throws ParseException {
-    Time anchor = TimeUtils.newDateHour(new java.util.Date());
-
-    originalInputs = inputs;
-    originalInputWindow = inputs.stream()
-        .filter(input -> input.getTimeRange().isPresent())
+    this.originalInputs = inputs;
+    this.originalInputWindow = inputs.stream()
+        .filter(input -> {
+          // Check the existence of TimeRange
+          if (!input.getTimeRange().isPresent()) {
+            LOG.warn("Missing TimeRange: {}", input);
+            return false;
+          }
+          // Check the sanity of the TimeRange
+          TimeRange timeRange = input.getTimeRange().get();
+          Time from = timeRange.getFrom();
+          Time to = timeRange.getTo();
+          if (from.getTimeCase() == TimeCase.NOW ||
+              from.getTimeCase() != to.getTimeCase() && to.getTimeCase() != TimeCase.NOW
+          ) {
+            LOG.warn("Invalid TimeRange: {}", input);
+            return false;
+          }
+          return true;
+        })
         .map(input -> input.getTimeRange().get())
-        .reduce((TimeRange a, TimeRange b) ->
-            TimeRange.newBuilder()
-                .setFrom(TimeUtils.minTime(anchor, a.getFrom(), b.getFrom()))
-                .setTo(TimeUtils.maxTime(anchor, a.getTo(), b.getTo()))
-                .build())
+        .reduce(TimeRangeIterator::computeMinimalContainingTimeRange)
         .orElse(null);
 
-    if (originalInputWindow != null) {
-      valid = true;
-      generatedBatchStartTime = null;
-      generatedBatchEndTime = TimeUtils.plusDay(
-          originalInputWindow.getFrom(),
-          -1 // Move to the day before the minimum date as the initial generatedInputBatchEndTime.
-      );
+    this.mode = originalInputWindow == null
+        ? IterationMode.NONE
+        : originalInputWindow.getFrom().hasDate()
+            ? IterationMode.DAILY
+            : originalInputWindow.getFrom().hasDateHour()
+                ? IterationMode.HOURLY
+                : IterationMode.NONE;
+
+    switch (this.mode) {
+      case DAILY:
+        valid = true;
+        currentBatchCursor = TimeUtils.newDate(
+            TimeUtils.plusDay(originalInputWindow.getFrom().getDate(), -1));
+        break;
+      case HOURLY:
+        valid = true;
+        currentBatchCursor = TimeUtils.newDateHour(
+            TimeUtils.plusHour(originalInputWindow.getFrom().getDateHour(), -1));
+        break;
+      default:
+        valid = false;
+        currentBatchCursor = null;
+    }
+  }
+
+  public String getBatchKey() {
+    if (currentBatchCursor == null) {
+      return null;
+    }
+
+    switch (mode) {
+      case DAILY:
+        return String.valueOf(currentBatchCursor.getDate().getDate());
+      case HOURLY:
+        return String.format("%s%s",
+            currentBatchCursor.getDateHour().getDate(),
+            currentBatchCursor.getDateHour().getHour()
+        );
+      default:
+        throw new IllegalArgumentException("Unsupported Mode: " + mode);
     }
   }
 
   // Returns whether there is the next batch
   public boolean prepareNextBatch() throws ParseException {
-    return prepareNextBatch(TimeUtils.newDateHour(new java.util.Date()));
-  }
-
-  public boolean prepareNextBatch(Time current) throws ParseException {
     if (!valid) {
       return false;
     }
@@ -88,7 +140,7 @@ public class TimeRangeIterator {
       return true;
     }
     // Try generating new inputs
-    generateNewBatch(current);
+    generateNewBatch();
     // Final judgement
     return generatedBatch != null;
   }
@@ -105,77 +157,126 @@ public class TimeRangeIterator {
   }
 
   // Try generating a new batch till the iterator becomes invalid.
-  private void generateNewBatch(Time current) throws ParseException {
-    while (valid && generatedBatch == null) {
-      // Compute batch window
-      Time batchWindowStart = TimeUtils.plusDay(generatedBatchEndTime, 1);
-      Time batchWindowEnd = TimeUtils.minTime(
-          current,
-          TimeUtils.plusDay(generatedBatchEndTime, DAY_WINDOW_SIZE),
-          current);
-
-      LOG.info("Current BatchWindow: [{}, {}]",
-          batchWindowStart.getDate(),
-          batchWindowEnd.getDate());
-
-      // The batch window has gone beyond the original inputs
-      if (!TimeUtils.overlapped(
-          current,
-          TimeRange.newBuilder()
-              .setFrom(batchWindowStart)
-              .setTo(batchWindowEnd)
-              .build(),
-          originalInputWindow)
-      ) {
-        LOG.info("Iterator has been exhausted");
-        valid = false;
-        break;
-      }
-
-      // Populate the new input batch
-      TimeRange batchWindow = TimeRange.newBuilder()
-          .setFrom(batchWindowStart)
-          .setTo(batchWindowEnd)
-          .build();
-
-      generatedBatchStartTime = batchWindowStart;
-      generatedBatchEndTime = batchWindowEnd;
-      generatedBatch = originalInputs.stream()
-          .filter(input -> {
-            Optional<TimeRange> window = input.getTimeRange();
-            return window.isPresent() && TimeUtils.overlapped(current, batchWindow, window.get());
-          })
-          .map(input -> {
-            TimeRange inputWindow = input.getTimeRange().get();
-            LOG.info("fileSourceInput: " + input
-                + "inputStartDay: " + inputWindow.getFrom().getDate().getDate()
-                + "inputEndDay: " + inputWindow.getTo().getDate().getDate());
-
-            return new FileSourceInput(
-                input.getSourceId(),
-                input.getSource(),
-                input.getSpec()
-                    .toBuilder()
-                    .setTimeRange(TimeRange.newBuilder()
-                        .setFrom(TimeUtils.maxTime(
-                            current,
-                            inputWindow.getFrom(),
-                            generatedBatchStartTime))
-                        .setTo(TimeUtils.minTime(
-                            current,
-                            inputWindow.getTo(),
-                            generatedBatchEndTime))
-                    ).build());
-          })
-          .collect(Collectors.toList());
+  private void generateNewBatch() throws ParseException {
+    if (!valid) {
+      return;
     }
+
+    // Update batch window
+    switch (mode) {
+      case DAILY:
+        currentBatchCursor = TimeUtils.newDate(
+            TimeUtils.plusDay(currentBatchCursor.getDate(), 1));
+        break;
+      case HOURLY:
+        currentBatchCursor = TimeUtils.newDateHour(
+            TimeUtils.plusHour(currentBatchCursor.getDateHour(), 1));
+        break;
+      default:
+        throw new IllegalArgumentException("TimeRangeIterator cannot work on " + mode);
+    }
+
+    LOG.info("CurrentBatchCursor: {}", currentBatchCursor);
+
+    // The batch window has gone beyond the original inputs
+    if (intersection(originalInputWindow, currentBatchCursor) == null) {
+      LOG.info("Iterator has been exhausted");
+      valid = false;
+      return;
+    }
+
+    // Populate the new input batch
+    generatedBatch = originalInputs.stream()
+        .map(input -> {
+          if (!input.getTimeRange().isPresent()) {
+            return null;
+          }
+
+          TimeRange intersection = intersection(
+              input.getTimeRange().get(),
+              currentBatchCursor
+          );
+          return intersection == null ? null : new FileSourceInput(
+              input.getSourceId(),
+              input.getSource(),
+              input.getSpec()
+                  .toBuilder()
+                  .setTimeRange(intersection)
+                  .build());
+        })
+        .filter(Objects::nonNull)
+        .collect(Collectors.toList());
   }
 
-  public Time getNextBatchStartTime() {
-    return generatedBatchStartTime;
+  // Returns a TimeRange denoted with dates or now
+  private static TimeRange computeMinimalContainingTimeRange(TimeRange rangeA, TimeRange rangeB) {
+
+    Time fromA = rangeA.getFrom();
+    Time fromB = rangeB.getFrom();
+    Time toA = rangeA.getTo();
+    Time toB = rangeB.getTo();
+
+    // Generate hourly TimeRange
+    if (fromA.hasDateHour() && fromB.hasDateHour()) {
+      return TimeRange.newBuilder()
+          .setFrom(TimeUtils.min(fromA, fromB))
+          .setTo((toA.hasNow() || toB.hasNow())
+              ? TimeUtils.newNow() // Now is treated as infinity
+              : TimeUtils.max(toA, toB))
+          .build();
+    }
+
+    // Round to date and generate daily TimeRange
+    return TimeRange.newBuilder()
+        .setFrom(TimeUtils.min(
+            TimeUtils.newDate(fromA),
+            TimeUtils.newDate(fromB)))
+        .setTo((toA.hasNow() || toB.hasNow())
+            ? TimeUtils.newNow() // Now is treated as infinity
+            : TimeUtils.max(
+                TimeUtils.newDate(rangeA.getTo()),
+                TimeUtils.newDate(rangeB.getTo())))
+        .build();
   }
 
-  public Time getNextBatchEndTime() {
-    return generatedBatchEndTime;
+  // Compute the intersection of input and batch window
+  private TimeRange intersection(TimeRange input, Time cursor) {
+    // Compute cursor range
+    Time inputFrom = input.getFrom();
+    Time inputTo = input.getTo();
+    TimeCase inputTimeCase = inputFrom.getTimeCase();
+    TimeCase cursorTimeCase = cursor.getTimeCase();
+
+    Time cursorFrom;
+    Time cursorTo;
+    if (inputTimeCase == cursorTimeCase) {
+      cursorFrom = cursor;
+      cursorTo = cursor;
+    } else if (inputTimeCase == TimeCase.DATE_HOUR && cursorTimeCase == TimeCase.DATE) {
+      cursorFrom = TimeUtils.newDateHour(cursor.getDate().getDate(), 0);
+      cursorTo = TimeUtils.newDateHour(cursor.getDate().getDate(), 23);
+    } else {
+      throw new IllegalArgumentException(
+          "Unexpected TimeCase pair: ("
+              + "input: " + inputTimeCase
+              + "cursor: " + cursorTimeCase
+              + ")"
+      );
+    }
+
+    // Check whether overlap
+    if (TimeUtils.isBefore(cursorTo, inputFrom) ||
+        !inputTo.hasNow() && TimeUtils.isAfter(cursorFrom, inputTo)
+    ) {
+      return null;
+    }
+
+    // Compute intersection
+    return TimeUtils.newTimeRange(
+        TimeUtils.max(inputFrom, cursorFrom),
+        inputTo.hasNow()
+            ? cursorTo
+            : TimeUtils.min(inputTo, cursorTo)
+    );
   }
 }

@@ -250,10 +250,10 @@ public class FileScanner {
               .collect(Collectors.toList());
 
           processAndAddToQueue(scannedInputs);
-          LOG.info("{} input(s) has been enqueued, range: [{}, {}]",
+          LOG.info("{} input(s) has been enqueued, currentBatchCursor: {}",
               scannedInputs.size(),
-              iterator.getNextBatchStartTime(),
-              iterator.getNextBatchEndTime());
+              iterator.getCurrentBatchCursor()
+          );
 
           // An early check to prevent the subsequent long sleep.
           if (isStopped || !iterator.prepareNextBatch()) {

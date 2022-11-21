@@ -121,6 +121,12 @@ public class TimeUtils {
         .build();
   }
 
+  public static Time newDateHour(DateHour dateHour) {
+    return Time.newBuilder()
+        .setDateHour(dateHour)
+        .build();
+  }
+
   public static Time newDateHour(java.util.Date current) {
     return newDateHour(
         Integer.parseInt(defaultDateFormat.format(current)),
