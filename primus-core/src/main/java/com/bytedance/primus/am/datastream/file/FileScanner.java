@@ -23,7 +23,6 @@ import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.am.ApplicationMasterEvent;
 import com.bytedance.primus.am.ApplicationMasterEventType;
-import com.bytedance.primus.am.datastream.file.operator.FileOperator;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.apiserver.records.DataSourceSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
@@ -63,19 +62,17 @@ public class FileScanner {
   private final AMContext context;
 
   private final DataStreamSpec dataStreamSpec;
-  private final FileOperator fileOperator;
   private final BlockingQueue<List<Input>> inputQueue;
   private final FileSystem fileSystem;
   private final Thread scannerThread;
   private volatile boolean isStopped = false;
   private volatile boolean isFinished = false; // TODO: move to !scannerThread.isAlive()
 
-  public FileScanner(AMContext context, String name, DataStreamSpec dataStreamSpec,
-      FileOperator fileOperator) throws IOException {
+  public FileScanner(AMContext context, String name, DataStreamSpec dataStreamSpec)
+      throws IOException {
     this.LOG = LoggerFactory.getLogger(FileScanner.class.getName() + "[" + name + "]");
     this.context = context;
     this.dataStreamSpec = dataStreamSpec;
-    this.fileOperator = fileOperator;
     inputQueue = new LinkedBlockingQueue<>();
     fileSystem = context.getHadoopFileSystem();
     scannerThread = new ScannerThread();
@@ -89,10 +86,7 @@ public class FileScanner {
   private void processAndAddToQueue(List<Input> inputs) {
     if (!inputs.isEmpty()) {
       try {
-        List<Pair<String, List<Input>>> pairs = fileOperator.apply(inputs);
-        for (Pair<String, List<Input>> pair : pairs) {
-          inputQueue.add(pair.getValue());
-        }
+        inputQueue.add(inputs);
       } catch (Exception e) {
         LOG.error("FileOperator catches error", e);
       }

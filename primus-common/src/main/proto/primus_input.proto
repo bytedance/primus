@@ -27,7 +27,6 @@ import "primus_common.proto";
 message InputManager {
   message FileConfig {
     repeated OneTimeInput one_time_inputs = 5;
-    ShuffleConfig shuffle_config = 6;
   }
 
   message KafkaConfig {
@@ -53,11 +52,6 @@ message InputManager {
 
     repeated Topic topics = 1;
     KafkaMessageType kafka_message_type = 2;
-  }
-
-  message ShuffleConfig {
-    bool within_partition_shuffle = 1;
-    bool among_partition_shuffle = 2;
   }
 
   message StopPolicy {

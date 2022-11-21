@@ -27,14 +27,11 @@ import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.am.ApplicationMasterEvent;
 import com.bytedance.primus.am.ApplicationMasterEventType;
-import com.bytedance.primus.am.datastream.file.operator.FileOperator;
-import com.bytedance.primus.am.datastream.file.operator.FileOperatorFactory;
 import com.bytedance.primus.api.records.SplitTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.impl.pb.SplitTaskPBImpl;
 import com.bytedance.primus.api.records.impl.pb.TaskPBImpl;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
-import com.bytedance.primus.common.collections.Pair;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.metrics.PrimusMetrics.TimerMetric;
 import com.bytedance.primus.io.datasource.file.FileDataSource;
@@ -73,7 +70,6 @@ public class FileTaskBuilder {
 
   private String name;
   private TaskStore taskStore;
-  private FileOperator fileOperator;
   private Task lastSavedTask;
   private FileScanner fileScanner;
 
@@ -96,9 +92,8 @@ public class FileTaskBuilder {
 
     this.name = name;
     this.taskStore = taskStore;
-    fileOperator = FileOperatorFactory.getFileOperator(dataStreamSpec.getOperatorPolicy());
     lastSavedTask = taskStore.getLastSavedTask();
-    fileScanner = new FileScanner(context, name, dataStreamSpec, fileOperator);
+    fileScanner = new FileScanner(context, name, dataStreamSpec);
     currentTaskId = (lastSavedTask != null ? lastSavedTask.getTaskId() : 0);
     isFinished = false;
 
@@ -179,13 +174,8 @@ public class FileTaskBuilder {
       }
       primusSplits.addAll(getFileSplits(fileSystem, input));
     }
-    if (key != null) {
-      Pair<String, List<BaseSplit>> pair = fileOperator.mapPartitions(
-          new Pair<>(key, primusSplits));
-      return pair.getValue();
-    } else {
-      return primusSplits;
-    }
+
+    return primusSplits;
   }
 
   private List<Task> buildTask(List<BaseSplit> splits) {

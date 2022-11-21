@@ -37,8 +37,6 @@ message DataStatus {
 
 message DataStreamSpec {
   repeated DataSourceSpec dataSourceSpecs = 1;
-  OperatorPolicy operatorPolicy = 2;
-  string workflow_name = 4;
 }
 
 message DataStreamStatus {
@@ -120,38 +118,6 @@ message KafkaSourceSpec {
 }
 
 message KafkaSourceStatus {
-}
-
-message OperatorPolicy {
-  enum OperatorType {
-    MAP_IDENTITY = 0;
-    MAP_DELAY = 1;
-
-    GROUP_BY_KEY = 100;
-
-    MAP_PARTITIONS_IDENTITY = 200;
-    MAP_PARTITIONS_SAMPLE = 201;
-    MAP_PARTITIONS_SHUFFLE = 202;
-
-    SORT_BY_KEY = 300;
-    SHUFFLE_BY_KEY = 301;
-  }
-
-  message OperatorConf {
-    OperatorType operatorType = 1;
-    repeated string arguments = 2;
-  }
-
-  message CommonOperatorPolicy {
-    OperatorConf map = 1;
-    OperatorConf groupByKey = 2;
-    OperatorConf mapPartitionsFunction = 3;
-    OperatorConf sortByKey = 4;
-  }
-
-  oneof operatorPolicy {
-    CommonOperatorPolicy commonOperatorPolicy = 1;
-  }
 }
 
 message DataSavepointSpec {
