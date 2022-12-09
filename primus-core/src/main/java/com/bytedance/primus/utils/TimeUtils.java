@@ -19,238 +19,203 @@
 
 package com.bytedance.primus.utils;
 
-import com.bytedance.primus.apiserver.proto.DataProto.Time;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.Day;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.Hour;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;
-import com.bytedance.primus.apiserver.proto.DataProto.TimeRange;
 import com.bytedance.primus.common.exceptions.PrimusUnsupportedException;
+import com.bytedance.primus.proto.PrimusCommon.Time;
+import com.bytedance.primus.proto.PrimusCommon.Time.Date;
+import com.bytedance.primus.proto.PrimusCommon.Time.DateHour;
+import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
-import java.util.Date;
 
+// TODO: Change anchor type from Time to DateHour
 public class TimeUtils {
 
-  private static final SimpleDateFormat dateFormat = new SimpleDateFormat(
-      PrimusConstants.DAY_FORMAT_DEFAULT);
-  private static final SimpleDateFormat hourFormat = new SimpleDateFormat(
+  private static final SimpleDateFormat defaultDateFormat = new SimpleDateFormat(
+      PrimusConstants.DATE_FORMAT_DEFAULT);
+  private static final SimpleDateFormat defaultHourFormat = new SimpleDateFormat(
       PrimusConstants.HOUR_FORMAT);
+  private static final SimpleDateFormat defaultDateHourFormat = new SimpleDateFormat(
+      PrimusConstants.DATE_FORMAT_DEFAULT + PrimusConstants.HOUR_FORMAT
+  );
 
   /**
-   * Plus day with num day
-   * <p>
-   * e.g. 20200630 + 1 -> 20200701
+   * Plus numericalDate with days, e.g. 20200630 + 1 -> 20200701
    *
-   * @param day day with 8 digits
-   * @param num
-   * @return
-   * @throws ParseException
+   * @param numericalDate numeric date in 8 digit format
+   * @param days          the days
+   * @return numericalDate
    */
-  public static String plusDay(int day, int num) throws ParseException {
-    SimpleDateFormat dayFormat = new SimpleDateFormat(PrimusConstants.DAY_FORMAT_DEFAULT);
-    Date dt = dayFormat.parse(String.valueOf(day));
+  public static int plusDay(int numericalDate, int days) throws ParseException {
     Calendar calendar = Calendar.getInstance();
-    calendar.setTime(dt);
-    calendar.add(Calendar.DATE, num);
-    return dayFormat.format(calendar.getTime());
+    calendar.setTime(defaultDateFormat.parse(String.valueOf(numericalDate)));
+    calendar.add(Calendar.DATE, days);
+    return Integer.parseInt(defaultDateFormat.format(calendar.getTime()));
   }
 
-  public static Time plusDay(Time time, int num) throws ParseException {
-    if (time.hasNow()) {
-      throw new PrimusUnsupportedException("Time::Now cannot be computed");
+  public static Time plusDay(Time time, int days) throws ParseException {
+    switch (time.getTimeCase()) {
+      case DATE:
+        Date date = time.getDate();
+        return Time
+            .newBuilder()
+            .setDate(Date
+                .newBuilder()
+                .setDate(plusDay(date.getDate(), days)))
+            .build();
+      case DATE_HOUR:
+        DateHour dateHour = time.getDateHour();
+        return Time
+            .newBuilder()
+            .setDateHour(DateHour
+                .newBuilder()
+                .setDate(plusDay(dateHour.getDate(), days))
+                .setHour(dateHour.getHour()))
+            .build();
+      case NOW:
+      default:
+        throw new PrimusUnsupportedException("Unsupported TimeCase: " + time.getTimeCase());
     }
-
-    Time.Day day = Time.Day.newBuilder()
-        .setDay(Integer.parseInt(plusDay(time.getDate().getDay().getDay(), num)))
-        .build();
-
-    Time.Date date = time.getDate().hasHour()
-        ? Time.Date.newBuilder().setDay(day).setHour(time.getDate().getHour()).build()
-        : Time.Date.newBuilder().setDay(day).build();
-
-    return Time.newBuilder()
-        .setTimeFormat(time.getTimeFormat())
-        .setDate(date)
-        .build();
   }
 
   /**
-   * Plus hour with num hour
-   * <p>
-   * eg. 2020063023 + 1 -> 2020070100, 2020070101 + 1 -> 2020070102
+   * Plus numericalDateHour by hours, e.g. 2020063023 + 1 -> 2020070100
    *
-   * @param hour hour string with 10 digits
-   * @param num  the hour to plus
-   * @return
-   * @throws ParseException
+   * @param numericalDateHour hour string with 10 digits
+   * @param hours             the hour to plus
+   * @return numericalDateHour
    */
-  public static String plusHour(String hour, int num) throws ParseException {
-    SimpleDateFormat dayFormat = new SimpleDateFormat(
-        PrimusConstants.DAY_FORMAT_DEFAULT + PrimusConstants.HOUR_FORMAT
-    );
-    Date dt = dayFormat.parse(hour);
+  public static long plusHour(long numericalDateHour, int hours) throws ParseException {
     Calendar calendar = Calendar.getInstance();
-    calendar.setTime(dt);
-    calendar.add(Calendar.HOUR, num);
-    return dayFormat.format(calendar.getTime());
+    calendar.setTime(defaultDateHourFormat.parse(String.valueOf(numericalDateHour)));
+    calendar.add(Calendar.HOUR, hours);
+    return Integer.parseInt(defaultDateHourFormat.format(calendar.getTime()));
   }
 
-  /**
-   * Plus (day, hour) with numHours
-   * <p>
-   * eg. (20200630, 23) + 1 -> 2020070100, (20200701, 0) + 1 -> 2020070101)
-   *
-   * @param day
-   * @param hour
-   * @param numHours
-   * @return
-   * @throws ParseException
-   */
-  public static String plusHour(int day, int hour, int numHours) throws ParseException {
-    String time = day + String.format("%2d", hour);
-    return TimeUtils.plusHour(time, numHours);
-  }
-
-  /**
-   * Get day number from time string
-   * <p>
-   * e.g. 2020070100 -> 20200701
-   *
-   * @param time
-   * @return
-   */
-  public static int getDay(String time) {
-    return Integer.valueOf(time.substring(0, 8));
-  }
-
-  /**
-   * Get hour number from time string
-   * <p>
-   * e.g. 2020070100 -> 0
-   *
-   * @param time
-   * @return
-   */
-  public static int getHour(String time) {
-    return Integer.valueOf(time.substring(8, 10));
-  }
-
-
-  /**
-   * Check whether Time is before (day, hour).
-   *
-   * @param time
-   * @param day
-   * @param hour
-   * @return
-   */
-  public static boolean isTimeBefore(Time time, int day, int hour) {
-    if (time.hasNow()) {
-      return false;
-    }
-    Time.Date date = time.getDate();
-    if (date.hasHour()) {
-      return date.getDay().getDay() < day ||
-          (date.getDay().getDay() == day && date.getHour().getHour() < hour);
-    } else {
-      return date.getDay().getDay() < day;
+  public static Time plusHour(Time time, int hours) throws ParseException {
+    switch (time.getTimeCase()) {
+      case DATE_HOUR:
+        DateHour dateHour = time.getDateHour();
+        long numericDateHour = plusHour(dateHour.getDate() * 100 + dateHour.getHour(), hours);
+        return Time
+            .newBuilder()
+            .setDateHour(DateHour
+                .newBuilder()
+                .setDate((int) (numericDateHour / 100))
+                .setHour((int) (numericDateHour % 100)))
+            .build();
+      case DATE:
+      case NOW:
+      default:
+        throw new PrimusUnsupportedException("Unsupported TimeCase: " + time.getTimeCase());
     }
   }
 
-  public static boolean isTimeAfter(Time a, Time b) {
-    if (a.hasNow() && b.hasNow()) {
-      return false;
-    }
-    Time base = !b.hasNow() ? b : getCurrentTime(false /* isDayGranularity */);
-    return isTimeAfter(a,
-        base.getDate().getDay().getDay(),
-        base.getDate().getHour().getHour());
-  }
-
-  public static boolean isTimeBefore(Time a, Time b) {
-    if (a.hasNow() && b.hasNow()) {
-      return false;
-    }
-    Time base = !b.hasNow() ? b : getCurrentTime(false /* isDayGranularity */);
-    return isTimeBefore(a,
-        base.getDate().getDay().getDay(),
-        base.getDate().getHour().getHour());
-  }
-
-  /**
-   * Check whether Time is after (day, hour).
-   *
-   * @param time
-   * @param day
-   * @param hour
-   * @return
-   */
-  public static boolean isTimeAfter(Time time, Integer day, Integer hour) {
-    if (time.hasNow()) {
-      return true;
-    }
-    Time.Date date = time.getDate();
-    if (date.hasHour()) {
-      return date.getDay().getDay() > day ||
-          (date.getDay().getDay() == day && date.getHour().getHour() > hour);
-    } else {
-      return date.getDay().getDay() > day;
+  public static boolean isTimeBefore(Time anchor, Time a, Time b) {
+    Time concludedA = a.hasNow() ? anchor : a;
+    switch (b.getTimeCase()) {
+      case DATE:
+        return isTimeBefore(
+            concludedA,
+            b.getDate().getDate(),
+            0);
+      case DATE_HOUR:
+        return isTimeBefore(
+            concludedA,
+            b.getDateHour().getDate(),
+            b.getDateHour().getHour());
+      case NOW:
+      default:
+        return isTimeBefore(null /* crash intentionally */, concludedA, anchor);
     }
   }
 
-  public static Time newTime(int day) {
+  private static boolean isTimeBefore(Time time, int date, int hour) {
+    switch (time.getTimeCase()) {
+      case DATE:
+        Date d = time.getDate();
+        return d.getDate() < date;
+      case DATE_HOUR:
+        DateHour dh = time.getDateHour();
+        return dh.getDate() < date || dh.getDate() == date && dh.getHour() < hour;
+      case NOW:
+      default:
+        throw new PrimusUnsupportedException("Unsupported TimeCase: " + time.getTimeCase());
+    }
+  }
+
+  public static boolean isTimeAfter(Time anchor, Time a, Time b) {
+    Time concludedA = a.hasNow() ? anchor : a;
+    switch (b.getTimeCase()) {
+      case DATE:
+        return isTimeAfter(
+            concludedA,
+            b.getDate().getDate(),
+            23);
+      case DATE_HOUR:
+        return isTimeAfter(
+            concludedA,
+            b.getDateHour().getDate(),
+            b.getDateHour().getHour());
+      case NOW:
+      default:
+        return isTimeAfter(null /* crash intentionally */, concludedA, anchor);
+    }
+  }
+
+  private static boolean isTimeAfter(Time time, int date, int hour) {
+    switch (time.getTimeCase()) {
+      case DATE:
+        Date d = time.getDate();
+        return d.getDate() > date;
+      case DATE_HOUR:
+        DateHour dh = time.getDateHour();
+        return dh.getDate() > date || dh.getDate() == date && dh.getHour() > hour;
+      case NOW:
+      default:
+        throw new PrimusUnsupportedException("Unsupported TimeCase: " + time.getTimeCase());
+    }
+  }
+
+  // TODO: Change return type to Date
+  public static Time newDate(int date) {
     return Time.newBuilder()
-        .setDate(Time.Date.newBuilder()
-            .setDay(Day.newBuilder().setDay(day)))
+        .setDate(Date.newBuilder()
+            .setDate(date))
         .build();
   }
 
-  public static Time newTime(int day, int hour) {
+  // TODO: Change return type to DateHour
+  public static Time newDateHour(int date, int hour) {
     return Time.newBuilder()
-        .setDate(Time.Date.newBuilder()
-            .setDay(Day.newBuilder().setDay(day))
-            .setHour(Hour.newBuilder().setHour(hour)))
+        .setDateHour(DateHour.newBuilder()
+            .setDate(date)
+            .setHour(hour))
         .build();
   }
 
-  public static Time newTime(TimeFormat timeFormat, int day) {
-    return newTime(day).toBuilder()
-        .setTimeFormat(timeFormat)
-        .build();
+  // TODO: Change return type to DateHour
+  public static Time newDateHour(java.util.Date current) {
+    return newDateHour(
+        Integer.parseInt(defaultDateFormat.format(current)),
+        Integer.parseInt(defaultHourFormat.format(current)));
   }
 
-  public static Time newTime(TimeFormat timeFormat, int day, int hour) {
-    return newTime(day, hour).toBuilder()
-        .setTimeFormat(timeFormat)
-        .build();
+  public static Time maxTime(Time anchor, Time a, Time b) {
+    return isTimeBefore(anchor, a, b) ? b : a;
   }
 
-  // TODO: create DateHour and move TimeFormat to input layer
-  // Note: There is no TimeFormat
-  public static Time getCurrentTime(boolean isDayGranularity) {
-    return getCurrentTime(isDayGranularity, new Date());
+  public static Time minTime(Time anchor, Time a, Time b) {
+    return isTimeBefore(anchor, a, b) ? a : b;
   }
 
-  public static Time getCurrentTime(boolean isDayGranularity, Date current) {
-    int day = Integer.parseInt(dateFormat.format(current));
-    return isDayGranularity
-        ? newTime(day)
-        : newTime(day, Integer.parseInt(hourFormat.format(current)));
-  }
-
-  public static Time maxTime(Time a, Time b) {
-    return isTimeBefore(a, b) ? b : a;
-  }
-
-  public static Time minTime(Time a, Time b) {
-    return isTimeBefore(a, b) ? a : b;
-  }
-
-  public static boolean overlapped(TimeRange a, TimeRange b) {
+  public static boolean overlapped(Time anchor, TimeRange a, TimeRange b) {
     if (a == null || b == null) {
       return false;
     }
-    return !isTimeBefore(a.getTo(), b.getFrom()) && !isTimeBefore(b.getTo(), a.getFrom());
+
+    boolean isBefore = isTimeBefore(anchor, a.getTo(), b.getFrom());
+    boolean isAfter = isTimeAfter(anchor, a.getFrom(), b.getTo());
+    return !isBefore && !isAfter;
   }
 }

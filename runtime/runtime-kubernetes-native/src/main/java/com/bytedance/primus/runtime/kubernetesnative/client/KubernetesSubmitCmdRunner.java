@@ -19,7 +19,6 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.client;
 
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_K8S_PSM;
 import static com.bytedance.primus.utils.PrimusConstants.LOG4J_PROPERTIES;
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF_PATH;
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CORE_TARGET_KEY;
@@ -138,9 +137,9 @@ public class KubernetesSubmitCmdRunner extends SubmitCmdRunner {
     PrimusPodContext primusPodContext = newPrimusDriverPodContext(
         appName, defaultFileSystem.getApplicationStagingDir(), primusConf);
 
-    LOG.info("Current Primus submission, Owner:{}, PSM:{}, Job:{}, AppName: {}, StagingDir: {}",
-        primusPodContext.getOwner(), primusPodContext.getPsm(),
-        primusConf.getName(), appName, defaultFileSystem.getApplicationStagingDir());
+    LOG.info("Current Primus submission, Owner:{}, Job:{}, AppName: {}, StagingDir: {}",
+        primusPodContext.getOwner(), primusConf.getName(),
+        appName, defaultFileSystem.getApplicationStagingDir());
 
     PrimusDriverPod driverPod = new PrimusDriverPod(
         primusPodContext,
@@ -328,9 +327,6 @@ public class KubernetesSubmitCmdRunner extends SubmitCmdRunner {
     context.setOwner(StringUtils.ensure(
         primusConf.getKubernetesJobConf().getOwner(),
         System.getenv().get(SYSTEM_USER_ENV_KEY)));
-    context.setPsm(StringUtils.ensure(
-        primusConf.getKubernetesJobConf().getPsm(),
-        PRIMUS_K8S_PSM));
     context.setSleepSecondsBeforePodExit(
         primusConf
             .getScheduler()

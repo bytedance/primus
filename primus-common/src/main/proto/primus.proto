@@ -23,16 +23,26 @@ package primus;
 import "data.proto";
 
 message TaskProto {
+  string group = 1;
+  int64 task_id = 2;
+  string source_id = 3;
+  string source = 4;
+  string checkpoint = 5;
+  int32 num_attempt = 6;
 
-  message SplitTaskProto {
+  oneof task {
+    SplitTaskProto split_task = 100;
+    KafkaTaskProto kafka_task = 101;
+  }
+  message SplitTaskProto {// TODO: Rename to FileTaskProto
     string path = 1;
     int64 start = 2;
     int64 length = 3;
-    string key = 4;
-    FileSourceSpec.InputType input_type = 6;
-  }
 
-  message KafkaTaskProto {
+    string key = 10;          // The unique key of a task, which increases monotonically to identify whether the task has been previously generated.
+    FileSourceSpec spec = 11; // The spec where this task is generate from.
+  }
+  message KafkaTaskProto {// TODO: Polish Kafka data source implementation
     enum KafkaMessageType {
       JSON = 0;
       PB = 1;
@@ -50,17 +60,6 @@ message TaskProto {
     map<string, string> config = 4;
     KafkaStartUpMode kafka_start_up_mode = 5;
     KafkaMessageType kafka_message_type = 6;
-  }
-
-  string group = 1;
-  int64 task_id = 2;
-  string source_id = 3;
-  string source = 4;
-  string checkpoint = 5;
-  int32 num_attempt = 6;
-  oneof task {
-    SplitTaskProto split_task = 7;
-    KafkaTaskProto kafka_task = 8;
   }
 }
 

@@ -17,8 +17,9 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.io.messagebuilder;
+package com.bytedance.primus.io.datasource.kafka;
 
+import com.bytedance.primus.io.messagebuilder.MessageBuilder;
 import java.io.IOException;
 
 public class KafkaRawMessageBuilder extends MessageBuilder {

@@ -21,35 +21,39 @@ package primus;
 option java_package = "com.bytedance.primus.proto";
 option java_generate_equals_and_hash = true;
 
-message Time {
-  message DayTime {
-    int32 day = 1; // yyyymmdd, e.g. 20200520
-  }
-
-  message HourTime {
-    int32 day = 1;  // yyyymmdd, e.g. 20200520
-    int32 hour = 2; // Hours of day in 24 hour format, e.g. 0 ~ 23
-  }
-
-  message Now {
-  }
-
-  oneof time {
-    DayTime day_time = 1;
-    HourTime hour_time = 2;
-    Now now = 3;
-  }
-}
-
+// Closed interval, where both `from` and `to` are included.
 message TimeRange {
-  // TODO: Move time format to here to ensure matched formats.
   Time from = 1;
   Time to = 2;
+}
+
+// TODO: Support timezone offset
+message Time {
+  oneof time {
+    Date date = 1;
+    DateHour date_hour = 2;
+    Now now = 3;
+  }
+  message Date {
+    int32 date = 1; // YYYYMMDD, e.g. 20200520
+  }
+  message DateHour {
+    int32 date = 1; // YYYYMMDD, e.g. 20200520
+    int32 hour = 2; // hour of the day in 24hr format [0, 23], defaults to 0.
+  }
+  message Now {}
 }
 
 message PortRange {
   int32 base = 1;
   int32 size = 2;
+}
+
+// TODO: Deprecate and support customized format
+enum DayFormat {
+  DEFAULT_DAY = 0; // yyyymmdd
+  DEFAULT_DAY_DASH = 1; // yyyy-mm-dd
+  DAY_RANGE = 2; //yyyymmdd0000-yyyymmdd0000
 }
 
 // Deprecated TODO: Clean up

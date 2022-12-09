@@ -19,27 +19,17 @@
 
 package com.bytedance.primus.api.records;
 
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 
 public interface SplitTask {
 
   String getKey();
 
-  void setKey(String key);
-
   String getPath();
-
-  void setPath(String path);
 
   long getStart();
 
-  void setStart(long start);
-
   long getLength();
 
-  void setLength(long length);
-
-  InputType getInputType();
-
-  void setInputType(InputType inputType);
+  FileSourceSpec getSpec();
 }

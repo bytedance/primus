@@ -1,6 +1,4 @@
 /*
- * Copyright 2022 Bytedance Inc.
- *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.
@@ -15,30 +13,15 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ *
+ * This file may have been modified by Bytedance Inc.
  */
 
-package com.bytedance.primus.io.messagebuilder;
+package com.bytedance.primus.common.util;
 
-import java.io.IOException;
-import org.apache.hadoop.io.BytesWritable;
+public class IntegerUtils {
 
-public class PbMessageBuilder extends MessageBuilder {
-
-  public PbMessageBuilder(int bufferSize) {
-    super(bufferSize);
-  }
-
-  @Override
-  protected void writeKey(Object key) throws IOException {
-    BytesWritable tmpKey = (BytesWritable) key;
-    buffer.putLong(Long.reverseBytes(tmpKey.getLength()));
-    buffer.put(tmpKey.getBytes(), 0, tmpKey.getLength());
-  }
-
-  @Override
-  protected void writeValue(Object value) throws IOException {
-    BytesWritable tmpValue = (BytesWritable) value;
-    buffer.putLong(Long.reverseBytes(tmpValue.getLength()));
-    buffer.put(tmpValue.getBytes(), 0, tmpValue.getLength());
+  public static int selectIfPositiveOrDefault(int v, int d) {
+    return v > 0 ? v : d;
   }
 }

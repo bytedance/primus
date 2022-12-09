@@ -24,40 +24,44 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.InputType;
-import com.bytedance.primus.apiserver.proto.DataProto.Time;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.Now;
-import com.bytedance.primus.apiserver.proto.DataProto.Time.TimeFormat;
-import com.bytedance.primus.apiserver.proto.DataProto.TimeRange;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.RawInput;
+import com.bytedance.primus.proto.PrimusCommon.DayFormat;
+import com.bytedance.primus.proto.PrimusCommon.Time;
+import com.bytedance.primus.proto.PrimusCommon.Time.Now;
+import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import com.bytedance.primus.utils.TimeUtils;
 import java.text.ParseException;
 import java.util.LinkedList;
 import java.util.List;
 import org.junit.Test;
 
-// TODO: Test with hourly granularity
+// TODO: Tests for DateHour
 // TODO: Provide negative test cases
 public class TestTimeRangeIterator {
 
-  Time FOREVER = TimeUtils.newTime(TimeFormat.TF_DEFAULT, 30000101);
+  Time FOREVER = TimeUtils.newDateHour(30000101, 0);
 
   private Time newTime(int date) {
-    return TimeUtils.newTime(date);
+    return TimeUtils.newDate(date);
   }
 
   // TODO: Test with InputType as well.
   private FileSourceInput newFileSourceInput(String key, Time start, Time end) {
-    return FileSourceInput.newInstanceWithTimeRange(
+    return new FileSourceInput(
         key, // sourceID
         key, // source
-        key, // input
-        InputType.TEXT_INPUT,
-        key, // fileNameFilter
-        TimeRange.newBuilder()
-            .setFrom(start)
-            .setTo(end)
-            .build()
-    );
+        FileSourceSpec
+            .newBuilder()
+            .setFilePath(key)
+            .setFileNameFilter(key)
+            .setDayFormat(DayFormat.DEFAULT_DAY)
+            .setTimeRange(
+                TimeRange.newBuilder()
+                    .setFrom(start)
+                    .setTo(end))
+            .setRawInput(RawInput.getDefaultInstance())
+            .build());
   }
 
   // Drops the last time is the length of the input is odd.
@@ -85,7 +89,8 @@ public class TestTimeRangeIterator {
   public void testConsecutivePreparationsWithoutPopping() throws ParseException {
     TimeRangeIterator iter = new TimeRangeIterator(
         newFileSourceInputList(
-            newTime(20200101), newTime(20200101)));
+            newTime(20200101),
+            newTime(20200101)));
 
     // Initial values
     assertNull(iter.getNextBatchStartTime());
@@ -198,7 +203,7 @@ public class TestTimeRangeIterator {
 
   @Test
   public void testSingleInputWithSmallerNow() throws ParseException {
-    Time now = TimeUtils.newTime(20200102);
+    Time now = TimeUtils.newDate(20200102);
     TimeRangeIterator iter = new TimeRangeIterator(
         newFileSourceInputList(
             newTime(20200101),
@@ -227,7 +232,7 @@ public class TestTimeRangeIterator {
 
   @Test
   public void testSingleInputWithExactNow() throws ParseException {
-    Time now = TimeUtils.newTime(20200104);
+    Time now = TimeUtils.newDate(20200104);
     TimeRangeIterator iter = new TimeRangeIterator(
         newFileSourceInputList(
             newTime(20200101),
@@ -256,7 +261,7 @@ public class TestTimeRangeIterator {
 
   @Test
   public void testSingleInputWithBiggerNow() throws ParseException {
-    Time now = TimeUtils.newTime(20200106);
+    Time now = TimeUtils.newDate(20200106);
     TimeRangeIterator iter = new TimeRangeIterator(
         newFileSourceInputList(
             newTime(20200101),

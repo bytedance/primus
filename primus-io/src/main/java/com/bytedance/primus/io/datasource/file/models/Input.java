@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.am.datastream.file.operator;
+package com.bytedance.primus.io.datasource.file.models;
 
 public interface Input extends Comparable<Input> {
 

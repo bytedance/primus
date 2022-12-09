@@ -1,0 +1,55 @@
+{
+  "name": "primus-input-file-customized",
+  "maxAppAttempts": 1,
+  "role": [
+    {
+      "roleName": "worker",
+      "num": 1,
+      "vcores": 1,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
+      "command": "cat",
+      "successPercent": 100,
+      "failover": {
+        "commonFailoverPolicy": {
+          "restartType": "ON_FAILURE",
+          "maxFailureTimes": 3,
+          "maxFailurePolicy": "FAIL_APP"
+        }
+      },
+      "inputPolicy": "STREAMING"
+    }
+  ],
+  "progressManagerType": "PM_FILE",
+  "inputManager": {
+    "workPreserve": {
+      "workPreserveType": "HDFS",
+      "dumpIntervalSecs": 5,
+      "rewindSkipNum": 15000
+    },
+    "fileConfig": {
+      "oneTimeInputs": [
+        {
+          "name": "primus-input-file-customized-data",
+          "spec": {
+            "filePath": "/primus/examples/input-file-customized/data/*",
+            "customizedInput": {
+              "className": "com.bytedance.primus.io.datasource.file.impl.customized.CustomizedFileDataSource",
+              "params": {
+                "key-prefix": "KP",
+                "val-prefix": "VP",
+                "key-suffix": "KS",
+                "val-suffix": "VS"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "messageBufferSize": 8388608,
+    "maxTaskNumPerWorker": 2,
+    "stopPolicy": {
+      "taskSuccessPercent": 100
+    }
+  }
+}

@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.am.datastream.file.operator.op;
 
-import com.bytedance.primus.am.datastream.file.operator.Input;
+import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorConf;
 import com.bytedance.primus.common.collections.Pair;
 import com.bytedance.primus.utils.TimeUtils;
@@ -58,9 +58,9 @@ public class MapDelay<T extends Input> implements Map<T> {
     String priority = sourcePriorityMap.get(input.getSource());
     String key;
     if (isDayGranularity(originKey)) {
-      key = TimeUtils.plusDay(Integer.valueOf(originKey), delay) + DELIMITER + priority;
+      key = TimeUtils.plusDay(Integer.parseInt(originKey), delay) + DELIMITER + priority;
     } else {
-      key = TimeUtils.plusHour(originKey, delay) + DELIMITER + priority;
+      key = TimeUtils.plusHour(Integer.parseInt(originKey), delay) + DELIMITER + priority;
     }
     input.setKey(key);
     return new Pair<>(key, input);

@@ -27,6 +27,7 @@ import com.bytedance.primus.am.datastream.file.operator.op.SortByKey;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy;
 import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.CommonOperatorPolicy;
 import com.bytedance.primus.common.collections.Pair;
+import com.bytedance.primus.io.datasource.file.models.Input;
 import java.util.LinkedList;
 import java.util.List;
 
