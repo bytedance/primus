@@ -32,13 +32,9 @@ import java.util.Calendar;
 // TODO: Change anchor type from Time to DateHour
 public class TimeUtils {
 
-  private static final SimpleDateFormat defaultDateFormat = new SimpleDateFormat(
-      PrimusConstants.DATE_FORMAT_DEFAULT);
-  private static final SimpleDateFormat defaultHourFormat = new SimpleDateFormat(
-      PrimusConstants.HOUR_FORMAT);
-  private static final SimpleDateFormat defaultDateHourFormat = new SimpleDateFormat(
-      PrimusConstants.DATE_FORMAT_DEFAULT + PrimusConstants.HOUR_FORMAT
-  );
+  private static final SimpleDateFormat defaultDateFormat = new SimpleDateFormat("yyyyMMdd");
+  private static final SimpleDateFormat defaultHourFormat = new SimpleDateFormat("HH");
+  private static final SimpleDateFormat defaultDateHourFormat = new SimpleDateFormat("yyyyMMddHH");
 
   /**
    * Plus numericalDate with days, e.g. 20200630 + 1 -> 20200701
@@ -163,9 +159,25 @@ public class TimeUtils {
     }
   }
 
+  public static boolean isBefore(Date dateA, Date dateB) {
+    return isBefore(newDate(dateA), newDate(dateB));
+  }
+
+  public static boolean isBefore(DateHour dateHourA, DateHour dateHourB) {
+    return isBefore(newDateHour(dateHourA), newDateHour(dateHourB));
+  }
+
   // Returns timeA is after timeB,
   public static boolean isAfter(Time timeA, Time timeB) {
     return isBefore(timeB, timeA);
+  }
+
+  public static boolean isAfter(Date dateA, Date dateB) {
+    return isBefore(dateB, dateA);
+  }
+
+  public static boolean isAfter(DateHour dateHourA, DateHour dateHourB) {
+    return isBefore(dateHourB, dateHourA);
   }
 
   public static Time max(Time timeA, Time timeB) {

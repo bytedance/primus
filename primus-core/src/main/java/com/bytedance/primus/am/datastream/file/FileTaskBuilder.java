@@ -249,7 +249,7 @@ public class FileTaskBuilder {
       while (!isStopped) {
         try {
           // blocking until available
-          List<BaseInput> inputs = fileScanner.getInputQueue().take();
+          List<BaseInput> inputs = fileScanner.takeInputBatch();
           Future<List<BaseSplit>> future = pool
               .submit(() -> getFileSplits(fileSystem, inputs));
           splitsBlockingQueue.put(future);  // blocking if no capacity, for avoiding OOM

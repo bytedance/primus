@@ -23,6 +23,7 @@ import com.bytedance.primus.apiserver.proto.DataProto;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.KafkaSourceSpec;
 
+// TODO: Gradually deprecate this wrapper
 public interface DataSourceSpec {
 
   DataSourceSpec setSourceId(int sourceId);
@@ -33,15 +34,9 @@ public interface DataSourceSpec {
 
   String getSource();
 
-  DataSourceSpec setFileSourceSpec(FileSourceSpec fileSourceSpec);
-
   FileSourceSpec getFileSourceSpec();
 
-  DataSourceSpec setKafkaSourceSpec(KafkaSourceSpec kafkaSourceSpec);
-
   KafkaSourceSpec getKafkaSourceSpec();
-
-  String getFileNameFilter();
 
   DataProto.DataSourceSpec getProto();
 }

@@ -58,7 +58,6 @@ public class TimeRangeIterator {
   // The states for each single batch
   @Getter
   private boolean valid;
-  @Getter
   private Time currentBatchCursor;
   private List<FileSourceInput> generatedBatch = null;
 

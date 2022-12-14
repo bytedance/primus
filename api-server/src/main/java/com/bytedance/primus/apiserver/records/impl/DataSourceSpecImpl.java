@@ -23,7 +23,6 @@ import com.bytedance.primus.apiserver.proto.DataProto;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.KafkaSourceSpec;
 import com.bytedance.primus.apiserver.records.DataSourceSpec;
-import org.apache.commons.lang.StringUtils;
 
 public class DataSourceSpecImpl implements DataSourceSpec {
 
@@ -70,23 +69,6 @@ public class DataSourceSpecImpl implements DataSourceSpec {
   }
 
   @Override
-  public String getFileNameFilter() {
-    DataProto.DataSourceSpecOrBuilder p = viaProto ? proto : builder;
-    String filter = p.hasFileSourceSpec() ? p.getFileSourceSpec().getNamePattern() : "*";
-    return StringUtils.isEmpty(filter) ? "*" : filter;
-  }
-
-  @Override
-  public synchronized DataSourceSpec setFileSourceSpec(FileSourceSpec fileSourceSpec) {
-    maybeInitBuilder();
-    if (fileSourceSpec == null) {
-      builder.clearFileSourceSpec();
-    }
-    this.fileSourceSpec = fileSourceSpec;
-    return this;
-  }
-
-  @Override
   public synchronized FileSourceSpec getFileSourceSpec() {
     if (fileSourceSpec != null) {
       return fileSourceSpec;
@@ -96,16 +78,6 @@ public class DataSourceSpecImpl implements DataSourceSpec {
       fileSourceSpec = p.getFileSourceSpec();
     }
     return fileSourceSpec;
-  }
-
-  @Override
-  public synchronized DataSourceSpec setKafkaSourceSpec(KafkaSourceSpec kafkaSourceSpec) {
-    maybeInitBuilder();
-    if (kafkaSourceSpec == null) {
-      builder.clearKafkaSourceSpec();
-    }
-    this.kafkaSourceSpec = kafkaSourceSpec;
-    return this;
   }
 
   @Override

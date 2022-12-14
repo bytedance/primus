@@ -30,6 +30,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.util.concurrent.AtomicDouble;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -129,6 +130,10 @@ public class PrimusMetrics {
     });
     AtomicDouble gauge = storeValuesDouble.get(name);
     gauge.set(count);
+  }
+
+  public static TimerMetric getTimerContextWithAppIdTag(String name) {
+    return getTimerContext(buildTaggedMetricNameWithAppId(name, new HashMap<>()));
   }
 
   public static TimerMetric getTimerContextWithAppIdTag(String name, Map<String, String> tags) {
