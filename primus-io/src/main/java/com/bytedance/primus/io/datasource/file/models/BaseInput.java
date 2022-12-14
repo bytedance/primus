@@ -17,19 +17,20 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.api.records;
+package com.bytedance.primus.io.datasource.file.models;
 
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 
-public interface SplitTask {
+/**
+ * Primus schedules data into batches to interleave them among different data sources, so that the
+ * model won't be overly optimized for a single data source while training. BaseInput represents a
+ * batch of data from a DataSource, which is used to populate BaseSplits for actual data injection.
+ */
+public interface BaseInput {
 
-  String getKey();
+  String getBatchKey(); // The key for the batch
 
-  String getPath();
+  int getSourceId(); // The UniqID of the data source.
 
-  long getStart();
-
-  long getLength();
-
-  FileSourceSpec getSpec();
+  FileSourceSpec getSpec(); // The specification of the data source
 }

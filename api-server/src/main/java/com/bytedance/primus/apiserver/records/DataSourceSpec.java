@@ -25,9 +25,9 @@ import com.bytedance.primus.apiserver.proto.DataProto.KafkaSourceSpec;
 
 public interface DataSourceSpec {
 
-  DataSourceSpec setSourceId(String sourceId);
+  DataSourceSpec setSourceId(int sourceId);
 
-  String getSourceId();
+  int getSourceId();
 
   DataSourceSpec setSource(String source);
 

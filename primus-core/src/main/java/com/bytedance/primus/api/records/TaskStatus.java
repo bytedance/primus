@@ -31,9 +31,9 @@ public interface TaskStatus extends Writable {
 
   void setTaskId(long taskId);
 
-  String getSourceId();
+  int getSourceId();
 
-  void setSourceId(String sourceId);
+  void setSourceId(int sourceId);
 
   TaskState getTaskState();
 

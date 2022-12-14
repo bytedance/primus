@@ -17,25 +17,19 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.io.datasource.file.models;
+package com.bytedance.primus.api.records;
 
-public interface Input extends Comparable<Input> {
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 
-  // TODO: See whether to deprecate key
-  String getKey();
+public interface FileTask {
 
-  // TODO: See whether to deprecate key
-  void setKey(String key);
+  String getBatchKey();
 
-  String getSource();
+  String getPath();
 
-  void setSource(String source);
+  long getStart();
 
-  default int compareTo(Input other) {
-    int ret = getKey().compareTo(other.getKey());
-    if (ret == 0) {
-      ret = getSource().compareTo(other.getSource());
-    }
-    return ret;
-  }
+  long getLength();
+
+  FileSourceSpec getSpec();
 }

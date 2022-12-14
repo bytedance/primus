@@ -26,7 +26,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.RawInput;
-import com.bytedance.primus.proto.PrimusCommon.DayFormat;
 import com.bytedance.primus.proto.PrimusCommon.Time;
 import com.bytedance.primus.proto.PrimusCommon.Time.Now;
 import com.bytedance.primus.proto.PrimusCommon.TimeRange;
@@ -49,13 +48,12 @@ public class TestTimeRangeIterator {
   // TODO: Test with InputType as well.
   private FileSourceInput newFileSourceInput(String key, Time start, Time end) {
     return new FileSourceInput(
-        key, // sourceID
-        key, // source
+        0,        // sourceID
+        "source", // source
         FileSourceSpec
             .newBuilder()
-            .setFilePath(key)
-            .setFileNameFilter(key)
-            .setDayFormat(DayFormat.DEFAULT_DAY)
+            .setPathPattern(key)
+            .setNamePattern(key)
             .setTimeRange(
                 TimeRange.newBuilder()
                     .setFrom(start)

@@ -19,14 +19,13 @@
 
 package com.bytedance.primus.executor.task.file;
 
-import com.bytedance.primus.api.records.SplitTask;
+import com.bytedance.primus.api.records.FileTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskState;
 import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.task.WorkerFeeder;
 import com.bytedance.primus.io.datasource.file.FileDataSource;
 import com.bytedance.primus.io.messagebuilder.MessageBuilder;
-import com.bytedance.primus.proto.PrimusInput.InputManager;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.RecordReader;
@@ -51,12 +50,12 @@ public class CommonFileTaskRunner extends FileTaskRunner {
   ) {
     super(task, context, workerFeeder);
 
-    SplitTask splitTask = task.getSplitTask();
-    this.fileDataSource = FileDataSource.load(task.getSplitTask().getSpec());
+    FileTask fileTask = task.getFileTask();
+    this.fileDataSource = FileDataSource.load(task.getFileTask().getSpec());
     this.fileSplit = new FileSplit(
-        new Path(splitTask.getPath()),
-        splitTask.getStart(),
-        splitTask.getLength(),
+        new Path(fileTask.getPath()),
+        fileTask.getStart(),
+        fileTask.getLength(),
         (String[]) null
     );
     this.source = task.getSource();
@@ -66,10 +65,10 @@ public class CommonFileTaskRunner extends FileTaskRunner {
         + ", sourceId[" + task.getSourceId() + "]"
         + ", source[" + task.getSource() + "]"
         + ", checkpoint[" + task.getCheckpoint() + "]"
-        + ", path[" + splitTask.getPath() + "]"
-        + ", start[" + splitTask.getStart() + "]"
-        + ", length[" + splitTask.getLength() + "]"
-        + ", spec[" + splitTask.getSpec() + "]");
+        + ", path[" + fileTask.getPath() + "]"
+        + ", start[" + fileTask.getStart() + "]"
+        + ", length[" + fileTask.getLength() + "]"
+        + ", spec[" + fileTask.getSpec() + "]");
   }
 
   @Override
@@ -107,19 +106,5 @@ public class CommonFileTaskRunner extends FileTaskRunner {
   @Override
   public long getLength() {
     return fileSplit.getLength();
-  }
-
-  @Override
-  public int getRewindSkipNum() {
-    InputManager inputManager = context
-        .getPrimusExecutorConf()
-        .getInputManager();
-
-    if (inputManager.getSourceRewindSkipNumCount() != 0 &&
-        inputManager.getSourceRewindSkipNumMap().containsKey(source)) {
-      return inputManager.getSourceRewindSkipNumMap().get(source);
-    }
-
-    return inputManager.getWorkPreserve().getRewindSkipNum();
   }
 }

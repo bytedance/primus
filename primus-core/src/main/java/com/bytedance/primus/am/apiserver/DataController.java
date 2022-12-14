@@ -36,9 +36,9 @@ import com.bytedance.primus.apiserver.records.impl.DataSourceStatusImpl;
 import com.bytedance.primus.apiserver.records.impl.DataStatusImpl;
 import com.bytedance.primus.apiserver.records.impl.DataStreamStatusImpl;
 import com.bytedance.primus.common.service.AbstractService;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -112,23 +112,18 @@ public class DataController extends AbstractService {
       dataStreamStatus.setState(getDataStreamState(entry.getValue().getState()));
       dataStreamStatus.setProgress(entry.getValue().getProgress());
       dataStreamStatus.setDataSourceStatuses(
-          getDataSourceStatuses(entry.getValue().getDataConsumptionTimeMap()));
+          getDataSourceStatuses(entry.getValue().getDataSourceReports()));
       dataStreamStatusMap.put(entry.getKey(), dataStreamStatus);
     }
   }
 
-  private List<DataSourceStatus> getDataSourceStatuses(
-      Map<String, Integer> dataConsumptionTimeMap) {
-    List<DataSourceStatus> dataSourceStatuses = new LinkedList<>();
-    if (dataConsumptionTimeMap != null) {
-      for (Map.Entry<String, Integer> entry : dataConsumptionTimeMap.entrySet()) {
-        DataSourceStatus dataSourceStatus = new DataSourceStatusImpl();
-        dataSourceStatus.setSourceId(entry.getKey());
-        dataSourceStatus.setDataConsumptionTime(entry.getValue());
-        dataSourceStatuses.add(dataSourceStatus);
-      }
-    }
-    return dataSourceStatuses;
+  private List<DataSourceStatus> getDataSourceStatuses(Map<Integer, String> dataSourceBatchKeyMap) {
+    return dataSourceBatchKeyMap.entrySet().stream().map(e -> {
+      DataSourceStatus dataSourceStatus = new DataSourceStatusImpl();
+      dataSourceStatus.setSourceId(e.getKey());
+      dataSourceStatus.setReport(e.getValue());
+      return dataSourceStatus;
+    }).collect(Collectors.toList());
   }
 
   private DataStreamState getDataStreamState(TaskManagerState taskManagerState) {

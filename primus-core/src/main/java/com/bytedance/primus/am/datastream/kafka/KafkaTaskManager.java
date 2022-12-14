@@ -40,14 +40,12 @@ import com.bytedance.primus.apiserver.proto.DataProto.KafkaSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.KafkaSourceSpec.Topic;
 import com.bytedance.primus.apiserver.records.DataSourceSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
-import com.bytedance.primus.utils.PrimusConstants;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -71,8 +69,7 @@ public class KafkaTaskManager implements TaskManager {
   private final long version;
 
   private final List<Task> tasks = new LinkedList<>();
-  private final Map<String, Integer> dataConsumptionTimeMap = new ConcurrentHashMap<>();
-  // TODO: change to long for timestamps
+  private final Map<Integer, Long> dataConsumptionTimeMap = new ConcurrentHashMap<>();
 
   public KafkaTaskManager(
       AMContext context,
@@ -108,7 +105,7 @@ public class KafkaTaskManager implements TaskManager {
       tasks.add(task);
 
       taskId += 1;
-      dataConsumptionTimeMap.put(dataSourceSpec.getSourceId(), 0);
+      dataConsumptionTimeMap.put(dataSourceSpec.getSourceId(), 0L);
     }
   }
 
@@ -159,16 +156,13 @@ public class KafkaTaskManager implements TaskManager {
       }
     }
 
-    for (TaskStatus taskStatus : taskStatuses) {
-      int dataConsumptionTime = dataConsumptionTimeMap.get(taskStatus.getSourceId());
-      Date date = new Date(taskStatus.getDataConsumptionTime());
-      SimpleDateFormat format = new SimpleDateFormat(PrimusConstants.DATE_FORMAT_DEFAULT +
-          PrimusConstants.HOUR_FORMAT);
-
-      int dayHour = Integer.valueOf(format.format(date));
-      dataConsumptionTime = Math.max(dataConsumptionTime, dayHour);
-      dataConsumptionTimeMap.put(taskStatus.getSourceId(), dataConsumptionTime);
-    }
+    // Update dataConsumptionTimeMap
+    taskStatuses.forEach(taskStatus ->
+        dataConsumptionTimeMap.merge(
+            taskStatus.getSourceId(),
+            taskStatus.getDataConsumptionTime(),
+            Math::max)
+    );
 
     return taskCommands;
   }
@@ -198,8 +192,11 @@ public class KafkaTaskManager implements TaskManager {
   }
 
   @Override
-  public Map<String, Integer> getDataConsumptionTimeMap() {
-    return dataConsumptionTimeMap;
+  public Map<Integer, String> getDataSourceReports() {
+    return dataConsumptionTimeMap.entrySet().stream().collect(Collectors.toMap(
+        Entry::getKey,
+        e -> String.format("Current consuming timestamp: %d", e.getValue())
+    ));
   }
 
   @Override

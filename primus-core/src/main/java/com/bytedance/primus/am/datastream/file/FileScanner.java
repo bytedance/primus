@@ -30,7 +30,7 @@ import com.bytedance.primus.common.collections.Pair;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.metrics.PrimusMetrics.TimerMetric;
 import com.bytedance.primus.common.util.Sleeper;
-import com.bytedance.primus.io.datasource.file.models.Input;
+import com.bytedance.primus.io.datasource.file.models.BaseInput;
 import com.bytedance.primus.io.datasource.file.models.PrimusInput;
 import com.bytedance.primus.proto.PrimusCommon.DayFormat;
 import com.bytedance.primus.proto.PrimusCommon.Time.TimeCase;
@@ -62,7 +62,7 @@ public class FileScanner {
   private final AMContext context;
 
   private final DataStreamSpec dataStreamSpec;
-  private final BlockingQueue<List<Input>> inputQueue;
+  private final BlockingQueue<List<BaseInput>> inputQueue;
   private final FileSystem fileSystem;
   private final Thread scannerThread;
   private volatile boolean isStopped = false;
@@ -79,11 +79,11 @@ public class FileScanner {
     scannerThread.start();
   }
 
-  public BlockingQueue<List<Input>> getInputQueue() {
+  public BlockingQueue<List<BaseInput>> getInputQueue() {
     return inputQueue;
   }
 
-  private void processAndAddToQueue(List<Input> inputs) {
+  private void processAndAddToQueue(List<BaseInput> inputs) {
     if (!inputs.isEmpty()) {
       try {
         inputQueue.add(inputs);
@@ -98,16 +98,16 @@ public class FileScanner {
       FileSourceInput fileSourceInput
   ) throws IOException {
     try {
-      fileSystem.exists(new Path(fileSourceInput.getSpec().getFilePath()));
+      fileSystem.exists(new Path(fileSourceInput.getSpec().getPathPattern()));
     } catch (AccessControlException e) {
       String diag = "Failed to check access input["
-          + fileSourceInput.getSpec().getFilePath()
+          + fileSourceInput.getSpec().getPathPattern()
           + "], fail job because of " + e;
       failedApp(diag, ApplicationMasterEventType.FAIL_APP,
           ApplicationExitCode.GDPR.getValue());
     } catch (IllegalArgumentException e) {
       String diag = "Failed to check access input["
-          + fileSourceInput.getSpec().getFilePath()
+          + fileSourceInput.getSpec().getPathPattern()
           + "], fail job because of " + e;
       failedApp(diag, ApplicationMasterEventType.FAIL_APP,
           ApplicationExitCode.WRONG_FS.getValue());
@@ -155,15 +155,15 @@ public class FileScanner {
     return timeRange.isPresent() && timeRange.get().getFrom().getTimeCase() == TimeCase.DATE;
   }
 
-  private List<Input> scanFileSourceInputWithKey(List<FileSourceInput> fileSourceInputs) {
-    List<Input> inputs = new LinkedList<>();
+  private List<BaseInput> scanFileSourceInputWithKey(List<FileSourceInput> fileSourceInputs) {
+    List<BaseInput> inputs = new LinkedList<>();
     for (FileSourceInput fileSourceInput : fileSourceInputs) {
       inputs.add(
           new PrimusInput(
               fileSourceInput.getSourceId(),
               fileSourceInput.getSource(),
               fileSourceInput.getSource(), // Reuse for key
-              fileSourceInput.getSpec().getFilePath(),
+              fileSourceInput.getSpec().getPathPattern(),
               fileSourceInput.getSpec()
           )
       );
@@ -171,7 +171,7 @@ public class FileScanner {
     return inputs;
   }
 
-  private List<Input> scanFileSourceInput(
+  private List<BaseInput> scanFileSourceInput(
       boolean hasDayGranularity,
       boolean checkSuccess,
       FileSourceInput input
@@ -184,14 +184,14 @@ public class FileScanner {
           fileSystem, input, isDayGranularity(input),
           startDateHour.getKey(), startDateHour.getValue(),
           endDateHour.getKey(), endDateHour.getValue(),
-          input.getSpec().getDayFormat(),
+          DayFormat.DEFAULT_DAY, // Deprecated in the subsequent commits
           hasDayGranularity, checkSuccess);
     } catch (IOException | ParseException e) {
       throw new RuntimeException(e);
     }
   }
 
-  private List<Input> scanFileSourceInput(
+  private List<BaseInput> scanFileSourceInput(
       FileSystem fileSystem,
       FileSourceInput fileSourceInput,
       boolean isDayGranularity,
@@ -245,7 +245,7 @@ public class FileScanner {
       while (!isStopped && iterator.prepareNextBatch()) {
         try {
           List<FileSourceInput> fileSourceInputs = iterator.peekNextBatch();
-          List<Input> scannedInputs = fileSourceInputs.stream()
+          List<BaseInput> scannedInputs = fileSourceInputs.stream()
               .flatMap(in -> scanFileSourceInput(hasDayGranularity, checkSuccess, in).stream())
               .collect(Collectors.toList());
 
@@ -290,7 +290,7 @@ public class FileScanner {
       }
 
       // Basic input
-      List<Input> inputs = scanFileSourceInputWithKey(pendingInputs);
+      List<BaseInput> inputs = scanFileSourceInputWithKey(pendingInputs);
       processAndAddToQueue(inputs);
       isFinished = true;
     }

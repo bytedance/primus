@@ -23,35 +23,33 @@ import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 
-@AllArgsConstructor(access = AccessLevel.PUBLIC)
 @Getter
-@Setter
-public class PrimusInput implements Input {
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+public class PrimusInput implements BaseInput {
 
-  private String sourceId;
+  private int sourceId;
   private String source;
-  private String key;
-  private String path;
-  private FileSourceSpec spec; // TODO: Reuse spec for other fields.
-  private long start;
-  private long length;
+  private FileSourceSpec spec;
+
+  private String batchKey;
+  private String path; // path to the data file or the containing directory
 
   public PrimusInput(
-      String sourceId,
+      int sourceId,
       String source,
-      String key,
+      String batchKey,
       String path,
-      FileSourceSpec spec) {
-    this(sourceId, source, key, path, spec, 0 /* start */, 0 /* Length */);
+      FileSourceSpec spec
+  ) {
+    this(sourceId, source, spec, batchKey, path);
   }
 
   @Override
   public String toString() {
     return "PrimusInput[sourceId: " + sourceId
         + ", source: " + source
-        + ", key: " + key
+        + ", batch key: " + batchKey
         + ", path: " + path
         + ", spec: " + spec
         + "]";

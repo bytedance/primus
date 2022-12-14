@@ -24,7 +24,7 @@ import com.bytedance.primus.api.records.TaskCommand;
 import com.bytedance.primus.api.records.TaskCommandType;
 import com.bytedance.primus.proto.Primus.HeartbeatResponseProto.TaskCommandProto;
 import com.bytedance.primus.proto.Primus.HeartbeatResponseProto.TaskCommandProtoOrBuilder;
-import com.bytedance.primus.proto.Primus.TaskProto;
+import com.bytedance.primus.proto.PrimusTask.TaskProto;
 
 public class TaskCommandPBImpl implements TaskCommand {
 

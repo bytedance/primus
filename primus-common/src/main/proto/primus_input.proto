@@ -25,77 +25,81 @@ import "data.proto";
 import "primus_common.proto";
 
 message InputManager {
-  message FileConfig {
-    repeated OneTimeInput one_time_inputs = 5;
-  }
 
-  message KafkaConfig {
-    enum KafkaMessageType {
-      JSON = 0;
-      PB = 1;
-    }
-
-    enum KafkaStartUpMode {
-      GROUP_OFFSETS = 0;
-      EARLIEST = 1;
-      LATEST = 2;
-      TIMESTAMP = 3;
-    }
-
-    message Topic {
-      string topic = 2;
-      string consumer_group = 3;
-      map<string, string> config = 4;
-      KafkaStartUpMode kafka_start_up_mode = 5;
-      int64 start_up_timestamp = 6;
-    }
-
-    repeated Topic topics = 1;
-    KafkaMessageType kafka_message_type = 2;
-  }
-
-  message StopPolicy {
-    float task_success_percent = 1;
-    float task_failed_percent = 2;
-  }
-
-  WorkPreserve work_preserve = 3;
   oneof config {
-    FileConfig file_config = 4;
-    KafkaConfig kafka_config = 6;
+    FileConfig file_config = 1;
+    KafkaConfig kafka_config = 5;
   }
-  int32 max_task_num_per_worker = 7;
-  int32 max_task_attempts = 8;
-  int32 message_buffer_size = 9;
-  StopPolicy stop_policy = 10;
-  bool skip_records = 12;
-  int32 max_allowed_io_exception = 14;
-  float sample_rate = 15;
-  bool graceful_shutdown = 17;
-  int32 timeout_min_after_finish = 18;
-  int32 num_build_task_threads = 20;
-  map<string, int32> source_rewind_skip_num = 21; // rewind_skip_num for different datasource. use global rewind_skip_num if this is not set
-  int32 max_num_worker_feeder_clients = 22;
-  int32 socket_send_buffer_size = 23;
+
+  WorkPreserve work_preserve = 10;
+
+  // Advanced
+  bool graceful_shutdown = 20;
+  int32 graceful_shutdown_time_wait_sec = 21; // defaults to 1800 sec.
+
+  int32 message_buffer_size = 30;
+  bool message_buffer_force_flush = 31;
+  int32 socket_send_buffer_size = 35;
+
+  int32 max_task_num_per_worker = 40;
+  int32 max_task_attempts = 41;
+  int32 max_allowed_io_exception = 42;
+
+  int32 num_build_task_threads = 50;
+  int32 max_num_worker_feeder_clients = 51;
 }
 
-//input of one-time training
-// TODO: have a better name, it's actually for time range.
-message OneTimeInput {
-  string name = 1; // The name of this input spec
-  FileSourceSpec spec = 2;
+message FileConfig {
+  message Input {
+    string name = 1; // The name of this input source, defaults to its index.
+    FileSourceSpec spec = 2;
+  }
+  repeated Input inputs = 1;
+
+  // Advanced
+  StopPolicy stop_policy = 20;
+  float sample_rate = 21;
+}
+
+message KafkaConfig {
+  enum KafkaMessageType {
+    JSON = 0;
+    PB = 1;
+  }
+
+  enum KafkaStartUpMode {
+    GROUP_OFFSETS = 0;
+    EARLIEST = 1;
+    LATEST = 2;
+    TIMESTAMP = 3;
+  }
+
+  message Topic {
+    string topic = 2;
+    string consumer_group = 3;
+    map<string, string> config = 4;
+    KafkaStartUpMode kafka_start_up_mode = 5;
+    int64 start_up_timestamp = 6;
+  }
+
+  repeated Topic topics = 1;
+  KafkaMessageType kafka_message_type = 2;
+}
+
+message StopPolicy {
+  float task_success_percent = 1;
+  float task_failed_percent = 2;
 }
 
 // TODO: Comment
 message WorkPreserve {
   // General configurations
-  int32 dump_interval_secs = 2;
-  int32 rewind_skip_num = 3;
-  int32 snapshot_id = 5;
+  int32 snapshot_id = 1;
+  int32 dump_interval_sec = 2;
 
   // Storage specific configurations
   oneof config {
-    HdfsConfig hdfs_config = 4;
+    HdfsConfig hdfs_config = 20;
   }
   message HdfsConfig {
     string staging_dir = 1;

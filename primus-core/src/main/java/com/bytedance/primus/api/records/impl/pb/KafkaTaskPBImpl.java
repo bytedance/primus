@@ -22,9 +22,8 @@ package com.bytedance.primus.api.records.impl.pb;
 import com.bytedance.primus.api.records.KafkaMessageType;
 import com.bytedance.primus.api.records.KafkaStartUpMode;
 import com.bytedance.primus.api.records.KafkaTask;
-import com.bytedance.primus.proto.Primus.TaskProto;
-import com.bytedance.primus.proto.Primus.TaskProto.KafkaTaskProto;
-import com.bytedance.primus.proto.Primus.TaskProto.KafkaTaskProtoOrBuilder;
+import com.bytedance.primus.proto.PrimusTask.KafkaTaskProto;
+import com.bytedance.primus.proto.PrimusTask.KafkaTaskProtoOrBuilder;
 import java.util.Map;
 
 public class KafkaTaskPBImpl implements KafkaTask {
@@ -125,12 +124,11 @@ public class KafkaTaskPBImpl implements KafkaTask {
     builder.setKafkaMessageType(convertToProtoFormat(kafkaMessageType));
   }
 
-  public static TaskProto.KafkaTaskProto.KafkaMessageType convertToProtoFormat(KafkaMessageType t) {
-    return TaskProto.KafkaTaskProto.KafkaMessageType.valueOf(t.name());
+  public static KafkaTaskProto.KafkaMessageType convertToProtoFormat(KafkaMessageType t) {
+    return KafkaTaskProto.KafkaMessageType.valueOf(t.name());
   }
 
-  public static KafkaMessageType convertFromProtoFormat(
-      TaskProto.KafkaTaskProto.KafkaMessageType t) {
+  public static KafkaMessageType convertFromProtoFormat(KafkaTaskProto.KafkaMessageType t) {
     return KafkaMessageType.valueOf(t.name());
   }
 }

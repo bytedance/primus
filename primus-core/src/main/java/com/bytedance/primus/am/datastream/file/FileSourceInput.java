@@ -33,7 +33,7 @@ import lombok.Getter;
 public class FileSourceInput {
 
   @Getter
-  private String sourceId;
+  private int sourceId;
   @Getter
   private String source;
   @Getter

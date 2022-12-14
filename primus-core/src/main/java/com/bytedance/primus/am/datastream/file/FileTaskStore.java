@@ -167,7 +167,7 @@ public class FileTaskStore implements TaskStore {
     compressionCodec = getCompressionCodec();
     PrimusConf primusConf = context.getPrimusConf();
     dumpIntervalSeconds = Math.max(5000,
-        primusConf.getInputManager().getWorkPreserve().getDumpIntervalSecs());
+        primusConf.getInputManager().getWorkPreserve().getDumpIntervalSec());
     copyThreadCnt =
         primusConf.getSnapshotCopyThreadsCnt() == 0 ? 4 : primusConf.getSnapshotCopyThreadsCnt();
     lastSavedTask = null;
@@ -674,8 +674,8 @@ public class FileTaskStore implements TaskStore {
       try {
         writer = new BufferedWriter(new OutputStreamWriter(out, "UTF-8"));
         String key = null;
-        if (lastTask.getSplitTask() != null) {
-          key = lastTask.getSplitTask().getKey();
+        if (lastTask.getFileTask() != null) {
+          key = lastTask.getFileTask().getBatchKey();
         }
         if (key != null) {
           writer.write(path + "," + key + "\n");

@@ -55,6 +55,7 @@ import com.bytedance.primus.apiserver.records.Meta;
 import com.bytedance.primus.apiserver.records.impl.DataSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.JobSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.MetaImpl;
+import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.ApiServerConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Attribute;
@@ -66,12 +67,12 @@ import com.bytedance.primus.proto.PrimusConfOuterClass.PluginConfig;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Role;
 import com.bytedance.primus.proto.PrimusConfOuterClass.RoleScheduleType;
+import com.bytedance.primus.proto.PrimusInput.FileConfig;
+import com.bytedance.primus.proto.PrimusInput.FileConfig.Input;
 import com.bytedance.primus.proto.PrimusInput.InputManager;
 import com.bytedance.primus.proto.PrimusInput.InputManager.ConfigCase;
-import com.bytedance.primus.proto.PrimusInput.InputManager.FileConfig;
-import com.bytedance.primus.proto.PrimusInput.InputManager.KafkaConfig;
-import com.bytedance.primus.proto.PrimusInput.InputManager.KafkaConfig.Topic;
-import com.bytedance.primus.proto.PrimusInput.OneTimeInput;
+import com.bytedance.primus.proto.PrimusInput.KafkaConfig;
+import com.bytedance.primus.proto.PrimusInput.KafkaConfig.Topic;
 import com.bytedance.primus.proto.PrimusRuntime.YarnNeedGlobalNodesView;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler.BatchScheduler;
@@ -449,12 +450,12 @@ public class ResourceUtils {
   }
 
   public static List<DataSourceSpec> buildDataSourceSpec(FileConfig config) {
-    return buildDataSourceSpecsFromOneTimeInputs(config.getOneTimeInputsList());
+    return buildDataSourceSpecsFromOneTimeInputs(config.getInputsList());
   }
 
   public static List<DataSourceSpec> buildDataSourceSpec(KafkaConfig kafkaConfig) {
     List<DataSourceSpec> results = new LinkedList<>();
-    int sourceId = 1;
+    int sourceId = 0;
     for (Topic topic : kafkaConfig.getTopicsList()) {
       KafkaSourceSpec kafkaSourceSpec = KafkaSourceSpec.newBuilder()
           .setTopic(KafkaSourceSpec.Topic.newBuilder()
@@ -469,22 +470,20 @@ public class ResourceUtils {
           .build();
       results.add(
           DataSourceSpec.newBuilder()
-              .setSourceId(String.valueOf(sourceId++))
+              .setSourceId(sourceId++)
               .setKafkaSourceSpec(kafkaSourceSpec).build());
     }
     return results;
   }
 
-  public static List<DataSourceSpec> buildDataSourceSpecsFromOneTimeInputs(
-      List<OneTimeInput> oneTimeInputs
-  ) {
+  public static List<DataSourceSpec> buildDataSourceSpecsFromOneTimeInputs(List<Input> inputs) {
     return IntStream
-        .range(0, oneTimeInputs.size())
+        .range(0, inputs.size())
         .mapToObj(index -> {
-          OneTimeInput input = oneTimeInputs.get(index);
+          Input input = inputs.get(index);
           return DataSourceSpec.newBuilder()
-              .setSourceId(String.valueOf(index))
-              .setSource(input.getName())
+              .setSourceId(index)
+              .setSource(StringUtils.ensure(input.getName(), String.valueOf(index)))
               .setFileSourceSpec(input.getSpec()) // TODO: Implement FileSourceSpec validator
               .build();
         }).collect(Collectors.toList());

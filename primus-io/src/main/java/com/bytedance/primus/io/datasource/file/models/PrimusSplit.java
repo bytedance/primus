@@ -20,45 +20,49 @@
 package com.bytedance.primus.io.datasource.file.models;
 
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
-import lombok.Setter;
 
-@AllArgsConstructor(access = AccessLevel.PUBLIC)
 @Getter
-@Setter
 public class PrimusSplit implements BaseSplit {
 
-  private String sourceId;
+  private int sourceId;
   private String source;
+  private FileSourceSpec spec;
 
-  private String path;
+  private String batchKey;
+  private String path; // path to the data file
   private long start;
   private long length;
 
-  private String key;
-  private FileSourceSpec spec; // TODO: Reuse spec for other fields.
+  public PrimusSplit(PrimusInput input, String path, long start, long length) {
+    this.sourceId = input.getSourceId();
+    this.source = input.getSource();
+    this.spec = input.getSpec();
+
+    this.batchKey = input.getBatchKey();
+    this.path = path;
+    this.start = start;
+    this.length = length;
+  }
+
+  // NOTE: This constructor should be only used when comparing with FileTasks
+  private PrimusSplit(String batchKey, int sourceId, String path) {
+    this.batchKey = batchKey;
+    this.sourceId = sourceId;
+    this.source = path;
+  }
 
   @Override
-  public int compareTo(Input p) {
-    PrimusSplit other = (PrimusSplit) p;
-    int ret = getKey().compareTo(other.getKey());
-    if (ret == 0) {
-      ret = getSource().compareTo(other.getSource());
-    }
-    if (ret == 0) {
-      ret = getPath().compareTo(other.getPath());
-    }
-    return ret;
+  public boolean hasBeenBuilt(String batchKey, int sourceId, String path) {
+    return this.compareTo(new PrimusSplit(batchKey, sourceId, path)) <= 0;
   }
 
   @Override
   public String toString() {
-    return "PrimusSplit[sourceId: " + getSourceId()
-        + ", source: " + getSource()
-        + ", key: " + getKey()
-        + ", path: " + getPath()
+    return "PrimusSplit[sourceId: " + sourceId
+        + ", source: " + source
+        + ", batch key: " + batchKey
+        + ", path: " + path
         + ", spec: " + spec
         + ", start: " + start
         + ", length: " + length + "]";

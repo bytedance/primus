@@ -21,7 +21,7 @@ package com.bytedance.primus.utils;
 
 
 import com.bytedance.primus.am.datastream.file.FileSourceInput;
-import com.bytedance.primus.io.datasource.file.models.Input;
+import com.bytedance.primus.io.datasource.file.models.BaseInput;
 import com.bytedance.primus.io.datasource.file.models.PrimusInput;
 import com.bytedance.primus.proto.PrimusCommon.DayFormat;
 import java.io.File;
@@ -57,20 +57,20 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
     return result;
   }
 
-  public static List<Input> scanDayInput(FileSystem fileSystem,
+  public static List<BaseInput> scanDayInput(FileSystem fileSystem,
       FileSourceInput fileSourceInput, int startDay, int endDay, DayFormat timeFormat,
       boolean checkSuccess) throws ParseException, IOException {
 
-    List<Input> results = new LinkedList<>();
+    List<BaseInput> results = new LinkedList<>();
     for (
         int fileDay = startDay;
         fileDay <= endDay;
         fileDay = Integer.valueOf(TimeUtils.plusDay(fileDay, 1))
     ) {
       String dayPath =
-          fileSourceInput.getSpec().getFilePath() + "/" + getDayPath(fileDay, timeFormat) + "/";
+          fileSourceInput.getSpec().getPathPattern() + "/" + getDayPath(fileDay, timeFormat) + "/";
       Path successFilePath = new Path(dayPath + "_SUCCESS");
-      String inputPath = dayPath + fileSourceInput.getSpec().getFileNameFilter();
+      String inputPath = dayPath + fileSourceInput.getSpec().getNamePattern();
       if (checkSuccess && !isFileExist(fileSystem, successFilePath)) {
         return null;
       }
@@ -115,11 +115,11 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
     }
   }
 
-  public static List<Input> scanHourInput(FileSystem fileSystem,
+  public static List<BaseInput> scanHourInput(FileSystem fileSystem,
       FileSourceInput fileSourceInput, int startDay, int startHour, int endDay, int endHour,
       DayFormat dayFormat, boolean dayKey, boolean checkSuccess)
       throws ParseException, IOException {
-    List<Input> results = new LinkedList<>();
+    List<BaseInput> results = new LinkedList<>();
     int fileDay = startDay;
     while (fileDay <= endDay) {
       int fileStartHour = (fileDay == startDay ? startHour : 0);
@@ -128,14 +128,14 @@ public class FileUtils { // TODO: Rename this class as it's actually serving HDF
         String hourPath = getHourPath(fileHour);
         String inputKey = dayKey ? String.valueOf(fileDay) : fileDay + hourPath;
         String dayPath =
-            fileSourceInput.getSpec().getFilePath() + "/" + getDayPath(fileDay, dayFormat) + "/";
+            fileSourceInput.getSpec().getPathPattern() + "/" + getDayPath(fileDay, dayFormat) + "/";
         String inputPath;
         Path successFilePath;
         if (fileSystem.isDirectory(new Path(dayPath + hourPath))) {
-          inputPath = dayPath + hourPath + "/" + fileSourceInput.getSpec().getFileNameFilter();
+          inputPath = dayPath + hourPath + "/" + fileSourceInput.getSpec().getNamePattern();
           successFilePath = new Path(dayPath + hourPath + "/_SUCCESS");
         } else {
-          inputPath = dayPath + hourPath + fileSourceInput.getSpec().getFileNameFilter();
+          inputPath = dayPath + hourPath + fileSourceInput.getSpec().getNamePattern();
           successFilePath = new Path(dayPath + "_" + hourPath + "_SUCCESS");
         }
         if (checkSuccess && !isFileExist(fileSystem, successFilePath)) {

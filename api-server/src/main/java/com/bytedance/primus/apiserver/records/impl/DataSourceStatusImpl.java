@@ -38,29 +38,29 @@ public class DataSourceStatusImpl implements DataSourceStatus {
   }
 
   @Override
-  public synchronized DataSourceStatus setSourceId(String sourceId) {
+  public synchronized DataSourceStatus setSourceId(int sourceId) {
     maybeInitBuilder();
     builder.setSourceId(sourceId);
     return this;
   }
 
   @Override
-  public synchronized String getSourceId() {
+  public synchronized int getSourceId() {
     DataProto.DataSourceStatusOrBuilder p = viaProto ? proto : builder;
     return p.getSourceId();
   }
 
   @Override
-  public synchronized DataSourceStatus setDataConsumptionTime(int time) {
+  public synchronized DataSourceStatus setReport(String report) {
     maybeInitBuilder();
-    builder.setDataConsumptionTime(time);
+    builder.setReport(report);
     return this;
   }
 
   @Override
-  public synchronized int getDataConsumptionTime() {
+  public synchronized String getReport() {
     DataProto.DataSourceStatusOrBuilder p = viaProto ? proto : builder;
-    return p.getDataConsumptionTime();
+    return p.getReport();
   }
 
   @Override
@@ -81,8 +81,8 @@ public class DataSourceStatusImpl implements DataSourceStatus {
     }
 
     DataSourceStatusImpl other = (DataSourceStatusImpl) obj;
-    boolean result = getSourceId().equals(other.getSourceId());
-    result = result && getDataConsumptionTime() == other.getDataConsumptionTime();
+    boolean result = getSourceId() == other.getSourceId();
+    result = result && getReport().equals(other.getReport());
     return result;
   }
 

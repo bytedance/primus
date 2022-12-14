@@ -27,16 +27,16 @@ import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.am.ApplicationMasterEvent;
 import com.bytedance.primus.am.ApplicationMasterEventType;
-import com.bytedance.primus.api.records.SplitTask;
+import com.bytedance.primus.api.records.FileTask;
 import com.bytedance.primus.api.records.Task;
-import com.bytedance.primus.api.records.impl.pb.SplitTaskPBImpl;
+import com.bytedance.primus.api.records.impl.pb.FileTaskPBImpl;
 import com.bytedance.primus.api.records.impl.pb.TaskPBImpl;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.metrics.PrimusMetrics.TimerMetric;
 import com.bytedance.primus.io.datasource.file.FileDataSource;
+import com.bytedance.primus.io.datasource.file.models.BaseInput;
 import com.bytedance.primus.io.datasource.file.models.BaseSplit;
-import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.io.datasource.file.models.PrimusInput;
 import com.bytedance.primus.io.datasource.file.models.PrimusSplit;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -121,7 +121,7 @@ public class FileTaskBuilder {
         .handle(new ApplicationMasterEvent(context, eventType, diag, exitCode));
   }
 
-  public List<BaseSplit> getFileSplits(FileSystem fileSystem, Input input) {
+  public List<BaseSplit> getFileSplits(FileSystem fileSystem, BaseInput input) {
     TimerMetric latency = PrimusMetrics.getTimerContextWithAppIdTag(
         "am.taskbuilder.splitter.latency", new HashMap<>());
     List<BaseSplit> result = new LinkedList<>();
@@ -162,15 +162,15 @@ public class FileTaskBuilder {
     return result;
   }
 
-  public List<BaseSplit> getFileSplits(FileSystem fileSystem, List<Input> inputs) {
+  public List<BaseSplit> getFileSplits(FileSystem fileSystem, List<BaseInput> inputs) {
     List<BaseSplit> primusSplits = new LinkedList<>();
     String key = null;
-    for (Input input : inputs) {
+    for (BaseInput input : inputs) {
       // check they have the same key
       if (key == null) {
-        key = input.getKey();
+        key = input.getBatchKey();
       } else {
-        assert key.equals(input.getKey());
+        assert key.equals(input.getBatchKey());
       }
       primusSplits.addAll(getFileSplits(fileSystem, input));
     }
@@ -182,62 +182,50 @@ public class FileTaskBuilder {
     TimerMetric latency =
         PrimusMetrics.getTimerContextWithAppIdTag(
             "am.taskbuilder.builder.latency", new HashMap<>());
+
+    // Building tasks, note the order matters
     List<Task> tasks = new LinkedList<>();
     for (BaseSplit split : splits) {
-      if (isBuilt(split, lastSavedTask)) {
-        continue;
+      if (lastSavedTask == null || !split.hasBeenBuilt(
+          lastSavedTask.getFileTask().getBatchKey(),
+          lastSavedTask.getSourceId(),
+          lastSavedTask.getFileTask().getPath()
+      )) {
+        tasks.add(newTask(split, ++currentTaskId));
       }
-      tasks.add(newTask(split));
     }
+
     if (!splits.isEmpty() && !tasks.isEmpty()) {
       LOG.info("Add tasks[" + tasks.get(0).getTaskId() + " - "
           + tasks.get(tasks.size() - 1).getTaskId()
-          + "] for input[key: " + splits.get(0).getKey()
-          + ", source: " + splits.get(0).getSource()
+          + "] for input[key: " + splits.get(0).getBatchKey()
+          + ", source: " + splits.get(0).getSourceId()
           + ", spec: " + splits.get(0).getSpec()
           + ", path of a split: " + splits.get(0).getPath() + "]");
     }
+
     latency.stop();
     return tasks;
   }
 
-  private boolean isBuilt(BaseSplit split, Task task) {
-    if (task != null) {
-      if (task.getSplitTask() != null) {
-        SplitTask splitTask = task.getSplitTask();
-        int ret = split.getKey().compareTo(splitTask.getKey());
-        if (ret == 0) {
-          ret = split.getSource().compareTo(task.getSource());
-        }
-        if (ret == 0) {
-          ret = split.getPath().compareTo(splitTask.getPath());
-        }
-        return ret <= 0;
-      } else {
-        return false;
-      }
-    } else {
-      return false;
-    }
-  }
-
-  private Task newTask(BaseSplit split) {
+  // TODO: Remove protobuf wrapper and move this function to PrimusSplit implementation.
+  private Task newTask(BaseSplit split, long taskId) {
     Task task = new TaskPBImpl();
     if (split instanceof PrimusSplit) {
       PrimusSplit primusSplit = (PrimusSplit) split;
-      SplitTask splitTask = new SplitTaskPBImpl(
+      FileTask fileTask = new FileTaskPBImpl(
           primusSplit.getPath(),
           primusSplit.getStart(),
           primusSplit.getLength(),
-          primusSplit.getKey(),
+          primusSplit.getBatchKey(),
           primusSplit.getSpec()
       );
 
       task.setGroup(name);
-      task.setTaskId(++currentTaskId);
+      task.setTaskId(taskId);
       task.setSourceId(primusSplit.getSourceId());
       task.setSource(primusSplit.getSource());
-      task.setSplitTask(splitTask);
+      task.setFileTask(fileTask);
       task.setNumAttempt(0);
       task.setCheckpoint("");
     }
@@ -261,7 +249,7 @@ public class FileTaskBuilder {
       while (!isStopped) {
         try {
           // blocking until available
-          List<Input> inputs = fileScanner.getInputQueue().take();
+          List<BaseInput> inputs = fileScanner.getInputQueue().take();
           Future<List<BaseSplit>> future = pool
               .submit(() -> getFileSplits(fileSystem, inputs));
           splitsBlockingQueue.put(future);  // blocking if no capacity, for avoiding OOM
@@ -371,10 +359,10 @@ public class FileTaskBuilder {
   private void logTaskEvent(List<Task> tasks) {
     for (Task task : tasks) {
       context.getTimelineLogger().logEvent(PRIMUS_TASK_INFO_DETAILED.name(), task.toString());
-      if (task.getSplitTask() != null && task.getSplitTask().getLength() > 0) {
+      if (task.getFileTask() != null && task.getFileTask().getLength() > 0) {
         context.getTimelineLogger()
             .logEvent(PRIMUS_TASK_INFO_FILE_SIZE.name(),
-                Long.toString(task.getSplitTask().getLength()));
+                Long.toString(task.getFileTask().getLength()));
       }
     }
   }

@@ -19,15 +19,15 @@
 
 package com.bytedance.primus.api.records.impl.pb;
 
+import com.bytedance.primus.api.records.FileTask;
 import com.bytedance.primus.api.records.KafkaTask;
-import com.bytedance.primus.api.records.SplitTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskType;
-import com.bytedance.primus.proto.Primus;
-import com.bytedance.primus.proto.Primus.TaskProto;
-import com.bytedance.primus.proto.Primus.TaskProto.KafkaTaskProto;
-import com.bytedance.primus.proto.Primus.TaskProto.SplitTaskProto;
-import com.bytedance.primus.proto.Primus.TaskProtoOrBuilder;
+import com.bytedance.primus.proto.PrimusTask;
+import com.bytedance.primus.proto.PrimusTask.FileTaskProto;
+import com.bytedance.primus.proto.PrimusTask.KafkaTaskProto;
+import com.bytedance.primus.proto.PrimusTask.TaskProto;
+import com.bytedance.primus.proto.PrimusTask.TaskProtoOrBuilder;
 import com.google.protobuf.TextFormat;
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -41,7 +41,7 @@ public class TaskPBImpl implements Task, Comparable<Task> {
 
   private String group;
   private Long taskId = null;
-  private String sourceId = null;
+  private Integer sourceId = null;
   private String source = null;
   private String checkpoint = null;
   private Integer numAttempt = null;
@@ -130,7 +130,7 @@ public class TaskPBImpl implements Task, Comparable<Task> {
   }
 
   @Override
-  public String getSourceId() {
+  public int getSourceId() {
     TaskProtoOrBuilder p = viaProto ? proto : builder;
     if (this.sourceId != null) {
       return this.sourceId;
@@ -139,7 +139,7 @@ public class TaskPBImpl implements Task, Comparable<Task> {
   }
 
   @Override
-  public void setSourceId(String sourceId) {
+  public void setSourceId(int sourceId) {
     maybeInitBuilder();
     this.sourceId = sourceId;
   }
@@ -161,7 +161,7 @@ public class TaskPBImpl implements Task, Comparable<Task> {
 
   @Override
   public String getCheckpoint() {
-    Primus.TaskProtoOrBuilder p = viaProto ? proto : builder;
+    PrimusTask.TaskProtoOrBuilder p = viaProto ? proto : builder;
     if (this.checkpoint != null) {
       return this.checkpoint;
     }
@@ -181,15 +181,15 @@ public class TaskPBImpl implements Task, Comparable<Task> {
   }
 
   @Override
-  public SplitTask getSplitTask() {
+  public FileTask getFileTask() {
     TaskProtoOrBuilder p = viaProto ? proto : builder;
-    return (p.hasSplitTask()) ? convertFromProtoFormat(p.getSplitTask()) : null;
+    return (p.hasFileTask()) ? convertFromProtoFormat(p.getFileTask()) : null;
   }
 
   @Override
-  public void setSplitTask(SplitTask splitTask) {
+  public void setFileTask(FileTask fileTask) {
     maybeInitBuilder();
-    builder.setSplitTask(convertToProtoFormat(splitTask));
+    builder.setFileTask(convertToProtoFormat(fileTask));
   }
 
   @Override
@@ -257,12 +257,12 @@ public class TaskPBImpl implements Task, Comparable<Task> {
     return TextFormat.shortDebugString(getProto());
   }
 
-  private SplitTaskPBImpl convertFromProtoFormat(SplitTaskProto p) {
-    return new SplitTaskPBImpl(p);
+  private FileTaskPBImpl convertFromProtoFormat(FileTaskProto p) {
+    return new FileTaskPBImpl(p);
   }
 
-  private SplitTaskProto convertToProtoFormat(SplitTask t) {
-    return ((SplitTaskPBImpl) t).getProto();
+  private FileTaskProto convertToProtoFormat(FileTask t) {
+    return ((FileTaskPBImpl) t).getProto();
   }
 
   private KafkaTaskPBImpl convertFromProtoFormat(KafkaTaskProto p) {

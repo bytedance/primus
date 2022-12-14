@@ -62,6 +62,8 @@ public abstract class FileTaskRunner implements TaskRunner {
   protected volatile TaskCheckpoint taskCheckpoint;
 
   private volatile boolean isStopped;
+  private final boolean forceFlushMessageBuffer;
+
   private Thread feedThread;
   private WorkerFeeder workerFeeder;
   private int maxAllowedIOException;
@@ -82,6 +84,11 @@ public abstract class FileTaskRunner implements TaskRunner {
     LOG.info("Start task, " + taskStatus);
     taskCheckpoint = new TaskCheckpoint();
     this.isStopped = false;
+    this.forceFlushMessageBuffer = context
+        .getPrimusExecutorConf()
+        .getInputManager()
+        .getMessageBufferForceFlush();
+
     this.feedThread =
         new FeedThread(context.getTimelineLogger(), context.getExecutorId().toString());
     this.feedThread.setDaemon(true);
@@ -104,8 +111,6 @@ public abstract class FileTaskRunner implements TaskRunner {
   public abstract MessageBuilder getMessageBuilder();
 
   public abstract long getLength();
-
-  public abstract int getRewindSkipNum();
 
   @Override
   public Task getTask() {
@@ -202,8 +207,7 @@ public abstract class FileTaskRunner implements TaskRunner {
       Object value = reader.createValue();
       MessageBuilder messageBuilder = getMessageBuilder();
       boolean succeed = false;
-      int rewindSkipNum = getRewindSkipNum();
-      boolean skipping = context.getPrimusExecutorConf().getInputManager().getSkipRecords();
+      int rewindSkipNum = task.getFileTask().getSpec().getRewindSkipNum();
       PrimusMetrics.TimerMetric latency;
       feedThreadPool = Executors.newSingleThreadExecutor(threadFactory);
       try {
@@ -273,14 +277,18 @@ public abstract class FileTaskRunner implements TaskRunner {
                       put("executor_id", executorId);
                     }}, 1);
 
-            if (messageBuilder.needFlush() || skipping) {
+            if (messageBuilder.needFlush() || forceFlushMessageBuffer) {
               latency =
                   PrimusMetrics.getTimerContextWithAppIdTag(
                       EXECUTOR_TASK_RUNNER_FEED_LATENCY,
                       new HashMap<String, String>() {{
                         put("executor_id", executorId);
                       }});
-              waitUntilFeedSuccess(messageBuilder.build(), 0, messageBuilder.size(), skipping);
+              waitUntilFeedSuccess(
+                  messageBuilder.build(),
+                  0, // start
+                  messageBuilder.size(),
+                  forceFlushMessageBuffer);
               metricToTimeLineEventBridge.record(EXECUTOR_TASK_RUNNER_FEED_LATENCY, latency.stop());
               PrimusMetrics.emitStoreWithAppIdTag(
                   "executor.worker_feeder.file.feed_bytes",

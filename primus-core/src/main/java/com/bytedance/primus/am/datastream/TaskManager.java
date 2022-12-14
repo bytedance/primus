@@ -42,7 +42,7 @@ public interface TaskManager {
 
   float getProgress();
 
-  Map<String, Integer> getDataConsumptionTimeMap();
+  Map<Integer, String> getDataSourceReports();
 
   boolean isFailure();
 

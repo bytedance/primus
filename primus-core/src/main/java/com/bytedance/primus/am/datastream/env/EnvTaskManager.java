@@ -28,6 +28,7 @@ import com.bytedance.primus.api.records.TaskCommand;
 import com.bytedance.primus.api.records.TaskStatus;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -64,8 +65,8 @@ public class EnvTaskManager implements TaskManager {
   }
 
   @Override
-  public Map<String, Integer> getDataConsumptionTimeMap() {
-    return null;
+  public Map<Integer, String> getDataSourceReports() {
+    return new HashMap<>();
   }
 
   @Override

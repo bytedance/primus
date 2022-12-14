@@ -19,11 +19,29 @@
 
 package com.bytedance.primus.io.datasource.file.models;
 
-import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
+/**
+ * BaseSplit is the most granular unit of Primus data scheduling, which represents a file for
+ * executors to read and inject to their corresponding trainer processes.
+ */
+public interface BaseSplit extends BaseInput, Comparable<BaseSplit> {
 
-public interface BaseSplit extends Input {
+  String getPath(); // The path to the data file on file system.
 
-  String getPath();
+  boolean hasBeenBuilt(String batchKey, int sourceId, String path);
 
-  FileSourceSpec getSpec();
+  default int compareTo(BaseSplit other) {
+    int compareBatchKey = getBatchKey().compareTo(other.getBatchKey());
+    if (compareBatchKey != 0) {
+      return compareBatchKey < 0 ? -1 : 1;
+    }
+    int compareSourceId = getSourceId() - other.getSourceId();
+    if (compareSourceId != 0) {
+      return compareSourceId < 0 ? -1 : 1;
+    }
+    int comparePath = getPath().compareTo(other.getPath());
+    if (comparePath != 0) {
+      return comparePath < 0 ? -1 : 1;
+    }
+    return 0;
+  }
 }

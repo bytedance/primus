@@ -44,14 +44,14 @@ public class DataSourceSpecImpl implements DataSourceSpec {
   }
 
   @Override
-  public synchronized DataSourceSpec setSourceId(String sourceId) {
+  public synchronized DataSourceSpec setSourceId(int sourceId) {
     maybeInitBuilder();
     builder.setSourceId(sourceId);
     return this;
   }
 
   @Override
-  public synchronized String getSourceId() {
+  public synchronized int getSourceId() {
     DataProto.DataSourceSpecOrBuilder p = viaProto ? proto : builder;
     return p.getSourceId();
   }
@@ -72,7 +72,7 @@ public class DataSourceSpecImpl implements DataSourceSpec {
   @Override
   public String getFileNameFilter() {
     DataProto.DataSourceSpecOrBuilder p = viaProto ? proto : builder;
-    String filter = p.hasFileSourceSpec() ? p.getFileSourceSpec().getFileNameFilter() : "*";
+    String filter = p.hasFileSourceSpec() ? p.getFileSourceSpec().getNamePattern() : "*";
     return StringUtils.isEmpty(filter) ? "*" : filter;
   }
 
@@ -138,7 +138,7 @@ public class DataSourceSpecImpl implements DataSourceSpec {
     }
 
     DataSourceSpecImpl other = (DataSourceSpecImpl) obj;
-    boolean result = getSourceId().equals(other.getSourceId());
+    boolean result = getSourceId() == other.getSourceId();
     result = result && (getSource().equals(other.getSource()));
     result = result && compare(getFileSourceSpec(), (other.getFileSourceSpec()));
     result = result && compare(getKafkaSourceSpec(), other.getKafkaSourceSpec());

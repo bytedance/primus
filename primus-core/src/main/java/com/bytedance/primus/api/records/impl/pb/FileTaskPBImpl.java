@@ -19,39 +19,39 @@
 
 package com.bytedance.primus.api.records.impl.pb;
 
-import com.bytedance.primus.api.records.SplitTask;
+import com.bytedance.primus.api.records.FileTask;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
-import com.bytedance.primus.proto.Primus.TaskProto.SplitTaskProto;
-import com.bytedance.primus.proto.Primus.TaskProto.SplitTaskProtoOrBuilder;
+import com.bytedance.primus.proto.PrimusTask.FileTaskProto;
+import com.bytedance.primus.proto.PrimusTask.FileTaskProtoOrBuilder;
 
-public class SplitTaskPBImpl implements SplitTask {
+public class FileTaskPBImpl implements FileTask {
 
-  SplitTaskProto proto = SplitTaskProto.getDefaultInstance();
-  SplitTaskProto.Builder builder = null;
+  FileTaskProto proto = FileTaskProto.getDefaultInstance();
+  FileTaskProto.Builder builder = null;
   boolean viaProto = false;
 
-  public SplitTaskPBImpl(
+  public FileTaskPBImpl(
       String path,
       long start,
       long length,
       String key,
       FileSourceSpec spec
   ) {
-    builder = SplitTaskProto
+    builder = FileTaskProto
         .newBuilder()
         .setPath(path)
         .setStart(start)
         .setLength(length)
-        .setKey(key)
+        .setBatchKey(key)
         .setSpec(spec);
   }
 
-  public SplitTaskPBImpl(SplitTaskProto proto) {
+  public FileTaskPBImpl(FileTaskProto proto) {
     this.proto = proto;
     viaProto = true;
   }
 
-  public SplitTaskProto getProto() {
+  public FileTaskProto getProto() {
     mergeLocalToProto();
     proto = viaProto ? proto : builder.build();
     viaProto = true;
@@ -68,38 +68,38 @@ public class SplitTaskPBImpl implements SplitTask {
 
   private void maybeInitBuilder() {
     if (viaProto || builder == null) {
-      builder = SplitTaskProto.newBuilder(proto);
+      builder = FileTaskProto.newBuilder(proto);
     }
     viaProto = false;
   }
 
   @Override
-  public String getKey() {
-    SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
-    return p.getKey();
+  public String getBatchKey() {
+    FileTaskProtoOrBuilder p = viaProto ? proto : builder;
+    return p.getBatchKey();
   }
 
   @Override
   public String getPath() {
-    SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
+    FileTaskProtoOrBuilder p = viaProto ? proto : builder;
     return p.getPath();
   }
 
   @Override
   public long getStart() {
-    SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
+    FileTaskProtoOrBuilder p = viaProto ? proto : builder;
     return p.getStart();
   }
 
   @Override
   public long getLength() {
-    SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
+    FileTaskProtoOrBuilder p = viaProto ? proto : builder;
     return p.getLength();
   }
 
   @Override
   public FileSourceSpec getSpec() {
-    SplitTaskProtoOrBuilder p = viaProto ? proto : builder;
+    FileTaskProtoOrBuilder p = viaProto ? proto : builder;
     return p.getSpec();
   }
 }
