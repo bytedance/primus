@@ -22,34 +22,33 @@
   ],
   "progressManagerType": "PM_FILE",
   "inputManager": {
-    "workPreserve": {
-      "workPreserveType": "HDFS",
-      "dumpIntervalSecs": 5,
-      "rewindSkipNum": 15000
-    },
     "fileConfig": {
-      "oneTimeInputs": [
+      "inputs": [
         {
-          "name": "primus-input-file-customized-data",
+          "name": "data",
           "spec": {
-            "filePath": "/primus/examples/input-file-customized/data/*",
+            "pathPattern": "/primus/examples/input-file-customized/data/",
+            "namePattern": "*",
             "customizedInput": {
               "className": "com.bytedance.primus.io.datasource.file.impl.customized.CustomizedFileDataSource",
               "params": {
                 "key-prefix": "KP",
-                "val-prefix": "VP",
                 "key-suffix": "KS",
+                "val-prefix": "VP",
                 "val-suffix": "VS"
               }
             }
           }
         }
-      ]
+      ],
+      "stopPolicy": {
+        "taskSuccessPercent": 100
+      }
     },
-    "messageBufferSize": 8388608,
-    "maxTaskNumPerWorker": 2,
-    "stopPolicy": {
-      "taskSuccessPercent": 100
+    "workPreserve": {
+      "workPreserveType": "HDFS",
+      "dumpIntervalSecs": 5,
+      "rewindSkipNum": 15000
     }
   }
 }

@@ -143,7 +143,7 @@ input-file-customized
   Append To List  ${hello_expected}  KP-76-KS\tVP-Hello from input-file-customized: 3-2-VS
   Append To List  ${hello_expected}  KP-114-KS\tVP-Hello from input-file-customized: 3-3-VS
 
-  Lists Should Be Equal  ${hello_captured}  ${hello_expected}  ignore_order=True
+  Lists Should Be Equal  ${hello_captured}  ${hello_expected}
 
 
 input-file-text
@@ -189,7 +189,7 @@ input-file-text
   Append To List  ${hello_expected}  192\tHello from input-file-text: 3-6
   Append To List  ${hello_expected}  224\tHello from input-file-text: 3-7
 
-  Lists Should Be Equal  ${hello_captured}  ${hello_expected}  ignore_order=True
+  Lists Should Be Equal  ${hello_captured}  ${hello_expected}
 
 
 input-file-text-timerange
@@ -202,24 +202,32 @@ input-file-text-timerange
   # Check Primus application logs
   ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-file-text-timerange"
   ${hello_expected} =  Create List
-  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange: 2020-01-01 - 0
-  Append To List  ${hello_expected}  53\tHello from input-file-text-timerange: 2020-01-01 - 1
-  Append To List  ${hello_expected}  106\tHello from input-file-text-timerange: 2020-01-01 - 2
-  Append To List  ${hello_expected}  159\tHello from input-file-text-timerange: 2020-01-01 - 3
-  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange: 2020-01-02 - 0
-  Append To List  ${hello_expected}  53\tHello from input-file-text-timerange: 2020-01-02 - 1
-  Append To List  ${hello_expected}  106\tHello from input-file-text-timerange: 2020-01-02 - 2
-  Append To List  ${hello_expected}  159\tHello from input-file-text-timerange: 2020-01-02 - 3
-  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange: 2020-01-03 - 0
-  Append To List  ${hello_expected}  53\tHello from input-file-text-timerange: 2020-01-03 - 1
-  Append To List  ${hello_expected}  106\tHello from input-file-text-timerange: 2020-01-03 - 2
-  Append To List  ${hello_expected}  159\tHello from input-file-text-timerange: 2020-01-03 - 3
-  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange: 2020-01-04 - 0
-  Append To List  ${hello_expected}  53\tHello from input-file-text-timerange: 2020-01-04 - 1
-  Append To List  ${hello_expected}  106\tHello from input-file-text-timerange: 2020-01-04 - 2
-  Append To List  ${hello_expected}  159\tHello from input-file-text-timerange: 2020-01-04 - 3
+  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange(daily): 2020-01-01 - 0
+  Append To List  ${hello_expected}  60\tHello from input-file-text-timerange(daily): 2020-01-01 - 1
+  Append To List  ${hello_expected}  120\tHello from input-file-text-timerange(daily): 2020-01-01 - 2
+  Append To List  ${hello_expected}  180\tHello from input-file-text-timerange(daily): 2020-01-01 - 3
+  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange(hourly): 2020-01-01-00 - 0
+  Append To List  ${hello_expected}  64\tHello from input-file-text-timerange(hourly): 2020-01-01-00 - 1
+  Append To List  ${hello_expected}  128\tHello from input-file-text-timerange(hourly): 2020-01-01-00 - 2
+  Append To List  ${hello_expected}  192\tHello from input-file-text-timerange(hourly): 2020-01-01-00 - 3
+  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange(hourly): 2020-01-01-01 - 0
+  Append To List  ${hello_expected}  64\tHello from input-file-text-timerange(hourly): 2020-01-01-01 - 1
+  Append To List  ${hello_expected}  128\tHello from input-file-text-timerange(hourly): 2020-01-01-01 - 2
+  Append To List  ${hello_expected}  192\tHello from input-file-text-timerange(hourly): 2020-01-01-01 - 3
+  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange(daily): 2020-01-02 - 0
+  Append To List  ${hello_expected}  60\tHello from input-file-text-timerange(daily): 2020-01-02 - 1
+  Append To List  ${hello_expected}  120\tHello from input-file-text-timerange(daily): 2020-01-02 - 2
+  Append To List  ${hello_expected}  180\tHello from input-file-text-timerange(daily): 2020-01-02 - 3
+  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange(daily): 2020-01-03 - 0
+  Append To List  ${hello_expected}  60\tHello from input-file-text-timerange(daily): 2020-01-03 - 1
+  Append To List  ${hello_expected}  120\tHello from input-file-text-timerange(daily): 2020-01-03 - 2
+  Append To List  ${hello_expected}  180\tHello from input-file-text-timerange(daily): 2020-01-03 - 3
+  Append To List  ${hello_expected}  0\tHello from input-file-text-timerange(daily): 2020-01-04 - 0
+  Append To List  ${hello_expected}  60\tHello from input-file-text-timerange(daily): 2020-01-04 - 1
+  Append To List  ${hello_expected}  120\tHello from input-file-text-timerange(daily): 2020-01-04 - 2
+  Append To List  ${hello_expected}  180\tHello from input-file-text-timerange(daily): 2020-01-04 - 3
 
-  Lists Should Be Equal  ${hello_captured}  ${hello_expected}  ignore_order=True
+  Lists Should Be Equal  ${hello_captured}  ${hello_expected}
 
 
 input-kafka-text
@@ -272,4 +280,4 @@ input-kafka-text
   Append To List  ${hello_expected}  Hello from input-kafka-text: 3-6
   Append To List  ${hello_expected}  Hello from input-kafka-text: 3-7
 
-  Lists Should Be Equal  ${hello_captured}  ${hello_expected}  ignore_order=True
+  Lists Should Be Equal  ${hello_captured}  ${hello_expected}
