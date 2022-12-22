@@ -28,5 +28,6 @@ public enum SchedulerExecutorState {
   COMPLETED,
   RELEASED,
   KILLING,
+  KILLING_FORCIBLY, // Instruct executor to quit without serving graceful shutdown time wait.
   KILLED,
 }

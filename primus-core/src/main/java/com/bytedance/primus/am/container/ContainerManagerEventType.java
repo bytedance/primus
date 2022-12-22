@@ -22,6 +22,7 @@ package com.bytedance.primus.am.container;
 public enum ContainerManagerEventType {
   EXECUTOR_EXPIRED,
   GRACEFUL_SHUTDOWN,
+  FORCIBLY_SHUTDOWN,
   CONTAINER_REQUEST_CREATED,
   CONTAINER_REQUEST_UPDATED,
 }

@@ -25,6 +25,7 @@ public enum ExecutorState {
   STARTING,
   RUNNING,
   KILLING,
+  KILLING_FORCIBLY, // XXX: A hotfix for an YARN deployment, have to standardize to Kubernetes
   RECOVERING,
   EXITED_WITH_FAILURE,
   EXITED_WITH_SUCCESS,

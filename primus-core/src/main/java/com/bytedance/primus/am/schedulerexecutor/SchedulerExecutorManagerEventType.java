@@ -26,4 +26,5 @@ public enum SchedulerExecutorManagerEventType {
   EXECUTOR_REQUEST_CREATED,
   EXECUTOR_REQUEST_UPDATED,
   EXECUTOR_KILL,
+  EXECUTOR_KILL_FORCIBLY, // Instruct executor to quit without serving graceful shutdown time wait.
 }

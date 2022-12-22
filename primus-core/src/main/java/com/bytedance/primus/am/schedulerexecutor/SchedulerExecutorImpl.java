@@ -163,6 +163,26 @@ public class SchedulerExecutorImpl implements SchedulerExecutor {
               SchedulerExecutorState.RELEASED,
               SchedulerExecutorEventType.KILL)
 
+          // TODO: Streamline core state machines
+          .addTransition(SchedulerExecutorState.NEW,
+              SchedulerExecutorState.KILLING_FORCIBLY,
+              SchedulerExecutorEventType.KILL_FORCIBLY)
+          .addTransition(SchedulerExecutorState.STARTING,
+              SchedulerExecutorState.KILLING_FORCIBLY,
+              SchedulerExecutorEventType.KILL_FORCIBLY)
+          .addTransition(SchedulerExecutorState.RUNNING,
+              SchedulerExecutorState.KILLING_FORCIBLY,
+              SchedulerExecutorEventType.KILL_FORCIBLY)
+          .addTransition(SchedulerExecutorState.FAILED,
+              SchedulerExecutorState.FAILED,
+              SchedulerExecutorEventType.KILL_FORCIBLY)
+          .addTransition(SchedulerExecutorState.COMPLETED,
+              SchedulerExecutorState.COMPLETED,
+              SchedulerExecutorEventType.KILL_FORCIBLY)
+          .addTransition(SchedulerExecutorState.RELEASED,
+              SchedulerExecutorState.RELEASED,
+              SchedulerExecutorEventType.KILL_FORCIBLY)
+
           .addTransition(SchedulerExecutorState.KILLING,
               SchedulerExecutorState.KILLING,
               SchedulerExecutorEventType.REGISTERED)
@@ -174,6 +194,10 @@ public class SchedulerExecutorImpl implements SchedulerExecutor {
               SchedulerExecutorEventType.KILLED,
               new KilledTransition())
           .addTransition(SchedulerExecutorState.KILLING,
+              SchedulerExecutorState.KILLED,
+              SchedulerExecutorEventType.KILLED,
+              new KilledTransition())
+          .addTransition(SchedulerExecutorState.KILLING_FORCIBLY,
               SchedulerExecutorState.KILLED,
               SchedulerExecutorEventType.KILLED,
               new KilledTransition())

@@ -102,9 +102,9 @@ public class FairContainerManager extends YarnContainerManager {
 
       int completedNum = schedulerExecutorManager.getCompletedNum(priority);
       int replicas = roleInfo.getRoleSpec().getReplicas();
-      if (containerIds.size() + completedNum >= replicas || gracefulShutdown) {
+      if (containerIds.size() + completedNum >= replicas || isShuttingDown) {
         LOG.info("Enough role: " + roleInfo.getRoleName() + ", num: " + containerIds.size()
-            + ", graceful shutdown: " + gracefulShutdown);
+            + ", graceful shutdown: " + isShuttingDown);
         amRMClient.releaseAssignedContainer(container.getId());
         amRMClient.removeContainerRequest(roleInfo.getContainerRequest());
         PrimusMetrics.emitCounterWithAppIdTag(

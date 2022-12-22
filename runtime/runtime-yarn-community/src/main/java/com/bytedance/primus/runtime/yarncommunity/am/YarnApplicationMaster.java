@@ -19,6 +19,7 @@
 
 package com.bytedance.primus.runtime.yarncommunity.am;
 
+import static com.bytedance.primus.am.ApplicationExitCode.GANG_POLICY_FAILED;
 import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_APPLICATION_MASTER_EVENT;
 import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_APP_SAVE_HISTORY;
 import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_APP_SHUTDOWN;
@@ -96,6 +97,7 @@ import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.model.records.FinalApplicationStatus;
 import com.bytedance.primus.common.service.CompositeService;
 import com.bytedance.primus.common.service.Service;
+import com.bytedance.primus.common.util.Sleeper;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.OrderSchedulePolicy.RolePolicy;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
@@ -123,6 +125,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
@@ -462,7 +465,7 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
           needUnregister = true;
           unregisterDiagnostics = event.getDiagnosis();
           context.getProgressManager().setProgress(1f);
-          gracefulShutdown(event.getGracefulShutdownTimeoutMs());
+          gracefulShutdown(exitCode, event.getGracefulShutdownTimeoutMs());
         }
         break;
       case FAIL_ATTEMPT:
@@ -473,7 +476,7 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
           finalStatus = FinalApplicationStatus.FAILED;
           needUnregister = context.getAppAttemptId().getAttemptId() >= context.getMaxAppAttempts();
           unregisterDiagnostics = event.getDiagnosis();
-          gracefulShutdown(event.getGracefulShutdownTimeoutMs());
+          gracefulShutdown(exitCode, event.getGracefulShutdownTimeoutMs());
         }
         break;
       case FAIL_APP:
@@ -484,7 +487,7 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
           finalStatus = FinalApplicationStatus.FAILED;
           needUnregister = true;
           unregisterDiagnostics = event.getDiagnosis();
-          gracefulShutdown(event.getGracefulShutdownTimeoutMs());
+          gracefulShutdown(exitCode, event.getGracefulShutdownTimeoutMs());
         }
         break;
       case SUSPEND_APP:
@@ -503,7 +506,7 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
           finalStatus = FinalApplicationStatus.UNDEFINED;
           needUnregister = context.getAppAttemptId().getAttemptId() >= context.getMaxAppAttempts();
           unregisterDiagnostics = event.getDiagnosis();
-          gracefulShutdown(event.getGracefulShutdownTimeoutMs());
+          gracefulShutdown(exitCode, event.getGracefulShutdownTimeoutMs());
         }
         break;
     }
@@ -513,41 +516,42 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     }
   }
 
-  public void gracefulShutdown(long timeoutMs) {
-    LOG.info("start gracefulShutdown, timeout:{}", timeoutMs);
+  public void gracefulShutdown(int exitCode, long gracefulShutdownTimeoutMs) {
+    LOG.info("start gracefulShutdown, timeout:{}", gracefulShutdownTimeoutMs);
     PrimusMetrics.TimerMetric gracefulShutdownLatency =
         PrimusMetrics.getTimerContextWithAppIdTag("am.graceful_shutdown.latency", new HashMap<>());
+
     this.gracefulShutdown = true;
-    try {
-      Thread.sleep(primusConf.getSleepBeforeExitMs());
-    } catch (InterruptedException e) {
-      // ignore
-    }
-    dispatcher.getEventHandler()
-        .handle(new ContainerManagerEvent(ContainerManagerEventType.GRACEFUL_SHUTDOWN));
+    Sleeper.sleepWithoutInterruptedException(Duration.ofMillis(primusConf.getSleepBeforeExitMs()));
+
+    // Specialized error handling for gang failures to survive low resource clusters.
+    dispatcher.getEventHandler().handle(exitCode == GANG_POLICY_FAILED.getValue()
+        ? new ContainerManagerEvent(ContainerManagerEventType.FORCIBLY_SHUTDOWN)
+        : new ContainerManagerEvent(ContainerManagerEventType.GRACEFUL_SHUTDOWN));
+
     Thread thread = new Thread(() -> {
       long startTime = System.currentTimeMillis();
-      boolean isTimeout = false;
-      while (context.getSchedulerExecutorManager().getContainerExecutorMap().size() > 0
-          && !isTimeout) {
-        try {
-          LOG.info("Running executor number "
-              + context.getSchedulerExecutorManager().getContainerExecutorMap().size()
-              + ", graceful shutdown");
-          Thread.sleep(3000);
-        } catch (InterruptedException e) {
-          // ignore
+      while (context.getSchedulerExecutorManager().getContainerExecutorMap().size() > 0) {
+        LOG.info(
+            "Shutting down Primus application, remaining {} containers(s).",
+            context.getSchedulerExecutorManager().getContainerExecutorMap().size());
+
+        Sleeper.sleepWithoutInterruptedException(Duration.ofSeconds(3));
+        if (System.currentTimeMillis() - startTime > gracefulShutdownTimeoutMs) {
+          LOG.warn(
+              "Shutting down Primus timeout, remaining {} container(s).",
+              context.getSchedulerExecutorManager().getContainerExecutorMap().size());
+          break;
         }
-        isTimeout = (System.currentTimeMillis() - startTime) > timeoutMs;
       }
-      if (isTimeout) {
-        LOG.warn("Graceful shutdown timeout, remaining container "
-            + context.getSchedulerExecutorManager().getContainerExecutorMap().size());
-      }
-      context.getTimelineLogger().logEvent(PRIMUS_APP_SHUTDOWN.name(),
-          String.valueOf(gracefulShutdownLatency.stop()));
+
       isStopped = true;
+      context.getTimelineLogger().logEvent(
+          PRIMUS_APP_SHUTDOWN.name(),
+          String.valueOf(gracefulShutdownLatency.stop())
+      );
     });
+
     thread.setDaemon(true);
     thread.start();
   }

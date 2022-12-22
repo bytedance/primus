@@ -19,6 +19,8 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.am.scheduler;
 
+import static com.bytedance.primus.am.container.ContainerManagerEventType.FORCIBLY_SHUTDOWN;
+import static com.bytedance.primus.am.container.ContainerManagerEventType.GRACEFUL_SHUTDOWN;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_EXECUTOR_PRIORITY_LABEL_NAME;
 
 import com.bytedance.primus.am.ApplicationExitCode;
@@ -52,10 +54,11 @@ import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.util.Watch;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -81,7 +84,7 @@ public class KubernetesContainerManager extends AbstractService implements
 
   private boolean isStopped = false;
   private KubernetesContainerManagerThread containerManagerThread;
-  protected volatile boolean gracefulShutdown = false;
+  protected volatile boolean isShuttingDown = false;
   private PodLauncher podLauncher;
 
   protected Queue<ExecutorId> expiredPodQueue;
@@ -143,23 +146,40 @@ public class KubernetesContainerManager extends AbstractService implements
             "am.container_manager.executor_expired", new HashMap<>(), 1);
         break;
       }
-      case GRACEFUL_SHUTDOWN: {
-        LOG.info("Graceful shutdown! Kill all running containers");
-        gracefulShutdown = true;
-        for (Entry<Integer, Set<ContainerId>> runningContainers : priorityContainerIdsMap
-            .entrySet()) {
-          for (ContainerId containerId : runningContainers.getValue()) {
-            LOG.info("Killing container " + containerId);
-            SchedulerExecutor schedulerExecutor =
-                schedulerExecutorManager.getSchedulerExecutor(containerId.toString());
-            context.getDispatcher().getEventHandler()
-                .handle(new SchedulerExecutorManagerEvent(
-                    SchedulerExecutorManagerEventType.EXECUTOR_KILL,
-                    schedulerExecutor.getExecutorId()));
-          }
-        }
+      case GRACEFUL_SHUTDOWN:
+      case FORCIBLY_SHUTDOWN:
+        LOG.info("Start killing all running containers");
+        isShuttingDown = true;
+        priorityContainerIdsMap.values().stream()
+            .flatMap(Collection::stream)
+            .filter(Objects::nonNull)
+            .forEach(containerId -> {
+              SchedulerExecutor schedulerExecutor = schedulerExecutorManager.getSchedulerExecutor(
+                  containerId.toString());
+              if (event.getType() == GRACEFUL_SHUTDOWN) {
+                LOG.info(
+                    "Gracefully killing container: {}",
+                    schedulerExecutor.getContainer().getId());
+                context
+                    .getDispatcher()
+                    .getEventHandler()
+                    .handle(new SchedulerExecutorManagerEvent(
+                        SchedulerExecutorManagerEventType.EXECUTOR_KILL,
+                        schedulerExecutor.getExecutorId()));
+              } else if (event.getType() == FORCIBLY_SHUTDOWN) {
+                LOG.info(
+                    "Forcibly killing container: {}",
+                    schedulerExecutor.getContainer().getId());
+                context
+                    .getDispatcher()
+                    .getEventHandler()
+                    .handle(new SchedulerExecutorManagerEvent(
+                        SchedulerExecutorManagerEventType.EXECUTOR_KILL_FORCIBLY,
+                        schedulerExecutor.getExecutorId()));
+              }
+            });
         break;
-      }
+
       case CONTAINER_REQUEST_CREATED:
       case CONTAINER_REQUEST_UPDATED:
         handleContainerRequestCreated();
@@ -199,7 +219,7 @@ public class KubernetesContainerManager extends AbstractService implements
       LOG.info("KubernetesContainerManagerThread Started");
       while (!isStopped) {
         try {
-          if (!gracefulShutdown) {
+          if (!isShuttingDown) {
             askForContainers();
             cleanExpiredContainer();
 
