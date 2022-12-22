@@ -261,6 +261,9 @@ public class FileTaskStore implements TaskStore {
 
   @Override
   public void addNewTasks(List<Task> tasks) {
+    if (tasks.isEmpty()) {
+      return;
+    }
     newTasks.addAll(tasks);
     newTasks.add(TASK_DELIMITER);
     totalTaskNum.getAndAdd(tasks.size());
