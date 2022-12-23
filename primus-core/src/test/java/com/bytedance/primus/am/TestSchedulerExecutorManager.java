@@ -33,7 +33,7 @@ import org.junit.jupiter.api.BeforeEach;
 
 public class TestSchedulerExecutorManager {
 
-  AMContext context;
+  PrimusApplicationMeta applicationMeta;
   Map<Integer, Integer> priorityContainerIndexMap;
   PrimusConfOuterClass.Role role1;
   PrimusConfOuterClass.Role role2;

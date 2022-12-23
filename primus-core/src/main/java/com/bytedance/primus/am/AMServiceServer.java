@@ -23,7 +23,6 @@ import static com.bytedance.primus.utils.PrimusConstants.KILLED_THROUGH_AM_DIAG;
 
 import com.bytedance.primus.am.controller.SuspendStatusEnum;
 import com.bytedance.primus.am.datastream.file.FileTaskManager;
-import com.bytedance.primus.am.psonyarn.PonyManager;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.apiserver.client.models.DataSavepoint;
 import com.bytedance.primus.apiserver.proto.DataProto.DataSavepointStatus.DataSavepointState;
@@ -55,16 +54,14 @@ import org.joda.time.DateTime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBase {
+public class AMServiceServer extends AppMasterServiceGrpc.AppMasterServiceImplBase {
 
-  private static final Logger LOG = LoggerFactory.getLogger(AMSerivceServer.class);
+  private static final Logger LOG = LoggerFactory.getLogger(AMServiceServer.class);
 
   private AMContext context;
-  private PonyManager ponyManager;
 
-  public AMSerivceServer(AMContext context) {
+  public AMServiceServer(AMContext context) {
     this.context = context;
-    this.ponyManager = context.getPonyManager();
   }
 
   @Override
@@ -75,12 +72,9 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
         : ApplicationExitCode.SUCCESS_BY_RPC.getValue();
     if (request.hasGracefulShutdownTimeoutMs()) {
       long timeout = request.getGracefulShutdownTimeoutMs().getValue();
-      context.getDispatcher().getEventHandler().handle(
-          new ApplicationMasterEvent(context, ApplicationMasterEventType.SUCCESS, diag, exitCode,
-              timeout));
+      context.emitApplicationSuccessEvent(diag, exitCode, timeout);
     } else {
-      context.getDispatcher().getEventHandler().handle(
-          new ApplicationMasterEvent(context, ApplicationMasterEventType.SUCCESS, diag, exitCode));
+      context.emitApplicationSuccessEvent(diag, exitCode);
     }
     AmSerivce.SucceedResponse.Builder builder = AmSerivce.SucceedResponse.newBuilder();
     responseObserver.onNext(builder.build());
@@ -99,13 +93,9 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
 
     if (request.hasGracefulShutdownTimeoutMs()) {
       long timeout = request.getGracefulShutdownTimeoutMs().getValue();
-      context.getDispatcher().getEventHandler().handle(
-          new ApplicationMasterEvent(context, ApplicationMasterEventType.FAIL_ATTEMPT, diag,
-              exitCode, timeout));
+      context.emitFailAttemptEvent(diag, exitCode, timeout);
     } else {
-      context.getDispatcher().getEventHandler().handle(
-          new ApplicationMasterEvent(context, ApplicationMasterEventType.FAIL_ATTEMPT, diag,
-              exitCode));
+      context.emitFailAttemptEvent(diag, exitCode);
     }
 
     AmSerivce.KillResponse.Builder builder = AmSerivce.KillResponse.newBuilder();
@@ -118,8 +108,7 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
       StreamObserver<AmSerivce.SuspendResponse> responseObserver) {
     String diag = "ApplicationMaster suspended through rpc request";
     LOG.info("sending ApplicationMasterEvent.SUSPEND_APP");
-    context.getDispatcher().getEventHandler().handle(
-        new ApplicationMasterSuspendAppEvent(context, diag, request.getSnapshotId()));
+    context.emitSuspendApplicationEvent(diag, request.getSnapshotId());
     AmSerivce.SuspendResponse.Builder builder = AmSerivce.SuspendResponse.newBuilder();
     responseObserver.onNext(builder.build());
     responseObserver.onCompleted();
@@ -128,7 +117,9 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
   @Override
   public void suspendStatus(SuspendStatusRequest request,
       StreamObserver<SuspendStatusResponse> responseObserver) {
-    SuspendStatusEnum suspendStatusEnum = context.getSuspendManager().suspendStatus();
+    SuspendStatusEnum suspendStatusEnum = context
+        .getSuspendManager()
+        .suspendStatus();
     boolean isSucceed = SuspendStatusEnum.FINISHED_SUCCESS == suspendStatusEnum;
     SuspendStatusResponse.Builder responseBuilder = SuspendStatusResponse.newBuilder()
         .setMessage("status: " + suspendStatusEnum.name())
@@ -142,9 +133,7 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
       StreamObserver<AmSerivce.ResumeResponse> responseObserver) {
     String diag = "ApplicationMaster resume through rpc request";
     LOG.info("sending ApplicationMasterEvent.RESUME_APP");
-    context.getDispatcher().getEventHandler().handle(
-        new ApplicationMasterEvent(context, ApplicationMasterEventType.RESUME_APP, diag,
-            ApplicationExitCode.UNDEFINED.getValue()));
+    context.emitResumeApplicationEvent(diag);
     AmSerivce.ResumeResponse.Builder builder = AmSerivce.ResumeResponse.newBuilder();
     responseObserver.onNext(builder.build());
     responseObserver.onCompleted();
@@ -154,7 +143,9 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
   public void getSnapshot(GetSnapshotRequest request,
       StreamObserver<GetSnapshotResponse> responseObserver) {
     // TODO: fixme, get the right task manager
-    FileTaskManager fileTaskManager = context.getDataStreamManager().getDefaultFileTaskManager();
+    FileTaskManager fileTaskManager = context
+        .getDataStreamManager()
+        .getDefaultFileTaskManager();
     AmSerivce.GetSnapshotResponse.Builder builder = AmSerivce.GetSnapshotResponse.newBuilder();
     boolean available = fileTaskManager.isSnapshotAvailable(request.getSnapshotId());
     builder.setAvailable(available);
@@ -166,11 +157,15 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
   }
 
   @Override
-  public void progress(AmSerivce.ProgressRequest request,
-      StreamObserver<AmSerivce.ProgressResponse> responseObserver) {
+  public void progress(
+      AmSerivce.ProgressRequest request,
+      StreamObserver<AmSerivce.ProgressResponse> responseObserver
+  ) {
     AmSerivce.ProgressResponse.Builder builder = AmSerivce.ProgressResponse.newBuilder();
     responseObserver
-        .onNext(builder.setProgress(context.getProgressManager().getProgress()).build());
+        .onNext(builder
+            .setProgress(context.getProgressManager().getProgress())
+            .build());
     responseObserver.onCompleted();
   }
 
@@ -189,13 +184,14 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
       StatusRequest request,
       StreamObserver<StatusResponse> responseObserver
   ) {
-    String appId = context.getApplicationId();
+    String appId = context.getApplicationMeta().getApplicationId();
     String finalStatus = (context.getFinalStatus() != null)
         ? context.getFinalStatus().toString()
         : "IN_PROGRESS";
 
-    String trackUrl = "http://" + context.getHttpAddress().getAddress().getHostAddress()
-        + ":" + context.getHttpAddress().getPort() + "/webapps/primus/";
+    String trackUrl = "http://"
+        + context.getWebAppServerHostAddress() + ":"
+        + context.getWebAppServerPort() + "/webapps/primus/";
 
     responseObserver.onNext(
         StatusResponse.newBuilder()
@@ -211,7 +207,9 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
       StreamObserver<AmSerivce.TaskTimePointResponse> responseObserver) {
     AmSerivce.TaskTimePointResponse.Builder builder = AmSerivce.TaskTimePointResponse.newBuilder();
     // TODO: fixme, get the right task manager
-    FileTaskManager fileTaskManager = context.getDataStreamManager().getDefaultFileTaskManager();
+    FileTaskManager fileTaskManager = context
+        .getDataStreamManager()
+        .getDefaultFileTaskManager();
     Task task = fileTaskManager.getPendingTasks(1).get(0).getTask();
     String timePoint = null;
     if (task != null) {
@@ -233,7 +231,12 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
     float requestedProgress = request.getProgress();
     LOG.info("Received update progress from:{}, to:{}", currentProgress, requestedProgress);
     try {
-      context.getProgressManager().setProgress(request.getAllowRewind(), requestedProgress);
+      context
+          .getProgressManager()
+          .setProgress(
+              request.getAllowRewind(),
+              requestedProgress
+          );
       float updatedProgress = context.getProgressManager().getProgress();
       String message = String
           .format("success update progress from: %f, to: %f", currentProgress, updatedProgress);
@@ -264,7 +267,9 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
     dataSavepoint.setMeta(meta);
     dataSavepoint.setSpec(spec);
     try {
-      DataSavepoint createdDataSavepoint = context.getCoreApi().createDataSavepoint(dataSavepoint);
+      DataSavepoint createdDataSavepoint = context
+          .getCoreApi()
+          .createDataSavepoint(dataSavepoint);
       CreateSavepointResponse response = CreateSavepointResponse.newBuilder()
           .setCode(0)
           .setMessage("successfully create savepoint:" + createdDataSavepoint.getMeta().getName())
@@ -287,7 +292,8 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
       StreamObserver<CreateSavepointStatusResponse> responseObserver) {
     Preconditions.checkState(!Strings.isNullOrEmpty(request.getSavepointRestoreId()));
     try {
-      DataSavepoint dataSavepoint = context.getCoreApi()
+      DataSavepoint dataSavepoint = context
+          .getCoreApi()
           .getDataSavepoint(request.getSavepointRestoreId());
       DataSavepointState state = dataSavepoint.getStatus().getState();
       LOG.info("Current data savepoint id:{}, state:{}", request.getSavepointRestoreId(), state);

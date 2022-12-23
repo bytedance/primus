@@ -57,7 +57,7 @@ public class HdfsStore extends AbstractService {
   public HdfsStore(AMContext context) {
     super(HdfsStore.class.getName());
     this.context = context;
-    this.fs = context.getHadoopFileSystem();
+    this.fs = context.getApplicationMeta().getHadoopFileSystem();
     this.success = true;
     this.readWriteLock = new ReentrantReadWriteLock();
   }
@@ -126,7 +126,7 @@ public class HdfsStore extends AbstractService {
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
     String snapshotDir = new Path(
-        context.getPrimusConf().getHistoryHdfsBase(),
+        context.getApplicationMeta().getPrimusConf().getHistoryHdfsBase(),
         context.getMonitorInfoProvider().getHistorySnapshotSubdirectoryName()
     ).toString();
 

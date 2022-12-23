@@ -83,14 +83,14 @@ public class SummaryBundle {
     this.amLogUrl = monitorInfoProvider.getAmLogUrl();
     this.amHistoryLogUrl = monitorInfoProvider.getAmHistoryLogUrl();
 
-    this.name = context.getPrimusConf().getName();
-    this.user = context.getUsername();
-    this.queue = context.getPrimusConf().getQueue();
+    this.name = context.getApplicationMeta().getPrimusConf().getName();
+    this.user = context.getApplicationMeta().getUsername();
+    this.queue = context.getApplicationMeta().getPrimusConf().getQueue();
     this.finalStatus = Optional.of(context)
         .map(AMContext::getFinalStatus)
         .map(FinalApplicationStatus::toString)
         .orElse("IN_PROGRESS");
-    this.version = context.getVersion();
+    this.version = context.getApplicationMeta().getVersion();
     this.diagnostic = context.getDiagnostic();
     this.exitCode = Optional.of(context)
         .map(AMContext::getExitCode)
@@ -99,10 +99,10 @@ public class SummaryBundle {
     this.finishTime = context.getFinishTime();
     this.progress = context.getProgressManager().getProgress();
     this.startTime = context.getStartTime();
-    this.jobHistoryUrl = context.getMonitorInfoProvider().getHistoryTrackingUrl();
+    this.jobHistoryUrl = monitorInfoProvider.getHistoryTrackingUrl();
     this.attemptId = monitorInfoProvider.getAttemptId();
 
-    this.amNodeId = context.getNodeId();
+    this.amNodeId = context.getApplicationMeta().getNodeId();
     this.amMonitorUrl =
         // TODO: Support multi-dashboards on Primus UI
         String.join(", ", monitorInfoProvider.getAmDashboardUrls(

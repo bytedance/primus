@@ -20,7 +20,6 @@
 package com.bytedance.primus.am;
 
 import com.bytedance.primus.am.datastream.TaskManager;
-import com.bytedance.primus.am.role.RoleInfoManager;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManager;
 import com.bytedance.primus.api.protocolrecords.impl.pb.HeartbeatRequestPBImpl;
 import com.bytedance.primus.api.protocolrecords.impl.pb.HeartbeatResponsePBImpl;
@@ -55,12 +54,10 @@ public class ExecutorTrackerGrpcService extends
 
   private final AMContext context;
   private final SchedulerExecutorManager schedulerExecutorManager;
-  private final RoleInfoManager roleInfoManager;
 
   public ExecutorTrackerGrpcService(AMContext context) {
     this.context = context;
     this.schedulerExecutorManager = context.getSchedulerExecutorManager();
-    this.roleInfoManager = context.getRoleInfoManager();
   }
 
   @Override
@@ -128,7 +125,7 @@ public class ExecutorTrackerGrpcService extends
       boolean needMoreTask
   ) {
     // Preprocess
-    String targetDataStream = roleInfoManager.getTaskManagerName(executorId);
+    String targetDataStream = context.getRoleInfoManager().getTaskManagerName(executorId);
     Map<String, List<TaskStatus>> taskStatusMap =
         taskStatuses.
             stream().

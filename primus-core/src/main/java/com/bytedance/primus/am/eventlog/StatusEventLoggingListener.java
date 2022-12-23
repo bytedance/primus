@@ -86,9 +86,11 @@ public class StatusEventLoggingListener extends AbstractService
       eventQueue.add(POISON_PILL_EVENT);
       dispatchThread.join();
       running = false;
-//      this.taskSnapshotThread.join();
       LOG.info("send task status event after finished~");
-      context.getStatusEventWrapper().buildAllTaskStatusEvent().forEach(this::logEvent);
+      context
+          .getStatusEventWrapper()
+          .buildAllTaskStatusEvent()
+          .forEach(this::logEvent);
       eventSink.stop();
       super.serviceStop();
     } catch (Exception e) {
@@ -113,8 +115,10 @@ public class StatusEventLoggingListener extends AbstractService
       } catch (InterruptedException e) {
         return;
       }
-      List<TaskStatusEvent> taskStatusEvents =
-          context.getStatusEventWrapper().buildAllTaskStatusEvent();
+      List<TaskStatusEvent> taskStatusEvents = context
+          .getStatusEventWrapper()
+          .buildAllTaskStatusEvent();
+
       taskStatusEvents.forEach(context::logStatusEvent);
     }
   }

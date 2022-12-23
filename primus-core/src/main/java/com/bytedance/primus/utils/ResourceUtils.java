@@ -231,7 +231,7 @@ public class ResourceUtils {
     executorBuilder.addAllResourceRequests(buildResourceRequest(role));
     // TODO: Isolate JVM memory size from general JVM options
     String javaOpt = String.format("-Xmx%dm",
-        IntegerUtils.selectIfPositiveOrDefault(
+        IntegerUtils.ensurePositiveOrDefault(
             role.getJvmMemoryMb(),
             PrimusConstants.DEFAULT_EXECUTOR_JAVA_MEMORY_MB
         ));

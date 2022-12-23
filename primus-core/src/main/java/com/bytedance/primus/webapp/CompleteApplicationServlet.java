@@ -23,69 +23,74 @@ import static com.bytedance.primus.utils.PrimusConstants.KILLED_THROUGH_AM_DIAG;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.am.ApplicationMasterEvent;
-import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.google.common.base.Strings;
-import com.google.common.collect.ImmutableMap;
 import java.io.IOException;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import lombok.Setter;
 import org.apache.commons.lang.StringUtils;
-import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class CompleteApplicationServlet extends HttpServlet {
-  private static final Logger log = LoggerFactory.getLogger(CompleteApplicationServlet.class);
+
+  private static final Logger LOG = LoggerFactory.getLogger(CompleteApplicationServlet.class);
   private static final String TIMEOUT_MS = "timeout_ms";
 
+  @Setter
   private static AMContext context;
-  private static final Map<String, Pair<ApplicationMasterEventType, ApplicationExitCode>> action_dict = ImmutableMap.of(
-      "fail", Pair.of(ApplicationMasterEventType.FAIL_ATTEMPT, ApplicationExitCode.FAIL_ATTEMPT_BY_HTTP),
-      "kill", Pair.of(ApplicationMasterEventType.FAIL_APP, ApplicationExitCode.KILLED_BY_HTTP),
-      "success", Pair.of(ApplicationMasterEventType.SUCCESS, ApplicationExitCode.SUCCESS_BY_HTTP)
-  );
-
-  public static void setContext(AMContext context) {
-    CompleteApplicationServlet.context = context;
-  }
-
 
   @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws IOException {
-    long timeoutMs = 0;
-    String timeoutParameter = req.getParameter(TIMEOUT_MS);
-    if (!Strings.isNullOrEmpty(timeoutParameter) && StringUtils.isNumeric(timeoutParameter)) {
-      timeoutMs = Long.parseLong(timeoutParameter);
-    } else {
-      timeoutMs = TimeUnit.MILLISECONDS
-          .convert(context.getPrimusConf().getGracefulShutdownTimeoutMin(), TimeUnit.MINUTES);
-    }
+  protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+    emitApplicationMasterEvent(
+        appControllerMethod(req),
+        getTimeoutMs(req)
+    );
 
-    String method = appControllerMethod(req);
-    ApplicationMasterEvent applicationMasterEvent = getApplicationMasterEvent(method, timeoutMs);
-    context.getDispatcher().getEventHandler().handle(applicationMasterEvent);
     resp.getOutputStream().print(KILLED_THROUGH_AM_DIAG);
   }
 
-
-  private ApplicationMasterEvent getApplicationMasterEvent(String method, long timeoutMs) {
-    String dialog = KILLED_THROUGH_AM_DIAG + ", method=" + method + ", timeout(ms):" + timeoutMs;
-    ApplicationMasterEventType eventType = action_dict.get(method).getKey();
-    ApplicationExitCode exitCode = action_dict.get(method).getValue();
-    ApplicationMasterEvent applicationMasterEvent = new ApplicationMasterEvent(context, eventType,
-        dialog,
-        exitCode.getValue(), timeoutMs);
-    try{
-      log.info("getApplicationMasterEvent:{}", applicationMasterEvent.toJsonString());
-    }catch (Exception ex){
-      log.error("error when print ApplicationMasterEvent.", applicationMasterEvent);
+  private long getTimeoutMs(HttpServletRequest req) {
+    String timeoutParameter = req.getParameter(TIMEOUT_MS);
+    if (!Strings.isNullOrEmpty(timeoutParameter) && StringUtils.isNumeric(timeoutParameter)) {
+      return Long.parseLong(timeoutParameter);
     }
-    return applicationMasterEvent;
+    return TimeUnit.MILLISECONDS
+        .convert(
+            context
+                .getApplicationMeta()
+                .getPrimusConf()
+                .getGracefulShutdownTimeoutMin(),
+            TimeUnit.MINUTES);
+  }
+
+  private void emitApplicationMasterEvent(String method, long timeoutMs) {
+    String dialog = KILLED_THROUGH_AM_DIAG + ", method=" + method + ", timeout(ms):" + timeoutMs;
+    switch (method) {
+      case "success":
+        context.emitApplicationSuccessEvent(
+            dialog,
+            ApplicationExitCode.SUCCESS_BY_HTTP.getValue(),
+            timeoutMs
+        );
+        break;
+      case "fail":
+        context.emitFailAttemptEvent(
+            dialog,
+            ApplicationExitCode.FAIL_ATTEMPT.getValue()
+        );
+        break;
+      case "kill":
+        context.emitFailApplicationEvent(
+            dialog,
+            ApplicationExitCode.FAIL_APP.getValue()
+        );
+        break;
+      default:
+        LOG.warn("Received unknown Primus Web API: {}", method);
+    }
   }
 
   private String appControllerMethod(HttpServletRequest request) {

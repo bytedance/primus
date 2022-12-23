@@ -60,7 +60,7 @@ public class ElasticResourceContainerScheduleStrategy implements ContainerSchedu
       if (ContainerStatusEnum.RELEASED == statusEnum
           && oomCode.contains(scheduleContext.getExitCode())) {
         int priority = scheduleContext.getContainer().getPriority().getPriority();
-        RoleInfo roleInfo = roleInfoManager.getPriorityRoleInfoMap().get(priority);
+        RoleInfo roleInfo = roleInfoManager.getRoleInfo(priority);
         if (isElasticResourceNotSet(roleInfo.getRoleSpec())) {
           return;
         }

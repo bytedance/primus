@@ -1,8 +1,8 @@
 package com.bytedance.primus.runtime.kubernetesnative.runtime.dictionary;
 
+import com.bytedance.primus.am.PrimusApplicationMeta;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutor;
 import com.bytedance.primus.common.util.StringUtils;
-import com.bytedance.primus.runtime.kubernetesnative.am.KubernetesAMContext;
 import com.google.common.collect.ImmutableMap;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -46,24 +46,26 @@ public class Dictionary {
   }
 
   public static Dictionary newDriverDictionary(
-      KubernetesAMContext amContext
+      PrimusApplicationMeta applicationMeta,
+      String kubernetesNamespace,
+      String kubernetesDriverPodName
   ) {
     return new Dictionary(
-        amContext.getAppId(),
-        amContext.getAppName(),
-        amContext.getKubernetesNamespace(),
-        amContext.getDriverPodName()
-    );
+        applicationMeta.getApplicationId(),
+        applicationMeta.getAppName(),
+        kubernetesNamespace,
+        kubernetesDriverPodName);
   }
 
   public static Dictionary newExecutorDictionary(
-      KubernetesAMContext amContext,
+      PrimusApplicationMeta applicationMeta,
+      String kubernetesNamespace,
       SchedulerExecutor executor
   ) {
     return new Dictionary(
-        amContext.getAppId(),
-        amContext.getAppName(),
-        amContext.getKubernetesNamespace(),
+        applicationMeta.getApplicationId(),
+        applicationMeta.getAppName(),
+        kubernetesNamespace,
         executor.getContainer().getNodeId().getHost()
     );
   }

@@ -23,56 +23,39 @@ import com.bytedance.primus.common.service.AbstractService;
 import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import io.grpc.Server;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import org.apache.commons.configuration.Configuration;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class AMService extends AbstractService {
 
-  private AMContext context;
-  private Server server;
-  private InetSocketAddress address;
-  private String hostName;
-  private int port;
   private static final Logger LOG = LoggerFactory.getLogger(AMService.class);
 
-  public AMService(AMContext context) {
+  private final Server server;
+  @Getter
+  private final String hostName;
+  @Getter
+  private final int port;
+
+  public AMService(AMContext context) throws IOException {
     super(AMService.class.getName());
-    this.context = context;
-  }
 
-  public String getHostName() {
-    return hostName;
-  }
+    this.server = NettyServerBuilder
+        .forAddress(new InetSocketAddress(0))
+        .addService(new AMServiceServer(context))
+        .build()
+        .start();
 
-  public int getPort() {
-    return port;
-  }
+    this.hostName =
+        context.getApplicationMeta().getPrimusConf().getRunningMode() == RunningMode.KUBERNETES
+            ? InetAddress.getLocalHost().getHostAddress()
+            : InetAddress.getLocalHost().getHostName();
 
-  @Override
-  protected void serviceInit(Configuration conf) throws Exception {
-    address = new InetSocketAddress(0);
-    server = NettyServerBuilder.forAddress(address)
-        .addService(new AMSerivceServer(context))
-        .build();
-    if (context.getPrimusConf().getRunningMode() == RunningMode.KUBERNETES) {
-      this.hostName = InetAddress.getLocalHost().getHostAddress();
-    } else {
-      this.hostName = InetAddress.getLocalHost().getHostName();
-    }
-
-    super.serviceInit(conf);
-  }
-
-  @Override
-  protected void serviceStart() throws Exception {
-    server.start();
     this.port = server.getPort();
-    String serviceAddress = hostName + ":" + port;
-    LOG.info("grpc server started on: " + serviceAddress);
-    super.serviceStart();
+    LOG.info("grpc server started on: {}:{}", hostName, port);
   }
 
   @Override

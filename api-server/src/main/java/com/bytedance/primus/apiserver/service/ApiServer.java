@@ -30,52 +30,52 @@ import org.slf4j.LoggerFactory;
 
 public class ApiServer {
 
+  private static final int INVALID_PORT = 0;
+
   private static final Logger LOG = LoggerFactory.getLogger(ApiServer.class);
 
-  private Server server;
-  private InetSocketAddress address;
-  private String hostName;
-  private int port;
+  private final Server server;
+  private final String hostname;
+  private int port = INVALID_PORT;
 
-  public ApiServer() throws Exception {
-    this(null, 0);
-  }
 
-  public ApiServer(ApiServerConf conf) throws Exception {
-    this(conf, 0);
-  }
-
+  /**
+   * Creates a Primus API server
+   *
+   * @param conf API server configuration.
+   * @param port the assigned listening port, where 0 for assigned by system.
+   */
   public ApiServer(ApiServerConf conf, int port) throws Exception {
-    address = new InetSocketAddress(port);
-    server = NettyServerBuilder.forAddress(address)
+    this.hostname = InetAddress.getLocalHost().getHostAddress();
+    this.server = NettyServerBuilder
+        .forAddress(new InetSocketAddress(hostname, port))
         .maxMessageSize(Constants.MAX_MESSAGE_SIZE)
-        .addService(new ResourceService(conf)).build();
-    hostName = InetAddress.getLocalHost().getHostName();
-  }
-
-  public String getHostName() {
-    return hostName;
-  }
-
-  public int getPort() {
-    return port;
+        .addService(new ResourceService(conf))
+        .build();
   }
 
   public void start() throws Exception {
     server.start();
     port = server.getPort();
-    LOG.info(ApiServer.class.getName() + " started on " + hostName + ":" + port);
+    LOG.info("{} has been started on {}:{}",
+        ApiServer.class.getName(),
+        hostname,
+        port
+    );
   }
 
   public void stop() {
-    if (server != null) {
-      server.shutdown();
-    }
+    server.shutdown();
   }
 
-  public void blockUntilShutdown() throws InterruptedException {
-    if (server != null) {
-      server.awaitTermination();
+  public String getHostname() {
+    return hostname;
+  }
+
+  public int getPort() {
+    if (port == INVALID_PORT) {
+      throw new RuntimeException("API server hasn't be started yet.");
     }
+    return port;
   }
 }

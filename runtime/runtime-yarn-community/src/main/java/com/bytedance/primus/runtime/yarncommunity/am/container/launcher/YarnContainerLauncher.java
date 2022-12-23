@@ -29,6 +29,9 @@ import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_JAR_PATH;
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
 import static com.bytedance.primus.utils.PrimusConstants.STAGING_DIR_KEY;
 
+import com.bytedance.primus.am.AMContext;
+import com.bytedance.primus.am.container.ContainerLauncher;
+import com.bytedance.primus.am.container.ContainerLauncherEvent;
 import com.bytedance.primus.am.role.RoleInfo;
 import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.apiserver.client.models.Executor;
@@ -37,10 +40,9 @@ import com.bytedance.primus.apiserver.proto.UtilsProto.ResourceType;
 import com.bytedance.primus.apiserver.records.ExecutorSpec;
 import com.bytedance.primus.apiserver.records.impl.ExecutorSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.MetaImpl;
-import com.bytedance.primus.common.event.EventHandler;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
+import com.bytedance.primus.common.model.records.ApplicationAttemptId;
 import com.bytedance.primus.executor.ContainerNumaBindingCheck;
-import com.bytedance.primus.runtime.yarncommunity.am.YarnAMContext;
 import com.bytedance.primus.runtime.yarncommunity.am.container.YarnRoleInfo;
 import com.bytedance.primus.runtime.yarncommunity.am.container.scheduler.basic.common.YarnNetworkManager;
 import com.bytedance.primus.runtime.yarncommunity.am.container.scheduler.basic.common.impl.YarnNetworkManagerFactory;
@@ -52,10 +54,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Vector;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
+import org.apache.hadoop.yarn.api.records.LocalResource;
+import org.apache.hadoop.yarn.client.api.AMRMClient;
+import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
@@ -63,33 +69,49 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ContainerLauncher implements EventHandler<ContainerLauncherEvent> {
+public class YarnContainerLauncher implements ContainerLauncher {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(ContainerLauncher.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(YarnContainerLauncher.class);
 
-  private YarnAMContext context;
-  private NMClient nmClient;
-  private YarnNetworkManager yarnNetworkManager;
+  private final AMContext context;
+
+  private final AMRMClient<ContainerRequest> amRMClient;
+  private final NMClient nmClient;
+  private final YarnNetworkManager yarnNetworkManager;
+
+  private final Configuration yarnConfiguration;
+  private final Map<String, LocalResource> localResources;
 
   private static final int MAX_RETRY_TIMES = 5;
   private static final int MAX_RETRY_INTERVAL_MS = 1000;
 
   public static final String PORT_URI = "yarn.io/port";
 
-  public ContainerLauncher(YarnAMContext context) {
+  public YarnContainerLauncher(
+      AMContext context,
+      ApplicationAttemptId appAttemptId,
+      AMRMClient<ContainerRequest> amRMClient,
+      NMClient nmClient,
+      Configuration yarnConfiguration,
+      Map<String, LocalResource> localResources
+  ) {
     this.context = context;
-    nmClient = context.getNmClient();
-    yarnNetworkManager = YarnNetworkManagerFactory.createNetworkManager(context);
+    this.amRMClient = amRMClient;
+    this.nmClient = nmClient;
+    this.yarnNetworkManager = YarnNetworkManagerFactory.createNetworkManager(context, appAttemptId);
+
+    this.localResources = localResources;
+    this.yarnConfiguration = yarnConfiguration;
   }
 
   @Override
   public void handle(ContainerLauncherEvent event) {
     switch (event.getType()) {
       case CONTAINER_ALLOCATED:
-        new ContainerLauncherThread(event.getContainer()).start();
+        new ContainerLauncherThread(YarnConvertor.toYarnContainer(event.getContainer())).start();
         break;
       case CONTAINER_UPDATED:
-        new ContainerUpdaterThread(event.getContainer()).start();
+        new ContainerUpdaterThread(YarnConvertor.toYarnContainer(event.getContainer())).start();
         break;
     }
   }
@@ -140,7 +162,7 @@ public class ContainerLauncher implements EventHandler<ContainerLauncherEvent> {
     vargs.add("--role=" + executorId.getRoleName());
     vargs.add("--index=" + executorId.getIndex());
     vargs.add("--uniq_id=" + executorId.getUniqId());
-    vargs.add("--apiserver_host=" + context.getApiServerHost());
+    vargs.add("--apiserver_host=" + context.getApiServerHostAddress());
     vargs.add("--apiserver_port=" + context.getApiServerPort());
     vargs.add("--conf=" + PRIMUS_CONF_PATH + "/" + PRIMUS_CONF);
 
@@ -177,7 +199,7 @@ public class ContainerLauncher implements EventHandler<ContainerLauncherEvent> {
   }
 
   private void releaseContainer(Container container) {
-    context.getAmRMClient().releaseAssignedContainer(container.getId());
+    amRMClient.releaseAssignedContainer(container.getId());
   }
 
   class ContainerLauncherThread extends Thread {
@@ -204,10 +226,9 @@ public class ContainerLauncher implements EventHandler<ContainerLauncherEvent> {
 
       // Update the new Role to API server
       LOGGER.info("Create executor" + executorId + " on container" + container);
-      YarnRoleInfo roleInfo = (YarnRoleInfo)
-          context.getRoleInfoManager()
-              .getPriorityRoleInfoMap()
-              .get(container.getPriority().getPriority());
+      YarnRoleInfo roleInfo = (YarnRoleInfo) context
+          .getRoleInfoManager()
+          .getRoleInfo(container.getPriority().getPriority());
 
       try {
         writeExecutorToApiServer(roleInfo, executorId);
@@ -269,25 +290,26 @@ public class ContainerLauncher implements EventHandler<ContainerLauncherEvent> {
       containerLaunchContext.setCommands(buildExecutorCommand(roleInfo, executorId));
 
       LOGGER.debug("Launch worker: " + containerLaunchContext.getCommands());
-      containerLaunchContext.setLocalResources(context.getLocalResources());
+      containerLaunchContext.setLocalResources(localResources);
 
       Map<String, String> envs = new HashMap<>();
       StringBuilder classpath = new StringBuilder()
           .append(ApplicationConstants.Environment.CLASSPATH.$$())
           .append(":")
           .append(PRIMUS_JAR_PATH + "/*");
-      for (String c : context.getYarnConfiguration().getStrings(
+      for (String c : yarnConfiguration.getStrings(
           YarnConfiguration.YARN_APPLICATION_CLASSPATH,
           YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)
       ) {
         classpath.append(":").append(c.trim());
       }
       envs.put("CLASSPATH", classpath.toString());
-      envs.putAll(context.getPrimusConf().getEnvMap());
+      envs.putAll(context.getApplicationMeta().getPrimusConf().getEnvMap());
       envs.putAll(roleInfo.getRoleSpec().getExecutorSpecTemplate().getEnvs());
-      envs.put(STAGING_DIR_KEY, context.getPrimusConf().getStagingDir());
+      envs.put(STAGING_DIR_KEY, context.getApplicationMeta().getPrimusConf().getStagingDir());
       envs.put(PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY,
-          context.getEnvs().getOrDefault(PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY, "0"));
+          context.getApplicationMeta().getEnvs()
+              .getOrDefault(PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY, "0"));
       envs.put(PRIMUS_AM_RPC_HOST, context.getAmService().getHostName());
       envs.put(PRIMUS_AM_RPC_PORT, String.valueOf(context.getAmService().getPort()));
       envs.put(PRIMUS_EXECUTOR_UNIQUE_ID, executorId.toUniqString());
@@ -304,7 +326,7 @@ public class ContainerLauncher implements EventHandler<ContainerLauncherEvent> {
 
   class ContainerUpdaterThread extends Thread {
 
-    private Container container;
+    private final Container container;
 
     public ContainerUpdaterThread(Container container) {
       super(ContainerUpdaterThread.class.getName() + "_" + container.getId());
@@ -318,7 +340,7 @@ public class ContainerLauncher implements EventHandler<ContainerLauncherEvent> {
       Exception lastException;
       while (true) {
         try {
-          context.getNmClient().updateContainerResource(container);
+          nmClient.updateContainerResource(container);
           break;
         } catch (YarnException | IOException e) {
           LOGGER.error("Update container error for " + retryTimes + " times, exception ", e);

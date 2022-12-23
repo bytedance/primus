@@ -36,13 +36,13 @@ public class Master implements Child {
 
   private static final Logger LOG = LoggerFactory.getLogger(Master.class);
 
-  private AMContext amContext;
+  private AMContext context;
   private MasterContext masterContext;
   private Dispatcher dispatcher;
   private volatile boolean success = false;
 
-  public Master(AMContext amContext, MasterContext masterContext, Dispatcher dispatcher) {
-    this.amContext = amContext;
+  public Master(AMContext context, MasterContext masterContext, Dispatcher dispatcher) {
+    this.context = context;
     this.masterContext = masterContext;
     this.dispatcher = dispatcher;
   }
@@ -86,7 +86,7 @@ public class Master implements Child {
   private void failApp(String diagnosis) {
     LOG.error("Master is failed for " + diagnosis);
     dispatcher.getEventHandler()
-        .handle(new ApplicationMasterEvent(amContext, ApplicationMasterEventType.FAIL_ATTEMPT,
+        .handle(new ApplicationMasterEvent(context, ApplicationMasterEventType.FAIL_ATTEMPT,
             diagnosis, ApplicationExitCode.MASTER_FAILED.getValue()));
   }
 }

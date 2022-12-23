@@ -27,13 +27,13 @@ import static com.bytedance.primus.runtime.kubernetesnative.common.constants.Kub
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_ROLE_SELECTOR_LABEL_NAME;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.PRIMUS_REMOTE_STAGING_DIR_ENV;
 
+import com.bytedance.primus.am.AMContext;
+import com.bytedance.primus.am.PrimusApplicationMeta;
 import com.bytedance.primus.am.role.RoleInfo;
 import com.bytedance.primus.proto.PrimusRuntime.KubernetesPodConf;
-import com.bytedance.primus.runtime.kubernetesnative.am.KubernetesAMContext;
+import com.bytedance.primus.runtime.kubernetesnative.common.meta.KubernetesDriverMeta;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.containers.PrimusExecutorContainer;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.containers.PrimusInitContainer;
-import com.bytedance.primus.runtime.kubernetesnative.common.utils.ResourceNameBuilder;
-import com.bytedance.primus.runtime.kubernetesnative.common.utils.SelectorNameBuilder;
 import com.bytedance.primus.runtime.kubernetesnative.runtime.dictionary.Dictionary;
 import com.google.common.base.Preconditions;
 import io.kubernetes.client.openapi.models.V1Container;
@@ -56,7 +56,8 @@ public class PrimusExecutorPod extends PrimusBasePod {
   private final int priority;
 
   public PrimusExecutorPod(
-      KubernetesAMContext context,
+      AMContext context,
+      KubernetesDriverMeta driverMeta,
       RoleInfo roleInfo,
       String executorPodName,
       KubernetesPodConf podConf,
@@ -74,7 +75,7 @@ public class PrimusExecutorPod extends PrimusBasePod {
     // Create containers
     V1Container initContainer =
         new PrimusInitContainer(
-            context.getAppId(),
+            context.getApplicationMeta().getApplicationId(),
             System.getenv().get(PRIMUS_REMOTE_STAGING_DIR_ENV),
             podConf.getInitContainerConf(),
             environmentMap,
@@ -83,7 +84,7 @@ public class PrimusExecutorPod extends PrimusBasePod {
 
     V1Container executorContainer =
         new PrimusExecutorContainer(
-            context.getAppId(),
+            context.getApplicationMeta().getApplicationId(),
             roleInfo,
             podConf.getMainContainerConf(),
             environmentMap,
@@ -91,30 +92,27 @@ public class PrimusExecutorPod extends PrimusBasePod {
         ).getKubernetesContainer();
 
     // Assemble pod
-    String driverPodName = ResourceNameBuilder.buildDriverPodName(context.getAppId());
-    String executorSelectorName = SelectorNameBuilder.buildExecutorNamePrefix(context.getAppId());
-
     Dictionary dictionary = Dictionary.newDictionary(
-        context.getAppId(),
-        context.getAppName(),
-        context.getKubernetesNamespace(),
+        context.getApplicationMeta().getApplicationId(),
+        context.getApplicationMeta().getAppName(),
+        driverMeta.getKubernetesNamespace(),
         executorPodName
     );
 
     kubernetesPod = new V1Pod()
         .metadata(new V1ObjectMeta()
             .name(executorPodName)
-            .namespace(context.getKubernetesNamespace())
+            .namespace(driverMeta.getKubernetesNamespace())
             .addOwnerReferencesItem(
                 new V1OwnerReferenceBuilder()
-                    .withName(driverPodName)
+                    .withName(driverMeta.getDriverPodName())
                     .withApiVersion("v1")
                     .withKind("Pod")
-                    .withUid(context.getDriverPodUniqId())
+                    .withUid(driverMeta.getDriverPodUniqId())
                     .withController(true)
                     .build())
             .labels(dictionary.translate(
-                loadBaseLabelMap(context, roleInfo.getPriority(), executorSelectorName),
+                loadBaseLabelMap(context.getApplicationMeta(), roleInfo.getPriority()),
                 podConf.getLabelsMap()
             ))
             .annotations(dictionary.translate(
@@ -122,24 +120,22 @@ public class PrimusExecutorPod extends PrimusBasePod {
             )))
         .spec(
             new V1PodSpec()
-                .schedulerName(context.getKubernetesSchedulerName())
+                .schedulerName(driverMeta.getKubernetesSchedulerName())
                 .restartPolicy("Never")
                 .volumes(getSharedVolumes())
                 .initContainers(Collections.singletonList(initContainer))
                 .containers(Collections.singletonList(executorContainer)));
   }
 
-  // TODO: Unit tests
   private static Map<String, String> loadBaseLabelMap(
-      KubernetesAMContext context,
-      int priority,
-      String executorSelectorName
+      PrimusApplicationMeta applicationMeta,
+      int priority
   ) {
     return new HashMap<String, String>() {{
       // Pod common
-      put(PRIMUS_APP_ID_LABEL_NAME, context.getAppId());
-      put(PRIMUS_APP_NAME_LABEL_NAME, context.getAppName());
-      put(KUBERNETES_POD_META_LABEL_OWNER, context.getUsername());
+      put(PRIMUS_APP_ID_LABEL_NAME, applicationMeta.getApplicationId());
+      put(PRIMUS_APP_NAME_LABEL_NAME, applicationMeta.getAppName());
+      put(KUBERNETES_POD_META_LABEL_OWNER, applicationMeta.getUsername());
       // Executor specific
       put(PRIMUS_ROLE_SELECTOR_LABEL_NAME, PRIMUS_ROLE_EXECUTOR);
       put(PRIMUS_EXECUTOR_PRIORITY_LABEL_NAME, Integer.toString(priority));

@@ -33,8 +33,8 @@ public class FileProgressManager extends ProgressManager {
 
   private static final Logger log = LoggerFactory.getLogger(FileProgressManager.class.getName());
 
-  private AMContext context;
-  private boolean isRewindAllowed;
+  private final AMContext context;
+  private final boolean isRewindAllowed;
 
   public FileProgressManager(String name, AMContext context) {
     super(name);
@@ -77,7 +77,7 @@ public class FileProgressManager extends ProgressManager {
   }
 
   private boolean isProgressRewindAllowed() {
-    if (context.getPrimusConf().getProgressManagerConf().getRewindAllowed()) {
+    if (context.getApplicationMeta().getPrimusConf().getProgressManagerConf().getRewindAllowed()) {
       log.info("Progress rewind allowed.");
       return true;
     }

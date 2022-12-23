@@ -20,8 +20,6 @@
 package com.bytedance.primus.am.apiserver;
 
 import com.bytedance.primus.am.AMContext;
-import com.bytedance.primus.am.datastream.DataStreamManagerEvent;
-import com.bytedance.primus.am.datastream.DataStreamManagerEventType;
 import com.bytedance.primus.am.datastream.TaskManager;
 import com.bytedance.primus.am.datastream.TaskManagerState;
 import com.bytedance.primus.apiserver.client.apis.CoreApi;
@@ -169,12 +167,7 @@ public class DataController extends AbstractService {
     public void onAdd(Data data) {
       LOG.info("Data added\n{}", data);
       DataController.this.dataName = data.getMeta().getName();
-
-      context.getDispatcher().getEventHandler().handle(
-          new DataStreamManagerEvent(
-              DataStreamManagerEventType.DATA_STREAM_CREATED,
-              data.getSpec(),
-              data.getMeta().getVersion()));
+      context.emitDataInputCreatedEvent(data);
     }
 
     @Override
@@ -184,11 +177,7 @@ public class DataController extends AbstractService {
         LOG.info("Data spec not changed");
       } else {
         LOG.info("Data spec changed");
-        context.getDispatcher().getEventHandler().handle(
-            new DataStreamManagerEvent(
-                DataStreamManagerEventType.DATA_STREAM_UPDATE,
-                newData.getSpec(),
-                newData.getMeta().getVersion()));
+        context.emitDataInputUpdatedEvent(newData);
       }
     }
 

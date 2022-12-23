@@ -21,7 +21,11 @@ package com.bytedance.primus.common.util;
 
 public class IntegerUtils {
 
-  public static int selectIfPositiveOrDefault(int v, int d) {
+  public static int ensurePositiveOrDefault(int v, int d) {
+    return v > 0 ? v : d;
+  }
+
+  public static long ensurePositiveOrDefault(long v, long d) {
     return v > 0 ? v : d;
   }
 }

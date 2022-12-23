@@ -24,9 +24,8 @@ import static com.bytedance.primus.am.container.ContainerManagerEventType.GRACEF
 import static org.apache.hadoop.yarn.api.records.ExecutionType.GUARANTEED;
 
 import com.bytedance.blacklist.BlacklistTracker;
+import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.am.ApplicationMasterEvent;
-import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.bytedance.primus.am.container.ContainerManager;
 import com.bytedance.primus.am.container.ContainerManagerEvent;
 import com.bytedance.primus.am.role.RoleInfoManager;
@@ -35,12 +34,8 @@ import com.bytedance.primus.am.schedule.strategy.ContainerScheduleContext;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutor;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManager;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerContainerCompletedEvent;
-import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerEvent;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerEventType;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
-import com.bytedance.primus.runtime.yarncommunity.am.YarnAMContext;
-import com.bytedance.primus.runtime.yarncommunity.am.container.launcher.ContainerLauncherEvent;
-import com.bytedance.primus.runtime.yarncommunity.am.container.launcher.ContainerLauncherEventType;
 import com.bytedance.primus.runtime.yarncommunity.utils.YarnConvertor;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -69,6 +64,7 @@ import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.UpdateContainerRequest;
 import org.apache.hadoop.yarn.api.records.UpdatedContainer;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
+import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.util.resource.ResourceCalculator;
 import org.apache.hadoop.yarn.util.resource.Resources;
 import org.slf4j.Logger;
@@ -79,8 +75,8 @@ public abstract class YarnContainerManager extends ContainerManager {
   private static final Logger LOG = LoggerFactory.getLogger(YarnContainerManager.class);
   private static final long ALLOCATE_INTERVAL_MS = TimeUnit.SECONDS.toMillis(10);
 
-  protected YarnAMContext context;
-  protected AMRMClient<AMRMClient.ContainerRequest> amRMClient;
+  protected AMContext context;
+  protected AMRMClient<ContainerRequest> amRMClient;
   protected RoleInfoManager roleInfoManager;
   protected SchedulerExecutorManager schedulerExecutorManager;
   protected ContainerScheduleChainManager containerScheduleChainManager;
@@ -97,14 +93,18 @@ public abstract class YarnContainerManager extends ContainerManager {
   protected volatile boolean isShuttingDown = false;
   protected Thread containerManagerThread = new ContainerManagerThread();
 
-  public YarnContainerManager(YarnAMContext context) {
+  public YarnContainerManager(
+      AMContext context,
+      AMRMClient<ContainerRequest> amRMClient,
+      RoleInfoManager roleInfoManager
+  ) {
     super(YarnContainerManager.class.getName());
 
     this.context = context;
-    amRMClient = context.getAmRMClient();
-    roleInfoManager = context.getRoleInfoManager();
-    schedulerExecutorManager = context.getSchedulerExecutorManager();
-    containerScheduleChainManager = new ContainerScheduleChainManager(roleInfoManager);
+    this.amRMClient = amRMClient;
+    this.roleInfoManager = roleInfoManager;
+    this.schedulerExecutorManager = context.getSchedulerExecutorManager();
+    this.containerScheduleChainManager = new ContainerScheduleChainManager(roleInfoManager);
   }
 
   @Override
@@ -118,19 +118,16 @@ public abstract class YarnContainerManager extends ContainerManager {
     // so we don't have the API path here in the Tracking URL.
     String trackingUrl = String.format(
         "http://%s:%d",
-        context.getHttpAddress().getAddress().getHostAddress(),
-        context.getHttpAddress().getPort());
-    LOG.info("Tracking URL is " + trackingUrl);
+        context.getWebAppServerHostAddress(),
+        context.getWebAppServerPort());
 
     RegisterApplicationMasterResponse response = amRMClient.registerApplicationMaster(
         context.getAmService().getHostName(),
         context.getAmService().getPort(),
         trackingUrl
     );
-    LOG.info("YARN Cluster (max vcore: {}, max memory: {})",
-        response.getMaximumResourceCapability().getVirtualCores(),
-        response.getMaximumResourceCapability().getMemorySize());
 
+    LOG.info("Tracking URL is " + trackingUrl);
     containerManagerThread.start();
   }
 
@@ -184,22 +181,12 @@ public abstract class YarnContainerManager extends ContainerManager {
                 LOG.info(
                     "Gracefully killing container: {}",
                     schedulerExecutor.getContainer().getId());
-                context
-                    .getDispatcher()
-                    .getEventHandler()
-                    .handle(new SchedulerExecutorManagerEvent(
-                        SchedulerExecutorManagerEventType.EXECUTOR_KILL,
-                        schedulerExecutor.getExecutorId()));
+                context.emitExecutorKillEvent(schedulerExecutor.getExecutorId());
               } else if (event.getType() == FORCIBLY_SHUTDOWN) {
                 LOG.info(
                     "Forcibly killing container: {}",
                     schedulerExecutor.getContainer().getId());
-                context
-                    .getDispatcher()
-                    .getEventHandler()
-                    .handle(new SchedulerExecutorManagerEvent(
-                        SchedulerExecutorManagerEventType.EXECUTOR_KILL_FORCIBLY,
-                        schedulerExecutor.getExecutorId()));
+                context.emitExecutorKillForciblyEvent(schedulerExecutor.getExecutorId());
               }
             });
         break;
@@ -208,10 +195,10 @@ public abstract class YarnContainerManager extends ContainerManager {
 
   protected void updatePriorityContainerIdsMap() {
     roleInfoManager
-        .getPriorityRoleInfoMap()
-        .keySet()
-        .forEach(priority ->
-            priorityContainerIdsMap.putIfAbsent(priority, new ConcurrentSkipListSet<>()));
+        .getRolePriorities()
+        .forEach(priority -> priorityContainerIdsMap.putIfAbsent(
+            priority, new ConcurrentSkipListSet<>())
+        );
   }
 
   protected void handleReleasedContainers(List<ContainerStatus> containerStatuses) {
@@ -240,7 +227,7 @@ public abstract class YarnContainerManager extends ContainerManager {
     int priority = container.getPriority().getPriority();
     ConcurrentSkipListSet<ContainerId> containerIds = priorityContainerIdsMap.get(priority);
     containerIds.remove(container.getId());
-    Optional<BlacklistTracker> blacklistTrackerOpt = context.getBlacklistTrackerOpt();
+    Optional<BlacklistTracker> blacklistTrackerOpt = context.getBlacklistTracker();
     ContainerScheduleContext context = new ContainerScheduleContext(
         YarnConvertor.toPrimusContainer(container),
         exitStatus, diag, blacklistTrackerOpt);
@@ -265,33 +252,28 @@ public abstract class YarnContainerManager extends ContainerManager {
           LOG.info(
               "Receive updateResponse from Yarn, Container:{}, UpdateType:{}",
               container.getId().toString(), updatedContainer.getUpdateType());
-          context.getDispatcher().getEventHandler().handle(
-              new ContainerLauncherEvent(container, ContainerLauncherEventType.CONTAINER_UPDATED));
+
+          context.emitContainerUpdatedEvent(YarnConvertor.toPrimusContainer(container));
         }
     );
   }
 
   protected void logContainerUrl(Container container) {
     LOG.info("Allocate " + container.getId() + " on http://" + container.getNodeHttpAddress()
-        + "/node/containerlogs/" + container.getId() + "/" + context.getEnvs().get("USER"));
+        + "/node/containerlogs/" + container.getId() + "/" + context.getApplicationMeta()
+        .getUsername());
   }
 
-  @SuppressWarnings("unchecked")
   protected void abort(String diag) {
-    context.getDispatcher().getEventHandler().handle(
-        new ApplicationMasterEvent(
-            context, ApplicationMasterEventType.FAIL_ATTEMPT,
-            diag, ApplicationExitCode.ABORT.getValue()));
+    context.emitFailAttemptEvent(diag, ApplicationExitCode.ABORT.getValue());
   }
 
-  @SuppressWarnings("unchecked")
   protected void finish() {
     LOG.info("All container complete");
-    context.getDispatcher().getEventHandler().handle(
-        new ApplicationMasterEvent(
-            context, ApplicationMasterEventType.SUCCESS,
-            "All container complete",
-            ApplicationExitCode.CONTAINER_COMPLETE.getValue()));
+    context.emitApplicationSuccessEvent(
+        "All container complete",
+        ApplicationExitCode.CONTAINER_COMPLETE.getValue()
+    );
   }
 
   protected abstract void handleAllocation(AllocateResponse response);
@@ -300,8 +282,9 @@ public abstract class YarnContainerManager extends ContainerManager {
 
   private void checkAndUpdateRunningContainers() {
     for (Container container : runningContainerMap.values()) {
-      Resource target = ((YarnRoleInfo) roleInfoManager.getPriorityRoleInfoMap()
-          .get(container.getPriority().getPriority())).getResource();
+      Resource target = ((YarnRoleInfo) roleInfoManager
+          .getRoleInfo(container.getPriority().getPriority()))
+          .getResource();
 
       /**
        * Yarn allocates memory in 1 Gib granularity
@@ -371,7 +354,7 @@ public abstract class YarnContainerManager extends ContainerManager {
         float progress = context.getProgressManager().getProgress();
         try {
           Set<String> latestNodeBlackList =
-              context.getBlacklistTrackerOpt()
+              context.getBlacklistTracker()
                   .map(b -> b.getNodeBlacklist().keySet())
                   .orElse(Collections.emptySet());
           blacklistAdditions.addAll(latestNodeBlackList);
@@ -407,7 +390,8 @@ public abstract class YarnContainerManager extends ContainerManager {
 
           handleAllocation(response);
           handleReleasedContainers(response.getCompletedContainersStatuses());
-          if (context.getPrimusConf().getScheduler().getEnableUpdateResource()) {
+          if (context.getApplicationMeta().getPrimusConf().getScheduler()
+              .getEnableUpdateResource()) {
             handleYarnUpdatedContainers(response.getUpdatedContainers());
             checkAndUpdateRunningContainers();
           }

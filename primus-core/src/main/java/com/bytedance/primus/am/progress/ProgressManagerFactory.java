@@ -25,7 +25,7 @@ import com.bytedance.primus.am.exception.PrimusAMException;
 public class ProgressManagerFactory {
 
   public static ProgressManager getProgressManager(AMContext context) throws PrimusAMException {
-    switch (context.getPrimusConf().getProgressManagerType()) {
+    switch (context.getApplicationMeta().getPrimusConf().getProgressManagerType()) {
       case PM_ROLE:
         return new RoleProgressManager(RoleProgressManager.class.getName(), context);
       case PM_FILE:
@@ -34,7 +34,7 @@ public class ProgressManagerFactory {
         return new KafkaProgressManager(KafkaProgressManager.class.getName());
       default:
         throw new PrimusAMException("Unsupported progress manager type:" +
-            context.getPrimusConf().getProgressManagerType().name());
+            context.getApplicationMeta().getPrimusConf().getProgressManagerType().name());
     }
   }
 }

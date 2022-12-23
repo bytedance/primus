@@ -33,8 +33,6 @@ import com.bytedance.primus.common.model.records.NodeId;
 import com.bytedance.primus.common.model.records.Priority;
 import com.bytedance.primus.common.model.records.impl.pb.ContainerPBImpl;
 import com.google.common.collect.Lists;
-import java.util.HashMap;
-import java.util.Map;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,15 +47,17 @@ public class MaxContainerPerNodeContainerScheduleStrategyTest {
 
   @Test
   public void testProcessNewContainer() {
-    Map<Integer, RoleInfo> roleInfoMap = new HashMap<>();
     RoleSpec roleSpec = new RoleSpecImpl();
     roleSpec.setScheduleStrategy(ScheduleStrategy.newBuilder().setMaxReplicasPerNode(1).build());
-    RoleInfo roleInfo = new RoleInfo(Lists.newArrayList("BatchRole"), "BatchRole",
-        roleSpec, 10);
-    roleInfoMap.put(10, roleInfo);
-    when(roleInfoManager.getPriorityRoleInfoMap()).thenReturn(roleInfoMap);
-    MaxContainerPerNodeContainerScheduleStrategy strategy = new MaxContainerPerNodeContainerScheduleStrategy(
-        roleInfoManager);
+    RoleInfo roleInfo = new RoleInfo(
+        Lists.newArrayList("BatchRole"),
+        "BatchRole",
+        roleSpec,
+        10
+    );
+    when(roleInfoManager.getRoleInfo(10)).thenReturn(roleInfo);
+    MaxContainerPerNodeContainerScheduleStrategy strategy =
+        new MaxContainerPerNodeContainerScheduleStrategy(roleInfoManager);
     Container container = new ContainerPBImpl();
     Priority priority = Priority.newInstance(10);
     container.setPriority(priority);

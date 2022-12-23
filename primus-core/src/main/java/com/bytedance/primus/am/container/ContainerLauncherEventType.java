@@ -17,12 +17,9 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.am.psonyarn;
+package com.bytedance.primus.am.container;
 
-import com.bytedance.primus.utils.timeline.PrimusTimelineEvent;
-
-public class PonyEvent extends PrimusTimelineEvent<PonyEventType> {
-  public PonyEvent(PonyEventType type) {
-    super(type);
-  }
+public enum ContainerLauncherEventType {
+  CONTAINER_ALLOCATED,
+  CONTAINER_UPDATED,
 }

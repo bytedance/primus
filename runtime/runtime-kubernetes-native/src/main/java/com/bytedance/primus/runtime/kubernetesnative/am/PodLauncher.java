@@ -19,8 +19,8 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.am;
 
-import static com.bytedance.primus.runtime.kubernetesnative.am.scheduler.KubernetesContainerManager.FAKE_YARN_APPLICATION_ID;
-
+import com.bytedance.primus.am.AMContext;
+import com.bytedance.primus.am.PrimusApplicationMeta;
 import com.bytedance.primus.am.role.RoleInfo;
 import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.apiserver.client.models.Executor;
@@ -34,11 +34,13 @@ import com.bytedance.primus.common.model.records.Priority;
 import com.bytedance.primus.common.model.records.impl.pb.ContainerPBImpl;
 import com.bytedance.primus.proto.PrimusRuntime.KubernetesNativeConf;
 import com.bytedance.primus.runtime.kubernetesnative.am.scheduler.KubernetesContainerManager;
+import com.bytedance.primus.runtime.kubernetesnative.common.meta.KubernetesDriverMeta;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.KubernetesPodStarter;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.KubernetesPodStopper;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.PrimusExecutorPod;
 import com.bytedance.primus.runtime.kubernetesnative.common.utils.ResourceNameBuilder;
 import com.google.common.collect.ImmutableMap;
+import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
 import java.util.HashMap;
 import java.util.Map;
@@ -50,19 +52,30 @@ public class PodLauncher {
 
   private static final Logger LOG = LoggerFactory.getLogger(PodLauncher.class);
   public static final String DEFAULT_EXECUTOR_PORT_RANGES = "9010";
-  private final KubernetesAMContext context;
+
+  private final AMContext context;
+  private final PrimusApplicationMeta primusApplicationMeta;
+  private final KubernetesDriverMeta driverMeta;
+
   private final AtomicLong index = new AtomicLong();
   private final KubernetesPodStarter executorPodStarter;
   private final KubernetesPodStopper executorPodStopper;
 
-  public PodLauncher(KubernetesAMContext context) {
+  public PodLauncher(
+      AMContext context,
+      KubernetesDriverMeta driverMeta,
+      ApiClient kubernetesApiClient
+  ) {
     this.context = context;
-    executorPodStarter = new KubernetesPodStarter(context);
-    executorPodStopper = new KubernetesPodStopper(context);
+    this.primusApplicationMeta = context.getApplicationMeta();
+    this.driverMeta = driverMeta;
+
+    executorPodStarter = new KubernetesPodStarter(kubernetesApiClient);
+    executorPodStopper = new KubernetesPodStopper(kubernetesApiClient);
   }
 
   public void deleteOnePod(String podName) {
-    executorPodStopper.stopPod(context.getKubernetesNamespace(), podName);
+    executorPodStopper.stopPod(driverMeta.getKubernetesNamespace(), podName);
   }
 
   public PodLauncherResult createOnePod(RoleInfo roleInfo) {
@@ -71,7 +84,8 @@ public class PodLauncher {
         .createExecutorForK8s(
             roleInfo,
             KubernetesContainerManager.FAKE_YARN_APPLICATION_ID,
-            (id) -> ResourceNameBuilder.buildExecutorPodName(context.getAppId(), id)
+            (id) -> ResourceNameBuilder.buildExecutorPodName(
+                primusApplicationMeta.getApplicationId(), id)
         );
 
     // Register to Primus API server
@@ -83,15 +97,16 @@ public class PodLauncher {
     }
 
     // Create PrimusExecutorPod
-    KubernetesNativeConf runtimeConf = context.getPrimusConf()
+    KubernetesNativeConf runtimeConf = primusApplicationMeta.getPrimusConf()
         .getRuntimeConf()
         .getKubernetesNativeConf();
 
     PrimusExecutorPod executorPod = new PrimusExecutorPod(
         context,
+        driverMeta,
         roleInfo,
         ResourceNameBuilder.buildExecutorPodName(
-            context.getAppId(),
+            primusApplicationMeta.getApplicationId(),
             executorId.toUniqString()),
         runtimeConf.getExecutorPodConf(),
         buildExecutorEnvironment(
@@ -101,18 +116,20 @@ public class PodLauncher {
 
     Container container = new ContainerPBImpl();
     container.setId(ContainerId.newContainerId(
-        FAKE_YARN_APPLICATION_ID,
+        KubernetesContainerManager.FAKE_YARN_APPLICATION_ID,
         executorId.getUniqId()));
     container.setIsGuaranteed(true);
     container.setPriority(Priority.newInstance(executorPod.getPriority()));
 
     try {
       LOG.info("Starting executor pod: {}", executorPod.getKubernetesPod());
-      executorPodStarter.startPod(context.getKubernetesNamespace(), executorPod.getKubernetesPod());
-      PrimusMetrics.emitCounterWithAppIdTag(
-          "am.pod_launcher.start_pod", new HashMap<>(), 1);
-      PrimusMetrics.emitCounterWithAppIdTag(
-          "am.container_launcher.start_container", new HashMap<>(), 1);
+      executorPodStarter.startPod(
+          driverMeta.getKubernetesNamespace(),
+          executorPod.getKubernetesPod()
+      );
+
+      PrimusMetrics.emitCounterWithAppIdTag("am.pod_launcher.start_pod", 1);
+      PrimusMetrics.emitCounterWithAppIdTag("am.container_launcher.start_container", 1);
       return PodLauncherResult.succeed(container);
 
     } catch (ApiException e) {
@@ -127,13 +144,13 @@ public class PodLauncher {
 
   private Map<String, String> buildExecutorEnvironment(RoleInfo roleInfo, ExecutorId executorId) {
     ImmutableMap<String, String> envMap = ImmutableMap.<String, String>builder()
-        .put("AM_HOST", context.getDriverHostName())
+        .put("AM_HOST", driverMeta.getDriverHostName())
         .put("AM_PORT", Integer.toString(context.getRpcAddress().getPort()))
         .put("EXECUTOR_ROLE", executorId.getRoleName())
         .put("EXECUTOR_INDEX", Integer.toString(executorId.getIndex()))
         .put("EXECUTOR_UNIQ_ID", Long.toString(executorId.getUniqId()))
         .put("EXECUTOR_JAVA_OPTS", roleInfo.getRoleSpec().getExecutorSpecTemplate().getJavaOpts())
-        .put("AM_APISERVER_HOST", context.getDriverHostName())
+        .put("AM_APISERVER_HOST", driverMeta.getDriverHostName())
         .put("AM_APISERVER_PORT", Integer.toString(context.getApiServerPort()))
         .put("PORT_RANGES", DEFAULT_EXECUTOR_PORT_RANGES)
         .build();
@@ -143,12 +160,18 @@ public class PodLauncher {
   }
 
   private void writeExecutorToApiServer(RoleInfo roleInfo, ExecutorId executorId) throws Exception {
+    // TODO: Remove the setter functions
     Executor executor = new Executor();
     executor.setMeta(new MetaImpl().setName(executorId.toUniqString()));
     ExecutorSpec executorSpec =
         new ExecutorSpecImpl(roleInfo.getRoleSpec().getExecutorSpecTemplate().getProto());
     executorSpec.setRoleIndex(executorId.getIndex());
     executor.setSpec(executorSpec);
-    LOG.info("Write executor to api server: " + context.getCoreApi().createExecutor(executor));
+
+    Executor created = context
+        .getCoreApi()
+        .createExecutor(executor);
+
+    LOG.info("Write executor to api server: {}", created);
   }
 }

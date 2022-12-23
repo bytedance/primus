@@ -109,7 +109,7 @@ public class KafkaTaskManager implements TaskManager {
     }
   }
 
-  private boolean isKilling(AMContext context, ExecutorId executorId) {
+  private boolean isKilling(ExecutorId executorId) {
     if (context.getSchedulerExecutorManager() == null) {
       return false;
     }
@@ -139,7 +139,7 @@ public class KafkaTaskManager implements TaskManager {
   ) {
     List<TaskCommand> taskCommands = new ArrayList<>();
 
-    if (removeTask || isKilling(context, executorId)) {
+    if (removeTask || isKilling(executorId)) {
       for (TaskStatus taskStatus : taskStatuses) {
         addRemoveTaskCommand(taskStatus.getTaskId(), taskCommands);
         LOG.info("send remove task[{}] request to executor[{}]",

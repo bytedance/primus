@@ -20,9 +20,7 @@
 package com.bytedance.primus.webapp;
 
 import com.bytedance.primus.am.AMContext;
-import com.bytedance.primus.am.ApplicationMasterSuspendAppEvent;
 import java.io.IOException;
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -39,8 +37,7 @@ public class SuspendServlet extends HttpServlet {
   }
 
   @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
+  protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     String diag = "ApplicationMaster suspended by someone through http request";
     Thread thread = new Thread(new Runnable() {
       @Override
@@ -52,8 +49,7 @@ public class SuspendServlet extends HttpServlet {
           // ignore
         }
         LOG.warn("sending ApplicationMasterEvent.SUSPEND_APP");
-        context.getDispatcher().getEventHandler().handle(
-            new ApplicationMasterSuspendAppEvent(context, diag));
+        context.emitSuspendApplicationEvent(diag);
       }
     });
     thread.setName("SuspendHTTPRespondThread");

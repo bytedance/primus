@@ -24,7 +24,7 @@ import org.codehaus.jettison.json.JSONObject;
 
 public class ApplicationMasterSuspendAppEvent extends ApplicationMasterEvent {
 
-  private int snapshotId;
+  private final int snapshotId;
 
   public ApplicationMasterSuspendAppEvent(AMContext context, String diagnosis) {
     super(context, ApplicationMasterEventType.SUSPEND_APP, diagnosis,

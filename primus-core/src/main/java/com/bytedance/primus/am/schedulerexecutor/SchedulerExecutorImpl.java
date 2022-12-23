@@ -26,8 +26,6 @@ import static com.bytedance.primus.utils.PrimusConstants.BLACKLISTED_EXIT_MSG;
 import static com.bytedance.primus.utils.PrimusConstants.EXPIRED_EXIT_MSG;
 
 import com.bytedance.primus.am.AMContext;
-import com.bytedance.primus.am.container.ContainerManagerEvent;
-import com.bytedance.primus.am.container.ContainerManagerEventType;
 import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.api.records.ExecutorSpec;
 import com.bytedance.primus.common.model.records.Container;
@@ -356,20 +354,17 @@ public class SchedulerExecutorImpl implements SchedulerExecutor {
       try {
         newState = stateMachine.doTransition(event.getType(), event);
         if (newState != oldState) {
-          context.logStatusEvent(context.getStatusEventWrapper().buildWorkerStatusEvent(this));
+          context.logStatusEvent(context
+              .getStatusEventWrapper()
+              .buildWorkerStatusEvent(this));
         }
       } catch (InvalidStateTransitonException e) {
         LOG.warn("Can't handle this event at current state: Current: ["
             + oldState + "], eventType: [" + event.getType() + "]");
       }
       if (oldState != newState) {
-        LOG.info("Executor " + executorId + " transitioned from "
-            + oldState + " to " + newState);
-
-        SchedulerExecutorStateChangeEvent executorStateChangeEvent = new SchedulerExecutorStateChangeEvent(
-            SchedulerExecutorStateChangeEventType.STATE_CHANGED, this);
-        LOG.debug("Release STATE_CHANGED event:" + executorStateChangeEvent);
-        context.getDispatcher().getEventHandler().handle(executorStateChangeEvent);
+        LOG.info("Executor " + executorId + " transitioned from " + oldState + " to " + newState);
+        context.emitExecutorStateChangeEvent(this);
       }
     }
   }
@@ -392,9 +387,7 @@ public class SchedulerExecutorImpl implements SchedulerExecutor {
     public void transition(SchedulerExecutorImpl executor, SchedulerExecutorEvent e) {
       executor.workerExitCode = EXPIRED.getValue();
       executor.workerExitMsg = EXPIRED_EXIT_MSG;
-      executor.context.getDispatcher().getEventHandler().handle(
-          new ContainerManagerEvent(ContainerManagerEventType.EXECUTOR_EXPIRED, executor.container)
-      );
+      executor.context.emitContainerExpiredEvent(executor.container);
     }
   }
 
@@ -429,10 +422,10 @@ public class SchedulerExecutorImpl implements SchedulerExecutor {
       executor.workerExitCode = event.getExitCode();
       executor.workerExitMsg = event.getExitMsg();
       executor.releaseTime = new Date();
-      executor.context.getDispatcher().getEventHandler().handle(
-          new SchedulerExecutorManagerContainerCompletedEvent(
-              SchedulerExecutorManagerEventType.CONTAINER_KILLED,
-              executor.container, event.getExitCode(), event.getExitMsg())
+      executor.context.emitExecutorKilledEvent(
+          executor.container,
+          event.getExitMsg(),
+          event.getExitCode()
       );
     }
   }

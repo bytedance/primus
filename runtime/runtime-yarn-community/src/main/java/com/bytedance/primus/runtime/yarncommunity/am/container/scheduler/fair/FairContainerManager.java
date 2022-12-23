@@ -19,11 +19,11 @@
 
 package com.bytedance.primus.runtime.yarncommunity.am.container.scheduler.fair;
 
+import com.bytedance.primus.am.AMContext;
+import com.bytedance.primus.am.role.RoleInfoManager;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
-import com.bytedance.primus.runtime.yarncommunity.am.YarnAMContext;
 import com.bytedance.primus.runtime.yarncommunity.am.container.YarnContainerManager;
-import com.bytedance.primus.runtime.yarncommunity.am.container.launcher.ContainerLauncherEvent;
-import com.bytedance.primus.runtime.yarncommunity.am.container.launcher.ContainerLauncherEventType;
+import com.bytedance.primus.runtime.yarncommunity.utils.YarnConvertor;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -43,10 +43,17 @@ public class FairContainerManager extends YarnContainerManager {
   protected Map<Integer, Integer> priorityNeedRequestNumMap;
   private int maxAllocationNumEachRound;
 
-  public FairContainerManager(YarnAMContext context) {
-    super(context);
-    maxAllocationNumEachRound =
-        context.getPrimusConf().getScheduler().getMaxAllocationNumEachRound();
+  public FairContainerManager(
+      AMContext context,
+      AMRMClient<ContainerRequest> amRMClient,
+      RoleInfoManager roleInfoManager
+  ) {
+    super(context, amRMClient, roleInfoManager);
+    maxAllocationNumEachRound = context
+        .getApplicationMeta()
+        .getPrimusConf()
+        .getScheduler()
+        .getMaxAllocationNumEachRound();
     maxAllocationNumEachRound =
         (maxAllocationNumEachRound <= 0) ? Integer.MAX_VALUE : maxAllocationNumEachRound;
     priorityNeedRequestNumMap = new HashMap<>();
@@ -55,7 +62,7 @@ public class FairContainerManager extends YarnContainerManager {
   @Override
   protected void updatePriorityContainerIdsMap() {
     super.updatePriorityContainerIdsMap();
-    for (Integer priority : roleInfoManager.getPriorityRoleInfoMap().keySet()) {
+    for (Integer priority : roleInfoManager.getRolePriorities()) {
       priorityNeedRequestNumMap.putIfAbsent(priority, 0);
     }
   }
@@ -93,7 +100,7 @@ public class FairContainerManager extends YarnContainerManager {
         continue;
       }
 
-      FairRoleInfo roleInfo = (FairRoleInfo) roleInfoManager.getPriorityRoleInfoMap().get(priority);
+      FairRoleInfo roleInfo = (FairRoleInfo) roleInfoManager.getRoleInfo(priority);
       if (roleInfo == null) {
         LOG.warn("priorityRoleInfoMap do not has priority[" + priority + "]");
         amRMClient.releaseAssignedContainer(container.getId());
@@ -115,8 +122,7 @@ public class FairContainerManager extends YarnContainerManager {
       containerIds.add(container.getId());
       runningContainerMap.put(container.getId(), container);
       LOG.info("Send launch event for container[" + container + "]");
-      context.getDispatcher().getEventHandler().handle(
-          new ContainerLauncherEvent(container, ContainerLauncherEventType.CONTAINER_ALLOCATED));
+      context.emitContainerAllocatedEvent(YarnConvertor.toPrimusContainer(container));
       allocatedNum++;
     }
   }
@@ -125,7 +131,7 @@ public class FairContainerManager extends YarnContainerManager {
   protected void askForContainers() {
     for (Map.Entry<Integer, ConcurrentSkipListSet<ContainerId>> entry : priorityContainerIdsMap.entrySet()) {
       int priority = entry.getKey();
-      FairRoleInfo roleInfo = (FairRoleInfo) roleInfoManager.getPriorityRoleInfoMap().get(priority);
+      FairRoleInfo roleInfo = (FairRoleInfo) roleInfoManager.getRoleInfo(priority);
       int replicas = roleInfo.getRoleSpec().getReplicas();
       int completedReplicaNum = schedulerExecutorManager.getCompletedNum(priority);
       int runningReplicaNum = entry.getValue().size();

@@ -87,6 +87,10 @@ public class PrimusMetrics {
     return metrics.getGauges(filter);
   }
 
+  public static void emitCounterWithAppIdTag(String name, long count) {
+    emitCounter(buildTaggedMetricNameWithAppId(name, new HashMap<>()), count);
+  }
+
   public static void emitCounterWithAppIdTag(String name, Map<String, String> tags, long count) {
     emitCounter(buildTaggedMetricNameWithAppId(name, tags), count);
   }

@@ -21,47 +21,40 @@ package com.bytedance.primus.runtime.yarncommunity.am;
 
 import com.bytedance.primus.am.AMCommandParser;
 import com.bytedance.primus.am.ApplicationExitCode;
+import com.bytedance.primus.am.ApplicationMaster;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.model.ApplicationConstants.Environment;
 import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.utils.ConfigurationUtils;
-import org.apache.commons.cli.CommandLine;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class ApplicationMasterMain {
+public class YarnApplicationMasterMain {
 
-  private static final Logger LOG = LoggerFactory.getLogger(ApplicationMasterMain.class);
+  private static final Logger LOG = LoggerFactory.getLogger(YarnApplicationMasterMain.class);
 
-  public static void main(String[] args) throws Exception {
-    CommandLine cmd = AMCommandParser.getCmd(args);
-    String configPath = cmd.getOptionValue(AMCommandParser.CONFIGURATION_PATH);
-    PrimusConf primusConf = ConfigurationUtils.load(configPath);
+  public static void main(String[] args) {
+    try {
+      // Obtain PrimusConf
+      PrimusConf primusConf = ConfigurationUtils.load(
+          AMCommandParser
+              .getCmd(args)
+              .getOptionValue(AMCommandParser.CONFIGURATION_PATH)
+      );
 
-    ContainerId containerId = getContainerId();
+      // Obtain ContainerId
+      ContainerId containerId = getContainerId();
 
-    run(primusConf, containerId);
-  }
-
-  public static void run(PrimusConf primusConf, ContainerId containerId) {
-    try (YarnApplicationMaster am = new YarnApplicationMaster(containerId)) {
-      LOG.info("Metrics init ...");
+      // Init metrics
       PrimusMetrics.init(
           primusConf.getRuntimeConf(),
           containerId.getApplicationAttemptId().getApplicationId().toString()
       );
 
-      LOG.info("Application master init...");
-      am.init(primusConf);
-
-      LOG.info("Application master start...");
-      am.start();
-
-      int exitCode = am.waitForStop();
-      LOG.info("Application master exit code: {}.", exitCode);
-      System.exit(exitCode);
+      // Start running
+      run(primusConf, containerId);
 
     } catch (Throwable e) {
       LOG.error("Runtime error", e);
@@ -69,17 +62,29 @@ public class ApplicationMasterMain {
     }
   }
 
+  public static void run(PrimusConf primusConf, ContainerId containerId) throws Exception {
+    try (ApplicationMaster am = new YarnApplicationMaster(primusConf, containerId)) {
+      LOG.info("Initializing Application Master...");
+      am.init();
+
+      LOG.info("Starting Application Master...");
+      am.start();
+
+      int exitCode = am.waitForStop();
+      LOG.info("Application master exit code: {}.", exitCode);
+      System.exit(exitCode);
+    }
+  }
+
   private static ContainerId getContainerId() {
-    String cid = System.getenv().get(Environment.CONTAINER_ID.name());
-    if (!StringUtils.isEmpty(cid)) {
-      return ContainerId.fromString(cid);
+    String fromEnv = System.getenv().get(Environment.CONTAINER_ID.name());
+    if (!StringUtils.isEmpty(fromEnv)) {
+      return ContainerId.fromString(fromEnv);
     }
-
-    cid = System.getProperty(Environment.CONTAINER_ID.name());
-    if (!StringUtils.isEmpty(cid)) {
-      return ContainerId.fromString(cid);
+    String fromProperty = System.getProperty(Environment.CONTAINER_ID.name());
+    if (!StringUtils.isEmpty(fromProperty)) {
+      return ContainerId.fromString(fromProperty);
     }
-
-    throw new RuntimeException("Failed to construct ContainerId");
+    throw new RuntimeException("Failed to obtain ContainerId");
   }
 }

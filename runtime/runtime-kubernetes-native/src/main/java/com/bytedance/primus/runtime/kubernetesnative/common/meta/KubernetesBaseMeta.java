@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.runtime.kubernetesnative.common;
+package com.bytedance.primus.runtime.kubernetesnative.common.meta;
 
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.K8S_SCHEDULE_QUEUE_NAME_ANNOTATION_VALUE_DEFAULT;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.K8S_SCHEDULE_SCHEDULER_NAME_ANNOTATION_VALUE_DEFAULT;
@@ -29,35 +29,30 @@ import com.bytedance.primus.proto.PrimusRuntime.KubernetesNativeConf;
 import com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants;
 import lombok.Getter;
 
-// TODO: Maybe it's a better idea to bake the values into PrimusConf upfront during merging
-//  PrimusConf, so that it will be easier to share across multiple components and less error-prone.
-public class KubernetesSchedulerConfig {
+@Getter
+public class KubernetesBaseMeta {
 
-  @Getter
-  private final String queue;
-  @Getter
-  private final String namespace;
-  @Getter
-  private final String serviceAccountName;
-  @Getter
-  private final String schedulerName;
+  private final String kubernetesQueue; // TODO: Deprecate
+  private final String kubernetesNamespace;
+  private final String kubernetesServiceAccountName;
+  private final String kubernetesSchedulerName;
 
-  public KubernetesSchedulerConfig(PrimusConf primusConf) {
-    KubernetesNativeConf conf = primusConf
+  public KubernetesBaseMeta(PrimusConf primusConf) {
+    KubernetesNativeConf runtimeConf = primusConf
         .getRuntimeConf()
         .getKubernetesNativeConf();
 
-    queue = StringUtils.ensure(
+    kubernetesQueue = StringUtils.ensure(
         primusConf.getQueue(),
         K8S_SCHEDULE_QUEUE_NAME_ANNOTATION_VALUE_DEFAULT);
-    namespace = StringUtils.ensure(
-        conf.getNamespace(),
+    kubernetesNamespace = StringUtils.ensure(
+        runtimeConf.getNamespace(),
         KubernetesConstants.PRIMUS_DEFAULT_K8S_NAMESPACE);
-    serviceAccountName = StringUtils.ensure(
-        conf.getServiceAccount(),
+    kubernetesServiceAccountName = StringUtils.ensure(
+        runtimeConf.getServiceAccount(),
         K8S_SCHEDULE_SERVICE_ACCOUNT_NAME_DEFAULT);
-    schedulerName = StringUtils.ensure(
-        conf.getSchedulerName(),
+    kubernetesSchedulerName = StringUtils.ensure(
+        runtimeConf.getSchedulerName(),
         K8S_SCHEDULE_SCHEDULER_NAME_ANNOTATION_VALUE_DEFAULT);
   }
 }

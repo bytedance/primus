@@ -36,8 +36,8 @@ import com.bytedance.primus.common.util.RuntimeUtils;
 import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.runtime.yarncommunity.am.ApplicationMasterMain;
-import com.bytedance.primus.runtime.yarncommunity.am.YarnAMContext;
+import com.bytedance.primus.runtime.yarncommunity.am.YarnApplicationMasterMain;
+import com.bytedance.primus.runtime.yarncommunity.utils.YarnConvertor;
 import com.bytedance.primus.utils.ConfigurationUtils;
 import com.bytedance.primus.utils.ProtoJsonConverter;
 import java.io.IOException;
@@ -98,7 +98,7 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
 
   public YarnSubmitCmdRunner(PrimusConf primusConf) throws Exception {
     userPrimusConf = primusConf;
-    yarnConf = new YarnConfiguration(YarnAMContext.loadYarnConfiguration(primusConf));
+    yarnConf = new YarnConfiguration(YarnConvertor.loadYarnConfiguration(primusConf));
 
     dfs = RuntimeUtils.loadHadoopFileSystem(primusConf);
     defaultFsUri = dfs.getUri();
@@ -278,7 +278,7 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
     rawVargs.add("-Dlog4j2.configurationFile=" + PRIMUS_CONF_PATH + "/" + LOG4J_PROPERTIES);
     rawVargs.add("-D" + YarnConfiguration.YARN_APP_CONTAINER_LOG_DIR + "=" +
         ApplicationConstants.LOG_DIR_EXPANSION_VAR);
-    rawVargs.add(ApplicationMasterMain.class.getName());
+    rawVargs.add(YarnApplicationMasterMain.class.getName());
     rawVargs.add("--config=" + PRIMUS_CONF_PATH + "/" + PRIMUS_CONF);
     rawVargs.add("1>>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
     rawVargs.add("2>>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");

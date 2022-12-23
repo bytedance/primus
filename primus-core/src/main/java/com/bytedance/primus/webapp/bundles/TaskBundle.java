@@ -41,29 +41,20 @@ import org.slf4j.LoggerFactory;
 @NoArgsConstructor(access = AccessLevel.PUBLIC)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true, access = AccessLevel.PRIVATE)
+@Getter
 public class TaskBundle {
 
   private static final Logger LOG = LoggerFactory.getLogger(TaskBundle.class);
 
-  @Getter
   private long id;
-  @Getter
   private String uri;
-  @Getter
   private TaskState state;
-  @Getter
   private float progress;
-  @Getter
   private int numAttempt;
-  @Getter
   private Date lastAssignTime;
-  @Getter
   private Date finishedTime;
-  @Getter
   private String node;
-  @Getter
   private String logUrl;
-  @Getter
   private String historyLogUrl;
 
   private TaskBundle(TaskWrapper taskWrapper) {

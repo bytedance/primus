@@ -19,13 +19,13 @@
 
 package com.bytedance.primus.runtime.yarncommunity.runtime.monitor;
 
-import com.bytedance.primus.am.AMContext;
+import com.bytedance.primus.am.PrimusApplicationMeta;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutor;
 import com.bytedance.primus.common.model.ApplicationConstants.Environment;
+import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.util.StringUtils;
+import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.monitor.MonitorInfoProvider;
-import com.bytedance.primus.runtime.yarncommunity.am.YarnAMContext;
-import com.google.common.base.Preconditions;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,24 +44,24 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   private static final String URL_FORMAT_KEY_YARN_NODE_ID = "\\{\\{YarnNodeId\\}\\}";
   private static final String URL_FORMAT_KEY_YARN_CONTAINER_ID = "\\{\\{YarnContainerId\\}\\}";
 
-  private final YarnAMContext context;
+  private final PrimusApplicationMeta applicationMeta;
+  private final PrimusConf primusConf;
+  private final ContainerId containerId;
 
-  public MonitorInfoProviderImpl(AMContext context) {
-    Preconditions.checkArgument(
-        context instanceof YarnAMContext,
-        "YarnAMContext is required for YarnCommunity::MonitorInfoProviderImpl");
-
-    this.context = (YarnAMContext) context;
+  public MonitorInfoProviderImpl(PrimusApplicationMeta applicationMeta, ContainerId containerId) {
+    this.applicationMeta = applicationMeta;
+    this.primusConf = applicationMeta.getPrimusConf();
+    this.containerId = containerId;
   }
 
   @Override
   public String getApplicationId() {
-    return context.getAppAttemptId().getApplicationId().toString();
+    return applicationMeta.getApplicationId();
   }
 
   @Override
   public int getAttemptId() {
-    return context.getAppAttemptId().getAttemptId();
+    return applicationMeta.getAttemptId();
   }
 
   @Override
@@ -74,14 +74,14 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
 
   @Override
   public String getHistorySnapshotSubdirectoryName() {
-    return context.getAppAttemptId().getApplicationId().toString();
+    return applicationMeta.getApplicationId();
   }
 
   @Override
   public String getHistorySnapshotFileName() {
     return String.format("%s_%d",
-        context.getAppAttemptId().getApplicationId().toString(),
-        context.getAppAttemptId().getAttemptId()
+        applicationMeta.getApplicationId(),
+        applicationMeta.getAttemptId()
     );
   }
 
@@ -96,7 +96,7 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getHistoryTrackingUrl() {
     return StringUtils.genFromTemplateAndDictionary(
-        context.getPrimusConf()
+        primusConf
             .getRuntimeConf()
             .getYarnCommunityConf()
             .getPrimusUiConf()
@@ -111,7 +111,7 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getAmLogUrl() {
     return StringUtils.genFromTemplateAndDictionary(
-        context.getPrimusConf()
+        primusConf
             .getRuntimeConf()
             .getYarnCommunityConf()
             .getPrimusUiConf()
@@ -123,7 +123,7 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getAmHistoryLogUrl() {
     return StringUtils.genFromTemplateAndDictionary(
-        context.getPrimusConf()
+        primusConf
             .getRuntimeConf()
             .getYarnCommunityConf()
             .getPrimusUiConf()
@@ -135,7 +135,7 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getExecutorLogUrl(SchedulerExecutor schedulerExecutor) {
     return StringUtils.genFromTemplateAndDictionary(
-        context.getPrimusConf()
+        primusConf
             .getRuntimeConf()
             .getYarnCommunityConf()
             .getPrimusUiConf()
@@ -147,7 +147,7 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getExecutorHistoryLogUrl(SchedulerExecutor schedulerExecutor) {
     return StringUtils.genFromTemplateAndDictionary(
-        context.getPrimusConf()
+        primusConf
             .getRuntimeConf()
             .getYarnCommunityConf()
             .getPrimusUiConf()
@@ -159,19 +159,19 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   private Map<String, String> getAmUrlFormatterDictionary() {
     return new HashMap<String, String>() {{
       put(URL_FORMAT_KEY_YARN_APPLICATION_ID,
-          context.getAppAttemptId().getApplicationId().toString());
+          applicationMeta.getApplicationId().toString());
       put(URL_FORMAT_KEY_YARN_USERNAME,
-          context.getUsername());
+          applicationMeta.getUsername());
       put(URL_FORMAT_KEY_YARN_NODE_HOSTNAME,
-          context.getEnvs().get(Environment.NM_HOST.name()));
+          applicationMeta.getEnvs().get(Environment.NM_HOST.name()));
       put(URL_FORMAT_KEY_YARN_NODE_HTTP_PORT,
-          context.getEnvs().get(Environment.NM_HTTP_PORT.name()));
+          applicationMeta.getEnvs().get(Environment.NM_HTTP_PORT.name()));
       put(URL_FORMAT_KEY_YARN_NODE_ID,
           String.format("%s:%s",
-              context.getEnvs().get(Environment.NM_HOST.name()),
-              context.getEnvs().get(Environment.NM_PORT.name())));
+              applicationMeta.getEnvs().get(Environment.NM_HOST.name()),
+              applicationMeta.getEnvs().get(Environment.NM_PORT.name())));
       put(URL_FORMAT_KEY_YARN_CONTAINER_ID,
-          context.getContainerId().toString());
+          containerId.toString());
     }};
   }
 
@@ -180,9 +180,9 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   ) {
     return new HashMap<String, String>() {{
       put(URL_FORMAT_KEY_YARN_APPLICATION_ID,
-          context.getAppAttemptId().getApplicationId().toString());
+          applicationMeta.getApplicationId());
       put(URL_FORMAT_KEY_YARN_USERNAME,
-          context.getUsername());
+          applicationMeta.getUsername());
       put(URL_FORMAT_KEY_YARN_NODE_HOSTNAME,
           schedulerExecutor.getContainer().getNodeId().getHost());
       put(URL_FORMAT_KEY_YARN_NODE_HTTP_PORT,
@@ -201,7 +201,7 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
       LOG.warn(
           "Failed to extract port from NodeHttpAddress({}), try using the http port of AM NM.",
           nodeHttpAddress);
-      return context.getEnvs().get(Environment.NM_HTTP_PORT.name());
+      return applicationMeta.getEnvs().get(Environment.NM_HTTP_PORT.name());
     }
     return tokens[1];
   }

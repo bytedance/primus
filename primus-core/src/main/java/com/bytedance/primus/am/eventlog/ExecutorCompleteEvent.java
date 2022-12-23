@@ -26,8 +26,8 @@ import org.codehaus.jettison.json.JSONObject;
 
 public class ExecutorCompleteEvent extends ExecutorEvent {
 
-  private AMContext context;
-  private SchedulerExecutor executor;
+  private final AMContext context;
+  private final SchedulerExecutor executor;
 
   public ExecutorCompleteEvent(AMContext context, SchedulerExecutor executor) {
     super(ExecutorEventType.COMPLETED);

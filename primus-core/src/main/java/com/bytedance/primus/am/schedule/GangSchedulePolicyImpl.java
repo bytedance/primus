@@ -41,7 +41,7 @@ public class GangSchedulePolicyImpl implements SchedulePolicy {
     this.schedulerExecutorManager = schedulerExecutorManager;
     this.roleManager = roleInfoManager;
     this.isAllRoleGang = true;
-    for (RoleInfo roleInfo : roleInfoManager.getRoleNameRoleInfoMap().values()) {
+    for (RoleInfo roleInfo : roleInfoManager.getRoleInfos()) {
       if (roleInfo.getRoleSpec().getSchedulePolicy().getSchedulePolicyCase()
           != SchedulePolicyCase.GANGSCHEDULEPOLICY) {
         isAllRoleGang = false;
@@ -53,7 +53,7 @@ public class GangSchedulePolicyImpl implements SchedulePolicy {
   @Override
   public boolean canSchedule(ExecutorId executorId) {
     if (isAllRoleGang) {
-      for (String roleName : roleManager.getRoleNameRoleInfoMap().keySet()) {
+      for (String roleName : roleManager.getRoleNames()) {
         if (!canScheduleRole(roleName)) {
           return false;
         }
@@ -65,10 +65,9 @@ public class GangSchedulePolicyImpl implements SchedulePolicy {
   }
 
   private boolean canScheduleRole(String roleName) {
-    RoleInfo roleInfo = roleManager.getRoleNameRoleInfoMap().get(roleName);
-    int priority = roleManager.getRoleNamePriorityMap().get(roleName);
-    int registeredNum = schedulerExecutorManager.getRegisteredNum(priority);
-    int completedNum = schedulerExecutorManager.getCompletedNum(priority);
+    RoleInfo roleInfo = roleManager.getRoleInfo(roleName);
+    int registeredNum = schedulerExecutorManager.getRegisteredNum(roleInfo.getPriority());
+    int completedNum = schedulerExecutorManager.getCompletedNum(roleInfo.getPriority());
     if (roleInfo.getRoleSpec().getReplicas() > completedNum + registeredNum) {
       return false;
     }

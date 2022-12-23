@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.am.eventlog;
 
-import com.bytedance.primus.am.AMContext;
+import com.bytedance.primus.am.PrimusApplicationMeta;
 import java.io.BufferedOutputStream;
 import java.io.PrintWriter;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -40,20 +40,20 @@ public class HdfsEventSink implements EventSink {
   private final Path workingLogPath;
   private PrintWriter writer;
 
-  public HdfsEventSink(AMContext context) {
-    this.fs = context.getHadoopFileSystem();
+  public HdfsEventSink(PrimusApplicationMeta applicationMeta) {
+    this.fs = applicationMeta.getHadoopFileSystem();
 
-    String logPathName = getLogPath(context);
+    String logPathName = getLogPath(applicationMeta);
     logPath = new Path(logPathName);
     workingLogPath = new Path(logPathName + IN_PROGRESS);
   }
 
-  private String getLogPath(AMContext context) {
-    return context.getPrimusConf().getEventLogConfig().getHdfsSink().getDir()
+  private String getLogPath(PrimusApplicationMeta applicationMeta) {
+    return applicationMeta.getPrimusConf().getEventLogConfig().getHdfsSink().getDir()
         + "/"
-        + context.getApplicationId()
+        + applicationMeta.getApplicationId()
         + "_"
-        + context.getAttemptId();
+        + applicationMeta.getAttemptId();
   }
 
   @Override

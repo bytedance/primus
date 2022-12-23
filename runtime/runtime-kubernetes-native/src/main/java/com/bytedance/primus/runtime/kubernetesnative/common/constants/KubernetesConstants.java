@@ -56,8 +56,6 @@ public class KubernetesConstants {
    * Pod
    **/
   public static final String PRIMUS_EXECUTOR_PRIORITY_LABEL_NAME = "primus.k8s.io/executor-priority";
-  public static final int FAKE_APPLICATION_ATTEMPT_ID = 0;
-  public static final String FAKE_YARN_APPLICATION_NAME = "application_000_000";
   public static final String SLEEP_SECONDS_BEFORE_POD_EXIT_ENV_KEY = "SLEEP_SECONDS_BEFORE_POD_EXIT";
 
   /**

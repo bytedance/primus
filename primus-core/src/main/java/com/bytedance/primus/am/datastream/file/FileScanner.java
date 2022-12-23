@@ -21,8 +21,6 @@ package com.bytedance.primus.am.datastream.file;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.am.ApplicationMasterEvent;
-import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
@@ -78,7 +76,7 @@ public class FileScanner {
   public FileScanner(AMContext context, String name, DataStreamSpec dataStreamSpec) {
     this.LOG = LoggerFactory.getLogger(FileScanner.class.getName() + "[" + name + "]");
     this.context = context;
-    this.fileSystem = context.getHadoopFileSystem();
+    this.fileSystem = context.getApplicationMeta().getHadoopFileSystem();
     this.dataStreamSpec = dataStreamSpec;
 
     this.inputQueue = new LinkedBlockingQueue<>();
@@ -115,14 +113,7 @@ public class FileScanner {
 
   private void failedApp(String diag, int exitCode) {
     LOG.error(diag);
-    context.getDispatcher()
-        .getEventHandler()
-        .handle(new ApplicationMasterEvent(
-            context,
-            ApplicationMasterEventType.FAIL_APP,
-            diag,
-            exitCode)
-        );
+    context.emitFailApplicationEvent(diag, exitCode);
   }
 
   class ScannerThread extends Thread {

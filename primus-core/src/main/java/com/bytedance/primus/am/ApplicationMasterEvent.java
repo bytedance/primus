@@ -43,8 +43,10 @@ public class ApplicationMasterEvent extends PrimusEvent<ApplicationMasterEventTy
     this.context = context;
     this.diagnosis = diagnosis;
     this.exitCode = exitCode;
-    long timeoutMs = TimeUnit.MILLISECONDS
-        .convert(context.getPrimusConf().getGracefulShutdownTimeoutMin(), TimeUnit.MINUTES);
+    long timeoutMs = TimeUnit.MILLISECONDS.convert(
+        context.getApplicationMeta().getPrimusConf().getGracefulShutdownTimeoutMin(),
+        TimeUnit.MINUTES
+    );
     this.gracefulShutdownTimeoutMs = timeoutMs;
   }
 
@@ -53,11 +55,11 @@ public class ApplicationMasterEvent extends PrimusEvent<ApplicationMasterEventTy
   }
 
   public String getApplicationId() {
-    return context.getApplicationId();
+    return context.getApplicationMeta().getApplicationId();
   }
 
   public int getAttemptId() {
-    return context.getAttemptId();
+    return context.getApplicationMeta().getAttemptId();
   }
 
   public int getExitCode() {
