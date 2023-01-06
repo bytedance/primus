@@ -21,6 +21,7 @@ package com.bytedance.primus.am;
 
 import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_VERSION_ENV_KEY;
 
+import com.bytedance.primus.common.network.NetworkConfig;
 import com.bytedance.primus.common.util.RuntimeUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusRuntime.PrimusUiConf;
@@ -53,6 +54,7 @@ public class PrimusApplicationMeta {
   // Configurations
   private final Path stagingDir;
   private final int executorTrackerPort;
+  private final NetworkConfig networkConfig;
 
   // Runtime Environment
   private final String nodeId;               // TODO: Create a class to better manage NodeId
@@ -97,6 +99,7 @@ public class PrimusApplicationMeta {
     // Configurations
     this.stagingDir = stagingDir;
     this.executorTrackerPort = executorTrackerPort;
+    this.networkConfig = new NetworkConfig(primusConf);
 
     // Runtime Components
     this.nodeId = nodeId;

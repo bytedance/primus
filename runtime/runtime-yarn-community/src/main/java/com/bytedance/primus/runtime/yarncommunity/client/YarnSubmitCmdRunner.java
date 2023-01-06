@@ -33,7 +33,6 @@ import static com.bytedance.primus.utils.PrimusConstants.STAGING_DIR_KEY;
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.client.ClientCmdRunner;
 import com.bytedance.primus.common.util.RuntimeUtils;
-import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.yarncommunity.am.YarnApplicationMasterMain;
@@ -132,7 +131,10 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
     appContext.setQueue(primusConf.getQueue());
     appContext.setPriority(genPriority(primusConf));
     appContext.setMaxAppAttempts(primusConf.getMaxAppAttempts());
-    appContext.setApplicationTags(new HashSet<>(primusConf.getYarnApplicationTagsList()));
+    appContext.setApplicationTags(new HashSet<>(primusConf
+        .getRuntimeConf()
+        .getYarnCommunityConf()
+        .getApplicationTagsList()));
     appContext.setAMContainerResourceRequest(genAMContainerResourceRequest(primusConf));
 
     LOGGER.info("Submitting Yarn application: (id: {})", appId);
@@ -186,7 +188,6 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
     return PrimusConf.newBuilder()
         .mergeFrom(defaultConf)
         .mergeFrom(userConf)
-        .setRunningMode(RunningMode.YARN)
         .build();
   }
 
@@ -250,9 +251,6 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
     }
     env.put("CLASSPATH", cpath.toString());
     env.put(STAGING_DIR_KEY, stagingDir.toString());
-    if (userPrimusConf.getCoreDumpEnable()) {
-      env.put("CORE_DUMP_PROC_NAME", "primus_" + userPrimusConf.getName());
-    }
     env.putAll(primusConf.getEnvMap());
     env.putAll(primusConf.getScheduler().getEnvMap());
 
@@ -339,7 +337,10 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
     Priority priority = RecordFactoryProvider
         .getRecordFactory(null)
         .newRecordInstance(Priority.class);
-    priority.setPriority(primusConf.getPriority());
+    priority.setPriority(primusConf.
+        getRuntimeConf()
+        .getYarnCommunityConf()
+        .getPriority());
     return priority;
   }
 }

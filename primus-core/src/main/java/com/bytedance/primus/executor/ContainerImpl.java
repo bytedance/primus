@@ -47,6 +47,7 @@ import com.bytedance.primus.executor.task.TaskRunnerManager;
 import com.bytedance.primus.executor.task.TaskRunnerManagerEventType;
 import com.bytedance.primus.executor.task.WorkerFeeder;
 import com.bytedance.primus.executor.task.WorkerFeederEventType;
+import com.bytedance.primus.proto.PrimusRuntime.YarnCommunityConf;
 import com.bytedance.primus.utils.PrimusConstants;
 import com.bytedance.primus.utils.timeline.NoopTimelineLogger;
 import com.bytedance.primus.utils.timeline.TimelineLogger;
@@ -179,19 +180,29 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
   }
 
   private void setupPortsForFairScheduler() throws PrimusExecutorException {
-    int portBase = primusExecutorConf.getPrimusConf().getPortRange().getBase();
-    int portSize = primusExecutorConf.getPrimusConf().getPortRange().getSize();
-
-    int port = 0;
+    // Preprocess
     int maxRetryTimes = primusExecutorConf.getPrimusConf().getSetupPortRetryMaxTimes();
     if (maxRetryTimes <= 0) {
       maxRetryTimes = PrimusConstants.DEFAULT_SETUP_PORT_RETRY_MAX_TIMES;
     }
-    if (portSize <= 0) {
-      portBase = 0;
-      portSize = 0;
+
+    int portBase = 0;
+    int portSize = 0;
+    if (primusExecutorConf // TODO: Remove this workaround from primus-core
+        .getPrimusConf()
+        .getRuntimeConf()
+        .hasYarnCommunityConf()
+    ) {
+      YarnCommunityConf yarnCommunityConf = primusExecutorConf
+          .getPrimusConf()
+          .getRuntimeConf()
+          .getYarnCommunityConf();
+      portBase = yarnCommunityConf.getPortRange().getBase();
+      portSize = yarnCommunityConf.getPortRange().getSize();
     }
 
+    // Obtaining port
+    int port = 0;
     int retryTimes = 0;
     InetAddress inetAddress = getOrComputeFastestNetworkInterfaceAddress();
     while (retryTimes < maxRetryTimes) {
@@ -296,12 +307,22 @@ public class ContainerImpl extends CompositeService implements EventHandler<Cont
   }
 
   private int setupWorkerFeederServerSocketChannel() {
-    int portBase = primusExecutorConf.getPrimusConf().getPortRange().getBase();
-    int portSize = primusExecutorConf.getPrimusConf().getPortRange().getSize();
-    if (portSize <= 0) {
-      portBase = 0;
-      portSize = 0;
+    // Preprocess
+    int portBase = 0;
+    int portSize = 0;
+    if (primusExecutorConf
+        .getPrimusConf()
+        .getRuntimeConf().hasYarnCommunityConf()
+    ) {
+      YarnCommunityConf yarnCommunityConf = primusExecutorConf // TODO: Remove this workaround
+          .getPrimusConf()
+          .getRuntimeConf()
+          .getYarnCommunityConf();
+      portBase = yarnCommunityConf.getPortRange().getBase();
+      portSize = yarnCommunityConf.getPortRange().getSize();
     }
+
+    // Obtaining the port
     getOrComputeFastestNetworkInterfaceAddress();
     int retryTimes = 0;
     int port;

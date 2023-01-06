@@ -154,16 +154,11 @@ message OrderSchedulePolicy {
   repeated RolePolicy role_policy = 3;
 }
 
-message PonySchedulePolicy {
-  string ps_role_name = 1;
-}
-
 message SchedulePolicy {
   oneof schedule_policy {
     GangSchedulePolicy gang_policy = 1;
     DynamicSchedulePolicy dynamic_policy = 2;
     OrderSchedulePolicy order_policy = 3;
-    PonySchedulePolicy pony_policy = 4;
   }
 }
 
@@ -196,12 +191,6 @@ message NetworkConfig {
   }
   NetworkType network_type = 1;
   bool keep_ip_port_under_overlay = 2;
-}
-
-enum ProgressManagerType {
-  PM_ROLE = 0;
-  PM_FILE = 1;
-  PM_KAFKA = 2;
 }
 
 enum ChannelConfig {
@@ -272,13 +261,15 @@ message ApiServerConf {
   StateStore state_store = 1;
 }
 
-message MigrationConf {
-  bool global_migration_enabled = 1;
-  int32 global_max_migration_limit = 2;
-}
-
 message ProgressManagerConf {
-  bool rewind_allowed = 1;
+  enum Type {
+    PM_ROLE = 0;
+    PM_FILE = 1;
+    PM_KAFKA = 2;
+  }
+
+  Type type = 1;
+  bool rewind_allowed = 2;
 }
 
 message StatusEventLogConf {
@@ -289,42 +280,34 @@ message StatusEventLogConf {
 message PrimusConf {
   string queue = 1;
   string name = 2;
-  repeated string files = 3;
-  map<string, string> env = 4;
-  string staging_dir = 5;
-  int32 max_app_attempts = 6;
-  repeated Role role = 7;
-  Scheduler scheduler = 8;
-  string history_hdfs_base = 12;
-  int32 priority = 14;
-  PortRange port_range = 15;
-  string region = 16;
-  ProgressManagerType progress_manager_type = 17;
-  InputManager input_manager = 18;
-  oneof channel_config {
-    StdPipe std_pipe = 19;
-    FifoPipe fifo_pipe = 20;
-  }
-  int64 sleep_before_exit_ms = 21;
-  bool core_dump_enable = 22;
-  RunningMode running_mode = 23; // TODO: Deprecate this
-  map<string, string> custom_metric_tags = 24;
-  int32 setup_port_retry_max_times = 25;
-  EventLogConfig event_log_config = 26;
-  BlacklistConfig blacklist_config = 27;
-  repeated string yarn_application_tags = 28;
-  TimelineConfig timeline_config = 29;
-  int32 graceful_shutdown_timeout_min = 30;
-  int32 am_allocation_timeout_min = 31;
-  UniqueNameConfig unique_name_config = 33;
-  ApiServerConf api_server_conf = 34;
 
-  MigrationConf migration_conf = 35;
-  int32 snapshot_copy_threads_cnt = 36;
+  string staging_dir = 10;
+  string history_hdfs_base = 11;
+  RuntimeConf runtime_conf = 12;
 
-  ProgressManagerConf progress_manager_conf = 37;
-  StatusEventLogConf status_event_log_conf = 38;
+  repeated string files = 20;
+  map<string, string> env = 21;
 
-  // Experimental zone
-  RuntimeConf runtime_conf = 100;
+  Scheduler scheduler = 30;
+  InputManager input_manager = 31;
+  repeated Role role = 32;
+
+  // Advanced
+  int32 snapshot_copy_threads_cnt = 100;
+
+  int32 max_app_attempts = 110;
+  int64 sleep_before_exit_ms = 111;
+  int32 setup_port_retry_max_times = 112;
+  int32 graceful_shutdown_timeout_min = 113;
+  int32 am_allocation_timeout_min = 114;
+
+  ApiServerConf api_server_conf = 120;
+  BlacklistConfig blacklist_config = 121;
+
+  StatusEventLogConf status_event_log_conf = 130;
+  EventLogConfig event_log_config = 131;
+  TimelineConfig timeline_config = 132;
+
+  // Experimental
+  ProgressManagerConf progress_manager_conf = 200;
 }

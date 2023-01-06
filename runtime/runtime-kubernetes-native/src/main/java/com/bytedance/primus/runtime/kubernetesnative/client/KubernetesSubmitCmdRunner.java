@@ -32,7 +32,6 @@ import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
 import com.bytedance.primus.common.util.RuntimeUtils;
 import com.bytedance.primus.common.util.Sleeper;
 import com.bytedance.primus.common.util.StringUtils;
-import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.PrimusDriverPod;
@@ -106,7 +105,6 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
 
     // Override with userPrimusConf
     return builder
-        .setRunningMode(RunningMode.KUBERNETES)
         .mergeFrom(userPrimusConf)
         .build();
   }

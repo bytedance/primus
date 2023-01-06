@@ -19,7 +19,6 @@
 
 package com.bytedance.primus.common.network;
 
-import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass.NetworkConfig.NetworkType;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import lombok.Getter;
@@ -27,49 +26,32 @@ import lombok.Getter;
 public class NetworkConfig {
 
   @Getter
-  private final RunningMode runningMode;
-  @Getter
   private final boolean keepIpAndPortUnderOverlay;
   @Getter
   private final NetworkType networkType;
 
   public NetworkConfig(PrimusConf primusConf) {
-    switch (primusConf.getRunningMode()) {
-      case YARN:
-      case KUBERNETES:
-        this.runningMode = primusConf.getRunningMode();
-        this.networkType = primusConf
-            .getScheduler()
-            .getNetworkConfig()
-            .getNetworkType();
-        this.keepIpAndPortUnderOverlay = primusConf
-            .getScheduler()
-            .getNetworkConfig()
-            .getKeepIpPortUnderOverlay();
-        break;
-      default:
-        throw new IllegalArgumentException("Unknown RunningMode: " + primusConf.getRunningMode());
-    }
+    this.networkType = primusConf
+        .getScheduler()
+        .getNetworkConfig()
+        .getNetworkType();
+    this.keepIpAndPortUnderOverlay = primusConf
+        .getScheduler()
+        .getNetworkConfig()
+        .getKeepIpPortUnderOverlay();
   }
 
   public NetworkEndpointTypeEnum getNetworkEndpointType() {
-    switch (runningMode) {
-      case KUBERNETES:
-        return NetworkEndpointTypeEnum.IPADDRESS;
-      case YARN:
-        return networkType == NetworkType.OVERLAY && isKeepIpAndPortUnderOverlay()
-            ? NetworkEndpointTypeEnum.IPADDRESS
-            : NetworkEndpointTypeEnum.HOSTNAME;
-      default:
-        throw new IllegalArgumentException("Unsupported RunningMode: " + runningMode);
-    }
+    return networkType == NetworkType.OVERLAY && keepIpAndPortUnderOverlay
+        ? NetworkEndpointTypeEnum.IPADDRESS
+        : NetworkEndpointTypeEnum.HOSTNAME;
   }
 
   @Override
   public String toString() {
     return String.format(
-        "NetworkConfig={RunningMode: %s, NetworkType: %s, KeepIpAndPortUnderOverlay: %s}",
-        runningMode, networkType, keepIpAndPortUnderOverlay
+        "NetworkConfig={NetworkType: %s, KeepIpAndPortUnderOverlay: %s}",
+        networkType, keepIpAndPortUnderOverlay
     );
   }
 }

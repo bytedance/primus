@@ -131,6 +131,10 @@ message KubernetesContainerConf {
 
 message YarnCommunityConf {
   map<string, string> hadoop_conf = 1;
+  int32 priority = 2;
+  repeated string application_tags = 3;
+
+  PortRange port_range = 50; // Experimental
 
   /**
    * Supported Dictionary

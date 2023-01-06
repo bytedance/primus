@@ -26,7 +26,6 @@ import com.bytedance.primus.apiserver.client.DefaultClient;
 import com.bytedance.primus.apiserver.client.apis.CoreApi;
 import com.bytedance.primus.apiserver.records.ExecutorSpec;
 import com.bytedance.primus.executor.exception.PrimusExecutorException;
-import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusInput.InputManager;
 import java.util.ArrayList;
@@ -142,13 +141,5 @@ public class PrimusExecutorConf {
 
   public int getApiServerPort() {
     return apiServerPort;
-  }
-
-  public boolean isKubernetesRunningMode() {
-    return primusConf.getRunningMode() == RunningMode.KUBERNETES;
-  }
-
-  public boolean isYarnRunningMode() {
-    return primusConf.getRunningMode() == RunningMode.YARN;
   }
 }

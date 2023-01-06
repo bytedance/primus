@@ -24,21 +24,16 @@ import static com.bytedance.primus.apiserver.utils.Constants.API_SERVER_RPC_PORT
 import static com.bytedance.primus.apiserver.utils.Constants.PRIMUS_EXECUTOR_UNIQID_ENV;
 
 import com.bytedance.primus.common.child.ChildLaunchPlugin;
-import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.worker.WorkerContext;
-import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.commons.lang.StringUtils;
 
 public class EnvPlugin implements ChildLaunchPlugin {
 
-  private static final String APPLICATION_ID_ENV_KEY = "APPLICATION_ID";
-  private static final String CONTAINER_ID_ENV_KEY = "CONTAINER_ID";
-  private static final String ORACLE_ID_ENV_KEY = "ORACLE_ID";
+  private static final String EXECUTOR_ID_ENV_KEY = "EXECUTOR_ID";
   private static final String PORT_LIST_ENV_KEY = "PORT_LIST";
-  private static final String CORE_DUMP_PROC_NAME = "CORE_DUMP_PROC_NAME";
 
   private ExecutorContext executorContext;
   private WorkerContext workerContext;
@@ -48,22 +43,10 @@ public class EnvPlugin implements ChildLaunchPlugin {
     this.executorContext = executorContext;
     this.workerContext = workerContext;
     this.envs = new HashMap<>();
-    if (executorContext.getPrimusExecutorConf().isYarnRunningMode()) {
-      String containerId = workerContext.getEnvironment().get(CONTAINER_ID_ENV_KEY);
-      String applicationId = ContainerId.fromString(containerId)
-          .getApplicationAttemptId()
-          .getApplicationId()
-          .toString();
-      envs.put(APPLICATION_ID_ENV_KEY, applicationId);
-    }
-    envs.put(ORACLE_ID_ENV_KEY, String.valueOf(executorContext.getExecutorId().getIndex()));
+    envs.put(EXECUTOR_ID_ENV_KEY, String.valueOf(executorContext.getExecutorId().getIndex()));
     if (executorContext.getPrimusExecutorConf().getPortList().size() != 0) {
       envs.put(PORT_LIST_ENV_KEY,
           StringUtils.join(executorContext.getPrimusExecutorConf().getPortList(), ","));
-    }
-    PrimusConf primusConf = executorContext.getPrimusExecutorConf().getPrimusConf();
-    if (primusConf.getCoreDumpEnable()) {
-      envs.put(CORE_DUMP_PROC_NAME, "primus_" + primusConf.getName());
     }
 
     // Trick and temporary solution to fix bug of coredump_handler.
