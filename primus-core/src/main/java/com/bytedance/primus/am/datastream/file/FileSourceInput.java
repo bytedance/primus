@@ -19,9 +19,8 @@
 
 package com.bytedance.primus.am.datastream.file;
 
+import com.bytedance.primus.apiserver.proto.DataProto.DataSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
-import com.bytedance.primus.common.collections.Pair;
-import com.bytedance.primus.proto.PrimusCommon.Time;
 import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import java.util.Objects;
 import java.util.Optional;
@@ -29,66 +28,29 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
+@Getter
 @AllArgsConstructor(access = AccessLevel.PUBLIC)
 public class FileSourceInput {
 
-  @Getter
-  private String sourceId;
-  @Getter
+  private int sourceId;
   private String source;
-  @Getter
   private FileSourceSpec spec;
+
+  public FileSourceInput(DataSourceSpec dataSourceSpec) {
+    if (!dataSourceSpec.hasFileSourceSpec()) {
+      throw new IllegalArgumentException(
+          "Invalid dataSourceSpec of type: " + dataSourceSpec.getDataSourceCase());
+    }
+
+    this.sourceId = dataSourceSpec.getSourceId();
+    this.source = dataSourceSpec.getSource();
+    this.spec = dataSourceSpec.getFileSourceSpec();
+  }
 
   public Optional<TimeRange> getTimeRange() {
     return spec.hasTimeRange()
         ? Optional.of(spec.getTimeRange())
         : Optional.empty();
-  }
-
-  public Pair<Integer, Integer> getStartDateHour() {
-    Optional<TimeRange> optional = getTimeRange();
-    if (!optional.isPresent()) {
-      throw new IllegalArgumentException("Missing TimeRange: " + this);
-    }
-
-    Time time = optional.get().getFrom();
-    switch (time.getTimeCase()) {
-      case DATE:
-        return new Pair<>(
-            time.getDate().getDate(),
-            0 // Defaults to 0 for closed interval
-        );
-      case DATE_HOUR:
-        return new Pair<>(
-            time.getDateHour().getDate(),
-            time.getDateHour().getHour()
-        );
-      default:
-        return new Pair<>(null, null);
-    }
-  }
-
-  public Pair<Integer, Integer> getEndDateHour() {
-    Optional<TimeRange> optional = getTimeRange();
-    if (!optional.isPresent()) {
-      throw new IllegalArgumentException("Missing TimeRange: " + this);
-    }
-
-    Time time = optional.get().getTo();
-    switch (time.getTimeCase()) {
-      case DATE:
-        return new Pair<>(
-            time.getDate().getDate(),
-            23 // Defaults to 23 for closed interval
-        );
-      case DATE_HOUR:
-        return new Pair<>(
-            time.getDateHour().getDate(),
-            time.getDateHour().getHour()
-        );
-      default:
-        return new Pair<>(null, null);
-    }
   }
 
   @Override

@@ -28,9 +28,11 @@ import com.bytedance.primus.io.datasource.file.models.PrimusSplit;
 import com.bytedance.primus.io.messagebuilder.MessageBuilder;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.SortedSet;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -76,42 +78,36 @@ public interface FileDataSource {
       FileSystem fs,
       PrimusInput input
   ) throws IllegalArgumentException, IOException {
-    SortedSet<PrimusSplit> ret = new TreeSet<>();
+    // Glob file system
     FileStatus[] matches = fs.globStatus(new Path(input.getPath()));
     if (matches == null) {
       throw new NoSuchFileException("Input path does not exist: " + input.getPath());
     } else if (matches.length == 0) {
       throw new NoSuchFileException("Input Pattern " + input.getPath() + " matches 0 files");
     }
+
+    // Assemble results
+    SortedSet<PrimusSplit> ret = new TreeSet<>();
     for (FileStatus globStat : matches) {
-      FileStatus[] fileStatuses;
-      if (globStat.isDirectory()) {
-        // scan subdirectory if current globStat directory is day+hour path (YYYYMMDD/HH)
-        fileStatuses = fs.listStatus(new Path(globStat.getPath().toUri().getPath()));
-      } else {
-        fileStatuses = new FileStatus[]{globStat};
-      }
-      for (FileStatus fileStatus : fileStatuses) {
-        Path pathForFilter = new Path(globStat.getPath(), fileStatus.getPath());
-        if (isIgnoredFile(pathForFilter)) {
-          continue;
-        }
-        PrimusSplit split = new PrimusSplit(
-            input.getSourceId(),
-            input.getSource(),
-            fileStatus.getPath().toString(),
-            0, // Start
-            fileStatus.getLen(), // Length
-            input.getKey(),
-            input.getSpec()
-        );
-        ret.add(split);
-      }
+      FileStatus[] fileStatuses = globStat.isDirectory()
+          ? fs.listStatus(new Path(globStat.getPath().toUri().getPath()))
+          : new FileStatus[]{globStat};
+
+      ret.addAll(Arrays.stream(fileStatuses)
+          .filter(fileStatus -> !isIgnoredFile(fileStatus.getPath()))
+          .map(fileStatus -> new PrimusSplit(
+              input,
+              fileStatus.getPath().toString(),
+              0 /* start */,
+              fileStatus.getLen()
+          ))
+          .collect(Collectors.toList())
+      );
     }
+
     return ret;
   }
 
-  // TODO: Make use of path (such supporting regex) and file name filter to remove these logics.
   default boolean isIgnoredFile(Path path) {
     return path.getName().endsWith("_SUCCESS")
         || path.getName().equals("_temporary")

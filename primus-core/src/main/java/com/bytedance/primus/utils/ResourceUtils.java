@@ -28,10 +28,6 @@ import com.bytedance.primus.apiserver.proto.DataProto.DataSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.DataSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.DataStreamSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.KafkaSourceSpec;
-import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy;
-import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.CommonOperatorPolicy;
-import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorConf;
-import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorType;
 import com.bytedance.primus.apiserver.proto.ResourceProto;
 import com.bytedance.primus.apiserver.proto.ResourceProto.ExecutorSpec;
 import com.bytedance.primus.apiserver.proto.ResourceProto.JobSpec;
@@ -59,6 +55,7 @@ import com.bytedance.primus.apiserver.records.Meta;
 import com.bytedance.primus.apiserver.records.impl.DataSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.JobSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.MetaImpl;
+import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.ApiServerConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Attribute;
@@ -70,13 +67,12 @@ import com.bytedance.primus.proto.PrimusConfOuterClass.PluginConfig;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Role;
 import com.bytedance.primus.proto.PrimusConfOuterClass.RoleScheduleType;
+import com.bytedance.primus.proto.PrimusInput.FileConfig;
+import com.bytedance.primus.proto.PrimusInput.FileConfig.Input;
 import com.bytedance.primus.proto.PrimusInput.InputManager;
 import com.bytedance.primus.proto.PrimusInput.InputManager.ConfigCase;
-import com.bytedance.primus.proto.PrimusInput.InputManager.FileConfig;
-import com.bytedance.primus.proto.PrimusInput.InputManager.KafkaConfig;
-import com.bytedance.primus.proto.PrimusInput.InputManager.KafkaConfig.Topic;
-import com.bytedance.primus.proto.PrimusInput.InputManager.ShuffleConfig;
-import com.bytedance.primus.proto.PrimusInput.OneTimeInput;
+import com.bytedance.primus.proto.PrimusInput.KafkaConfig;
+import com.bytedance.primus.proto.PrimusInput.KafkaConfig.Topic;
 import com.bytedance.primus.proto.PrimusRuntime.YarnNeedGlobalNodesView;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler.BatchScheduler;
@@ -436,11 +432,9 @@ public class ResourceUtils {
   }
 
   public static DataStreamSpec buildDataStreamSpec(InputManager inputManager) {
-    DataStreamSpec.Builder builder = DataStreamSpec.newBuilder()
+    return DataStreamSpec.newBuilder()
         .addAllDataSourceSpecs(buildDataSourceSpecs(inputManager))
-        .setOperatorPolicy(buildOperatorPolicy(inputManager));
-
-    return builder.build();
+        .build();
   }
 
   public static List<DataSourceSpec> buildDataSourceSpecs(InputManager inputManager) {
@@ -455,26 +449,13 @@ public class ResourceUtils {
     }
   }
 
-  public static OperatorPolicy buildOperatorPolicy(InputManager inputManager) {
-    if (inputManager.getFileConfig().hasShuffleConfig()) {
-      ShuffleConfig shuffleConfig = inputManager.getFileConfig().getShuffleConfig();
-      return OperatorPolicy.newBuilder()
-          .setCommonOperatorPolicy(buildCommonOperatorPolicyWithShuffleConfig(shuffleConfig))
-          .build();
-    }
-    return OperatorPolicy.newBuilder()
-        .setCommonOperatorPolicy(buildCommonOperatorPolicy())
-        .build();
-
-  }
-
   public static List<DataSourceSpec> buildDataSourceSpec(FileConfig config) {
-    return buildDataSourceSpecsFromOneTimeInputs(config.getOneTimeInputsList());
+    return buildDataSourceSpecsFromOneTimeInputs(config.getInputsList());
   }
 
   public static List<DataSourceSpec> buildDataSourceSpec(KafkaConfig kafkaConfig) {
     List<DataSourceSpec> results = new LinkedList<>();
-    int sourceId = 1;
+    int sourceId = 0;
     for (Topic topic : kafkaConfig.getTopicsList()) {
       KafkaSourceSpec kafkaSourceSpec = KafkaSourceSpec.newBuilder()
           .setTopic(KafkaSourceSpec.Topic.newBuilder()
@@ -489,80 +470,20 @@ public class ResourceUtils {
           .build();
       results.add(
           DataSourceSpec.newBuilder()
-              .setSourceId(String.valueOf(sourceId++))
+              .setSourceId(sourceId++)
               .setKafkaSourceSpec(kafkaSourceSpec).build());
     }
     return results;
   }
 
-  public static CommonOperatorPolicy buildCommonOperatorPolicy() {
-    return CommonOperatorPolicy.newBuilder()
-        .setMap(
-            OperatorConf.newBuilder()
-                .setOperatorType(OperatorType.MAP_IDENTITY)
-                .build()
-        )
-        .setGroupByKey(
-            OperatorConf.newBuilder()
-                .setOperatorType(OperatorType.GROUP_BY_KEY)
-                .build()
-        )
-        .setMapPartitionsFunction(
-            OperatorConf.newBuilder()
-                .setOperatorType(OperatorType.MAP_PARTITIONS_IDENTITY)
-                .build()
-        )
-        .setSortByKey(
-            OperatorConf.newBuilder()
-                .setOperatorType(OperatorType.SORT_BY_KEY)
-                .build()
-        )
-        .build();
-  }
-
-  public static CommonOperatorPolicy buildCommonOperatorPolicyWithShuffleConfig(
-      ShuffleConfig shuffleConfig) {
-    OperatorType mapPartitionOp =
-        shuffleConfig.getWithinPartitionShuffle() ? OperatorType.MAP_PARTITIONS_SHUFFLE
-            : OperatorType.MAP_PARTITIONS_IDENTITY;
-    OperatorType sortByKeyOp =
-        shuffleConfig.getAmongPartitionShuffle() ? OperatorType.SHUFFLE_BY_KEY
-            : OperatorType.SORT_BY_KEY;
-
-    return CommonOperatorPolicy.newBuilder()
-        .setMap(
-            OperatorConf.newBuilder()
-                .setOperatorType(OperatorType.MAP_IDENTITY)
-                .build()
-        )
-        .setGroupByKey(
-            OperatorConf.newBuilder()
-                .setOperatorType(OperatorType.GROUP_BY_KEY)
-                .build()
-        )
-        .setMapPartitionsFunction(
-            OperatorConf.newBuilder()
-                .setOperatorType(mapPartitionOp)
-                .build()
-        )
-        .setSortByKey(
-            OperatorConf.newBuilder()
-                .setOperatorType(sortByKeyOp)
-                .build()
-        )
-        .build();
-  }
-
-  public static List<DataSourceSpec> buildDataSourceSpecsFromOneTimeInputs(
-      List<OneTimeInput> oneTimeInputs
-  ) {
+  public static List<DataSourceSpec> buildDataSourceSpecsFromOneTimeInputs(List<Input> inputs) {
     return IntStream
-        .range(0, oneTimeInputs.size())
+        .range(0, inputs.size())
         .mapToObj(index -> {
-          OneTimeInput input = oneTimeInputs.get(index);
+          Input input = inputs.get(index);
           return DataSourceSpec.newBuilder()
-              .setSourceId(String.valueOf(index))
-              .setSource(input.getName())
+              .setSourceId(index)
+              .setSource(StringUtils.ensure(input.getName(), String.valueOf(index)))
               .setFileSourceSpec(input.getSpec()) // TODO: Implement FileSourceSpec validator
               .build();
         }).collect(Collectors.toList());

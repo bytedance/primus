@@ -17,22 +17,20 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.am.datastream.file.operator.op;
+package com.bytedance.primus.io.datasource.file.models;
 
-import com.bytedance.primus.io.datasource.file.models.Input;
-import com.bytedance.primus.common.collections.Pair;
-import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorConf;
-import java.util.Comparator;
-import java.util.List;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 
-public class SortByKeyImpl<T extends Input> implements SortByKey<T> {
+/**
+ * Primus schedules data into batches to interleave them among different data sources, so that the
+ * model won't be overly optimized for a single data source while training. BaseInput represents a
+ * batch of data from a DataSource, which is used to populate BaseSplits for actual data injection.
+ */
+public interface BaseInput {
 
-  @Override
-  public void setConf(OperatorConf conf) {
-  }
+  String getBatchKey(); // The key for the batch
 
-  public List<Pair<String, List<T>>> apply(List<Pair<String, List<T>>> inputs) {
-    inputs.sort(Comparator.comparing(Pair::getKey));
-    return inputs;
-  }
+  int getSourceId(); // The UniqID of the data source.
+
+  FileSourceSpec getSpec(); // The specification of the data source
 }

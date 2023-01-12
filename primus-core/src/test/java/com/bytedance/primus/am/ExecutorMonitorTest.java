@@ -21,8 +21,8 @@ package com.bytedance.primus.am;
 
 import com.google.common.collect.ImmutableMap;
 import java.util.Map;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class ExecutorMonitorTest {
   @Test
@@ -31,7 +31,6 @@ public class ExecutorMonitorTest {
     Map<String, String> map = ImmutableMap.of("a", "b");
     Map<String, String> map2 = ImmutableMap.of("a", "c");
     boolean metricsChanged = monitor.isMetricsChanged(map, map2);
-    Assert.assertTrue(metricsChanged);
+    Assertions.assertTrue(metricsChanged);
   }
-
 }

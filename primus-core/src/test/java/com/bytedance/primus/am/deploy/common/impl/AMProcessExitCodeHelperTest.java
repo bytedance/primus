@@ -21,8 +21,8 @@ package com.bytedance.primus.am.deploy.common.impl;
 
 import com.bytedance.primus.common.model.records.FinalApplicationStatus;
 import com.bytedance.primus.utils.AMProcessExitCodeHelper;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class AMProcessExitCodeHelperTest {
 
@@ -30,11 +30,11 @@ public class AMProcessExitCodeHelperTest {
   public void testAmProcessExitCode() {
     AMProcessExitCodeHelper exitCodeHelper = new AMProcessExitCodeHelper(
         FinalApplicationStatus.SUCCEEDED);
-    Assert.assertEquals(0, exitCodeHelper.getExitCode());
+    Assertions.assertEquals(0, exitCodeHelper.getExitCode());
 
     exitCodeHelper = new AMProcessExitCodeHelper(
         FinalApplicationStatus.FAILED);
-    Assert.assertNotEquals(0, exitCodeHelper.getExitCode());
+    Assertions.assertNotEquals(0, exitCodeHelper.getExitCode());
   }
 
 }

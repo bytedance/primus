@@ -37,8 +37,6 @@ message DataStatus {
 
 message DataStreamSpec {
   repeated DataSourceSpec dataSourceSpecs = 1;
-  OperatorPolicy operatorPolicy = 2;
-  string workflow_name = 4;
 }
 
 message DataStreamStatus {
@@ -55,33 +53,33 @@ message DataStreamStatus {
 }
 
 message DataSourceSpec {
-  string source_id = 5;  // unique data source id within a data stream
-  string source = 1;
+  int32 source_id = 1; // The unique data source id within a data stream
+  string source = 2;   // The name of the data source
+
   oneof dataSource {
-    FileSourceSpec fileSourceSpec = 2;
-    // Forward compatibility, may be deprecated in future
-    KafkaSourceSpec kafkaSourceSpec = 4;
+    FileSourceSpec fileSourceSpec = 10;
+    KafkaSourceSpec kafkaSourceSpec = 20; // Experimental
   }
 }
 
 message DataSourceStatus {
-  string source_id = 1;  // unique data source id within a data stream
-  int32 data_consumption_time = 2;  // format: YYYYMMDDHH
+  int32 source_id = 1; // The unique id of the DataSource within a data stream
+  string report = 10;  // Human readable report for current status
 }
 
 message FileSourceSpec {
-  string file_path = 1;        // The directory containing input files.
-  string file_name_filter = 2; // Regex filter against files by their name, defaults to `.*`.
+  string path_pattern = 1; // The directory containing input files
+  string name_pattern = 2; // The file name filter, defaults to all files
+  repeated string success_marker_patterns = 3; // Wait for expose
 
-  // [Optional] TimeRange instructs Primus to scan subdirectories with assigned day_format
-  TimeRange time_range = 10; // TODO: Document how Time::Now works.
-  DayFormat day_format = 11; // TODO: support customized time formatter which supports both date and hour.
+  // Optional: TimeRange instructs Primus to scan subdirectories with a sliding window.
+  TimeRange time_range = 10;
 
   // Type specific configurations
   oneof input_type {
-    RawInput raw_input = 100;
-    TextInput text_input = 101;
-    CustomizedInput customized_input = 200;
+    RawInput raw_input = 40;
+    TextInput text_input = 41;
+    CustomizedInput customized_input = 80;
   }
   message RawInput {}
   message TextInput {}
@@ -89,9 +87,9 @@ message FileSourceSpec {
     string class_name = 1; // The class implementing FileDataSource
     map<string, string> params = 2;
   }
-}
 
-message FileSourceStatus {
+  // Advanced
+  int32 rewind_skip_num = 100; // defaults to 0
 }
 
 message KafkaSourceSpec {
@@ -117,41 +115,6 @@ message KafkaSourceSpec {
 
   Topic topic = 1;
   KafkaMessageType kafka_message_type = 2;
-}
-
-message KafkaSourceStatus {
-}
-
-message OperatorPolicy {
-  enum OperatorType {
-    MAP_IDENTITY = 0;
-    MAP_DELAY = 1;
-
-    GROUP_BY_KEY = 100;
-
-    MAP_PARTITIONS_IDENTITY = 200;
-    MAP_PARTITIONS_SAMPLE = 201;
-    MAP_PARTITIONS_SHUFFLE = 202;
-
-    SORT_BY_KEY = 300;
-    SHUFFLE_BY_KEY = 301;
-  }
-
-  message OperatorConf {
-    OperatorType operatorType = 1;
-    repeated string arguments = 2;
-  }
-
-  message CommonOperatorPolicy {
-    OperatorConf map = 1;
-    OperatorConf groupByKey = 2;
-    OperatorConf mapPartitionsFunction = 3;
-    OperatorConf sortByKey = 4;
-  }
-
-  oneof operatorPolicy {
-    CommonOperatorPolicy commonOperatorPolicy = 1;
-  }
 }
 
 message DataSavepointSpec {

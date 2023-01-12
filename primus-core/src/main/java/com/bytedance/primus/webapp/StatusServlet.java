@@ -60,12 +60,12 @@ public class StatusServlet extends HttpServlet {
   }
 
   public static String buildTaskUri(Task task) {
-    if (task.getSplitTask() != null) {
-      return task.getSplitTask().getPath()
+    if (task.getFileTask() != null) {
+      return task.getFileTask().getPath()
           + "[start="
-          + task.getSplitTask().getStart()
+          + task.getFileTask().getStart()
           + ", length="
-          + task.getSplitTask().getLength()
+          + task.getFileTask().getLength()
           + "]";
     } else {
       return "";

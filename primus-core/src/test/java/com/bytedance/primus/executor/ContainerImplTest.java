@@ -29,15 +29,15 @@ import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.util.Arrays;
 import java.util.List;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class ContainerImplTest {
 
   private static final Logger log = LoggerFactory.getLogger(ContainerImplTest.class);
@@ -58,7 +58,7 @@ public class ContainerImplTest {
     try {
       container.setupPortsForBatchSchedulerAndGangScheduler();
     } catch (PrimusExecutorException e) {
-      Assert.assertTrue(e.getMessage()
+      Assertions.assertTrue(e.getMessage()
           .endsWith("retry:" + DEFAULT_SETUP_PORT_WITH_BATCH_OR_GANG_SCHEDULER_RETRY_MAX_TIMES));
     }
     serverSocket.close();
@@ -68,10 +68,9 @@ public class ContainerImplTest {
   public void testFindFirstValidInet4Address() {
     ContainerImpl container = new ContainerImpl();
     InetAddress invalidAddress = mock(InetAddress.class);
-    when(invalidAddress.getHostAddress()).thenReturn("0.0.0.0");
     List<InetAddress> list = Arrays.asList(invalidAddress);
-    Assert.assertNull("should return null for 0.0.0.0",
-        container.findFirstValidInet4Address("eth0", list));
+    Assertions.assertNull(
+        container.findFirstValidInet4Address("eth0", list),
+        "should return null for 0.0.0.0");
   }
-
 }

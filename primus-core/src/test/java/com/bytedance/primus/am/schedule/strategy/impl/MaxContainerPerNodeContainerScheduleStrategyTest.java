@@ -35,13 +35,13 @@ import com.bytedance.primus.common.model.records.impl.pb.ContainerPBImpl;
 import com.google.common.collect.Lists;
 import java.util.HashMap;
 import java.util.Map;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class MaxContainerPerNodeContainerScheduleStrategyTest {
 
   @Mock
@@ -68,12 +68,10 @@ public class MaxContainerPerNodeContainerScheduleStrategyTest {
     ContainerScheduleContext containerScheduleContext = new ContainerScheduleContext(container);
 
     ContainerScheduleAction action = strategy.processNewContainer(containerScheduleContext);
-    Assert.assertEquals(ContainerScheduleAction.ACCEPT_CONTAINER, action);
+    Assertions.assertEquals(ContainerScheduleAction.ACCEPT_CONTAINER, action);
     strategy.postProcess(action, containerScheduleContext);
 
     ContainerScheduleAction action2 = strategy.processNewContainer(containerScheduleContext);
-    Assert.assertEquals(ContainerScheduleAction.RELEASE_CONTAINER, action2);
-
+    Assertions.assertEquals(ContainerScheduleAction.RELEASE_CONTAINER, action2);
   }
-
 }

@@ -21,12 +21,11 @@ package com.bytedance.primus.api.records.impl.pb;
 
 import com.bytedance.primus.api.records.TaskState;
 import com.bytedance.primus.api.records.TaskStatus;
-import com.bytedance.primus.proto.Primus.TaskStatusProto;
-import com.bytedance.primus.proto.Primus.TaskStatusProtoOrBuilder;
+import com.bytedance.primus.proto.PrimusTask.TaskStatusProto;
+import com.bytedance.primus.proto.PrimusTask.TaskStatusProtoOrBuilder;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.io.InputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +38,7 @@ public class TaskStatusPBImpl implements TaskStatus {
 
   private String group = null;
   private Long taskId = null;
-  private String sourceId = null;
+  private Integer sourceId = null;
   private TaskState taskState = null;
   private Float progress = null;
   private String checkpoint = null;
@@ -105,7 +104,7 @@ public class TaskStatusPBImpl implements TaskStatus {
       builder.setAssignedNodeUrl(assignedNodeUrl);
     }
     if (this.workerName != null) {
-      builder.setWorkerName(workerName);
+      builder.setExecutorName(workerName);
     }
   }
 
@@ -156,7 +155,7 @@ public class TaskStatusPBImpl implements TaskStatus {
   }
 
   @Override
-  public String getSourceId() {
+  public int getSourceId() {
     TaskStatusProtoOrBuilder p = viaProto ? proto : builder;
     if (this.sourceId != null) {
       return this.sourceId;
@@ -165,7 +164,7 @@ public class TaskStatusPBImpl implements TaskStatus {
   }
 
   @Override
-  public void setSourceId(String sourceId) {
+  public void setSourceId(int sourceId) {
     maybeInitBuilder();
     this.sourceId = sourceId;
   }
@@ -345,7 +344,7 @@ public class TaskStatusPBImpl implements TaskStatus {
     if (workerName != null) {
       return workerName;
     }
-    return p.getWorkerName();
+    return p.getExecutorName();
   }
 
   @Override

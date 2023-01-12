@@ -22,26 +22,24 @@ package com.bytedance.primus.am;
 import static org.mockito.Mockito.when;
 
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class ApplicationMasterEventTest {
 
   @Mock
   AMContext context;
 
-  @Before
+  @BeforeEach
   public void init() {
     PrimusConf primusConf = PrimusConf.newBuilder()
         .setGracefulShutdownTimeoutMin(10)
         .build();
-    when(context.getApplicationId()).thenReturn("application_id_0");
-    when(context.getAttemptId()).thenReturn(0);
     when(context.getPrimusConf()).thenReturn(primusConf);
   }
 
@@ -49,7 +47,6 @@ public class ApplicationMasterEventTest {
   public void testInitWithDefaultTimeout() {
     ApplicationMasterEvent event = new ApplicationMasterEvent(context,
         ApplicationMasterEventType.FAIL_ATTEMPT, "test", -1);
-    Assert.assertEquals(event.getGracefulShutdownTimeoutMs(), 600000);
+    Assertions.assertEquals(event.getGracefulShutdownTimeoutMs(), 600000);
   }
-
 }

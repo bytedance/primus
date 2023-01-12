@@ -19,442 +19,667 @@
 
 package com.bytedance.primus.am.datastream.file;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertTrue;
+import static com.bytedance.primus.utils.TimeUtils.newDate;
+import static com.bytedance.primus.utils.TimeUtils.newDateHour;
+import static com.bytedance.primus.utils.TimeUtils.newNow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec.RawInput;
-import com.bytedance.primus.proto.PrimusCommon.DayFormat;
 import com.bytedance.primus.proto.PrimusCommon.Time;
-import com.bytedance.primus.proto.PrimusCommon.Time.Now;
 import com.bytedance.primus.proto.PrimusCommon.TimeRange;
 import com.bytedance.primus.utils.TimeUtils;
 import java.text.ParseException;
 import java.util.LinkedList;
 import java.util.List;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
-// TODO: Tests for DateHour
-// TODO: Provide negative test cases
 public class TestTimeRangeIterator {
 
-  Time FOREVER = TimeUtils.newDateHour(30000101, 0);
-
-  private Time newTime(int date) {
-    return TimeUtils.newDate(date);
-  }
-
-  // TODO: Test with InputType as well.
-  private FileSourceInput newFileSourceInput(String key, Time start, Time end) {
+  private FileSourceInput newInput(String key, Time start, Time end) {
     return new FileSourceInput(
-        key, // sourceID
-        key, // source
-        FileSourceSpec
-            .newBuilder()
-            .setFilePath(key)
-            .setFileNameFilter(key)
-            .setDayFormat(DayFormat.DEFAULT_DAY)
-            .setTimeRange(
-                TimeRange.newBuilder()
-                    .setFrom(start)
-                    .setTo(end))
+        0,        // sourceID
+        "source", // source
+        FileSourceSpec.newBuilder()
+            .setPathPattern(key)
+            .setNamePattern(key)
+            .setTimeRange(TimeRange.newBuilder()
+                .setFrom(start)
+                .setTo(end))
             .setRawInput(RawInput.getDefaultInstance())
             .build());
   }
 
-  // Drops the last time is the length of the input is odd.
   private List<FileSourceInput> newFileSourceInputList(Time... times) {
     List<FileSourceInput> ret = new LinkedList<>();
     for (int i = 0; i < times.length; i += 2) {
-      ret.add(newFileSourceInput("KEY", times[i], times[i + 1]));
+      ret.add(newInput("KEY", times[i], times[i + 1]));
     }
-
     return ret;
+  }
+
+  private void assertBooleanEquals(boolean result, boolean expectation) {
+    assertEquals(result, expectation);
+  }
+
+  private void checkIteratorStates(
+      TimeRangeIterator iter,
+      boolean isValid,
+      String batchKey,
+      List<FileSourceInput> inputs
+  ) {
+    assertBooleanEquals(isValid, iter.isValid());
+    assertEquals(batchKey, iter.getBatchKey());
+    assertEquals(inputs, iter.peekNextBatch());
   }
 
   @Test
   public void testEmptyInput() throws ParseException {
+    // Initialization
     TimeRangeIterator iter = new TimeRangeIterator(new LinkedList<>());
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertNull(iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
-    // 1st iteration
-    assertFalse(iter.prepareNextBatch(FOREVER));
-  }
 
-  @Test
-  public void testConsecutivePreparationsWithoutPopping() throws ParseException {
-    TimeRangeIterator iter = new TimeRangeIterator(
-        newFileSourceInputList(
-            newTime(20200101),
-            newTime(20200101)));
-
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(iter.getNextBatchEndTime(), newTime(20191231));
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
-
-    // 1st preparation
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200101)),
-        iter.peekNextBatch());
-
-    // 2nd preparation
-    assertTrue(iter.prepareNextBatch(FOREVER)); //
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200101)),
-        iter.peekNextBatch());
-  }
-
-  @Test
-  public void testSingleInputSmallerThanBatchWindow() throws ParseException {
-    TimeRangeIterator iter = new TimeRangeIterator(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200101)));
-
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
+    checkIteratorStates(
+        iter,
+        false, // isValid
+        null,  // batch key
+        new LinkedList<>()
+    );
 
     // 1st iteration
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200101)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
-
-    // 2nd iteration
-    assertFalse(iter.prepareNextBatch(FOREVER));
+    assertBooleanEquals(iter.prepareNextBatch(), false);
   }
 
   @Test
-  public void testSingleInputEqualToBatchWindow() throws ParseException {
+  public void testSingleClosedInputWithDate() throws ParseException {
+    // Initialization
     TimeRangeIterator iter = new TimeRangeIterator(
         newFileSourceInputList(
-            newTime(20200101), newTime(20200104)));
+            newDate(20201231), newDate(20210101)
+        )
+    );
 
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20201230", // batch key
+        new LinkedList<>()
+    );
 
-    // 1st iteration
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200104)),
-        iter.peekNextBatch());
+    // 1st
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20201231", // batch key
+        newFileSourceInputList(newDate(20201231), newDate(20201231))
+    );
+
+    assertBooleanEquals(iter.prepareNextBatch(), true); // Prepare without pop, nothing changes.
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20201231", // batch key
+        newFileSourceInputList(newDate(20201231), newDate(20201231))
+    );
+
+    iter.popNextBatch(); // The batch is popped, while other fields remain.
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20201231", // batch key
+        new LinkedList<>()
+    );
+
+    // 2nd
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20210101", // batch key
+        newFileSourceInputList(newDate(20210101), newDate(20210101))
+    );
+
     iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20210101", // batch key
+        new LinkedList<>()
+    );
 
-    // 2nd iteration
-    assertFalse(iter.prepareNextBatch(FOREVER));
+    // 3rd
+    assertBooleanEquals(iter.prepareNextBatch(), false);
+    checkIteratorStates(
+        iter,
+        false,      // isValid
+        "20210102", // batch key
+        new LinkedList<>()
+    );
   }
 
   @Test
-  public void testSingleInputBiggerThanBatchWindow() throws ParseException {
+  public void testSingleOpenInputWithDate() throws ParseException {
+    // Initialization
     TimeRangeIterator iter = new TimeRangeIterator(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200106)));
+        newFileSourceInputList(newDate(20200101), newNow())
+    );
 
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20191231", // batch key
+        new LinkedList<>()
+    );
 
-    // 1st iteration
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200104)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
+    // Prepare
+    for (int batchKey : new int[]{
+        20200101, 20200102, 20200103, 20200104, 20200105,
+        20200106, 20200107, 20200108, 20200109, 20200110,
+        20200111, 20200112, 20200113, 20200114, 20200115,
+        20200116, 20200117, 20200118, 20200119, 20200120,
+        20200121, 20200122, 20200123, 20200124, 20200125,
+        20200126, 20200127, 20200128, 20200129, 20200130,
+        20200131, 20200201, 20200202, 20200203, 20200204,
+    }) {
+      // Prepare
+      assertBooleanEquals(iter.prepareNextBatch(), true);
+      checkIteratorStates(
+          iter,
+          true,                     // isValid
+          String.valueOf(batchKey), // batch cursor
+          newFileSourceInputList(newDate(batchKey), newDate(batchKey))
+      );
 
-    // 2nd iteration
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200105), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200108), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200105), newTime(20200106)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
-
-    // 3rd iteration
-    assertFalse(iter.prepareNextBatch(FOREVER));
+      // Pop
+      iter.popNextBatch();
+      checkIteratorStates(
+          iter,
+          true,                     // isValid
+          String.valueOf(batchKey), // batch cursor
+          new LinkedList<>()
+      );
+    }
   }
 
   @Test
-  public void testSingleInputWithSmallerNow() throws ParseException {
-    Time now = TimeUtils.newDate(20200102);
-    TimeRangeIterator iter = new TimeRangeIterator(
-        newFileSourceInputList(
-            newTime(20200101),
-            Time.newBuilder()
-                .setNow(Now.getDefaultInstance())
-                .build()));
-
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
-
-    // 1st iteration
-    assertTrue(iter.prepareNextBatch(now));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200102), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200102)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
-
-    // 2nd iteration
-    assertFalse(iter.prepareNextBatch(now));
-  }
-
-  @Test
-  public void testSingleInputWithExactNow() throws ParseException {
-    Time now = TimeUtils.newDate(20200104);
-    TimeRangeIterator iter = new TimeRangeIterator(
-        newFileSourceInputList(
-            newTime(20200101),
-            Time.newBuilder()
-                .setNow(Now.getDefaultInstance())
-                .build()));
-
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
-
-    // 1st iteration
-    assertTrue(iter.prepareNextBatch(now));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200104)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
-
-    // 2nd iteration
-    assertFalse(iter.prepareNextBatch(now));
-  }
-
-  @Test
-  public void testSingleInputWithBiggerNow() throws ParseException {
-    Time now = TimeUtils.newDate(20200106);
-    TimeRangeIterator iter = new TimeRangeIterator(
-        newFileSourceInputList(
-            newTime(20200101),
-            Time.newBuilder()
-                .setNow(Now.getDefaultInstance())
-                .build()));
-
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
-
-    // 1st iteration
-    assertTrue(iter.prepareNextBatch(now));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200104)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
-
-    // 2nd iteration
-    assertTrue(iter.prepareNextBatch(now));
-    assertEquals(newTime(20200105), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200106), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200105), newTime(20200106)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
-
-    // 3rd iteration
-    assertFalse(iter.prepareNextBatch(now));
-  }
-
-  @Test
-  public void testContinuousInputs() throws ParseException {
-    TimeRangeIterator iter = new TimeRangeIterator(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200101),
-            newTime(20200102), newTime(20200102),
-            newTime(20200103), newTime(20200103),
-            newTime(20200104), newTime(20200104)));
-
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
-
-    // 1st iteration
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200101),
-            newTime(20200102), newTime(20200102),
-            newTime(20200103), newTime(20200103),
-            newTime(20200104), newTime(20200104)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
-
-    // 2nd iteration
-    assertFalse(iter.prepareNextBatch(FOREVER));
-  }
-
-  @Test
-  public void testContinuousInputsUnsorted() throws ParseException {
-    TimeRangeIterator iter = new TimeRangeIterator(
-        newFileSourceInputList(
-            newTime(20200103), newTime(20200103),
-            newTime(20200102), newTime(20200102),
-            newTime(20200101), newTime(20200101),
-            newTime(20200104), newTime(20200104)));
-
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
-
-    // 1st iteration
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200103), newTime(20200103),
-            newTime(20200102), newTime(20200102),
-            newTime(20200101), newTime(20200101),
-            newTime(20200104), newTime(20200104)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
-
-    // 2nd iteration
-    assertFalse(iter.prepareNextBatch(FOREVER));
-  }
-
-  @Test
-  public void testOverlappedInputs() throws ParseException {
-    TimeRangeIterator iter = new TimeRangeIterator(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200103),
-            newTime(20200102), newTime(20200104)));
-
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
-
-    // 1st iteration
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200103),
-            newTime(20200102), newTime(20200104)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
-
-    // 2nd iteration
-    assertFalse(iter.prepareNextBatch(FOREVER));
-  }
-
-  @Test
-  public void testDisjointedInputs() throws ParseException {
-    TimeRangeIterator iter = new TimeRangeIterator(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200101),
-            newTime(20200104), newTime(20200104)));
-
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
-
-    // 1st iteration
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
-        newFileSourceInputList(
-            newTime(20200101), newTime(20200101),
-            newTime(20200104), newTime(20200104)),
-        iter.peekNextBatch());
-    iter.popNextBatch();
-
-    // 2nd iteration
-    assertFalse(iter.prepareNextBatch(FOREVER));
-  }
-
-  @Test
-  public void testScatteredInputsWithDifferentKeys() throws ParseException {
-
+  public void testMultipleInputsWithDate() throws ParseException {
+    // Initialization
     TimeRangeIterator iter = new TimeRangeIterator(
         new LinkedList<FileSourceInput>() {{
-          add(newFileSourceInput("A", newTime(20200101), newTime(20200101)));
-          add(newFileSourceInput("B", newTime(20200103), newTime(20200103)));
-          add(newFileSourceInput("C", newTime(20200105), newTime(20200105)));
-          add(newFileSourceInput("D", newTime(20200107), newTime(20200107)));
+          add(newInput("A", newDate(20200101), newDate(20200102)));
+          add(newInput("B", newDate(20200101), newDate(20200102))); // Overlapped
+          add(newInput("C", newDate(20200103), newDate(20200104))); // Jointed
+          add(newInput("D", newDate(20200106), newDate(20200106))); // Disjointed
         }});
 
-    // Initial values
-    assertNull(iter.getNextBatchStartTime());
-    assertEquals(newTime(20191231), iter.getNextBatchEndTime());
-    assertEquals(new LinkedList<>(), iter.peekNextBatch());
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20191231", // batch key
+        new LinkedList<>()
+    );
 
-    // 1st iteration
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200101), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200104), iter.getNextBatchEndTime());
-    assertEquals(
+    // 1st
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200101", // batch key
         new LinkedList<FileSourceInput>() {{
-          add(newFileSourceInput("A", newTime(20200101), newTime(20200101)));
-          add(newFileSourceInput("B", newTime(20200103), newTime(20200103)));
-        }},
-        iter.peekNextBatch());
-    iter.popNextBatch();
+          add(newInput("A", newDate(20200101), newDate(20200101)));
+          add(newInput("B", newDate(20200101), newDate(20200101)));
+        }}
+    );
 
-    // 2nd iteration
-    assertTrue(iter.prepareNextBatch(FOREVER));
-    assertEquals(newTime(20200105), iter.getNextBatchStartTime());
-    assertEquals(newTime(20200108), iter.getNextBatchEndTime());
-    assertEquals(
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200101", // batch key
+        new LinkedList<>()
+    );
+
+    // 2nd
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200102", // batch key
         new LinkedList<FileSourceInput>() {{
-          add(newFileSourceInput("C", newTime(20200105), newTime(20200105)));
-          add(newFileSourceInput("D", newTime(20200107), newTime(20200107)));
-        }},
-        iter.peekNextBatch());
-    iter.popNextBatch();
+          add(newInput("A", newDate(20200102), newDate(20200102)));
+          add(newInput("B", newDate(20200102), newDate(20200102)));
+        }}
+    );
 
-    // 3rd iteration
-    assertFalse(iter.prepareNextBatch(FOREVER));
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200102", // batch key
+        new LinkedList<>()
+    );
+
+    // 3rd
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200103", // batch key
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("C", newDate(20200103), newDate(20200103)));
+        }}
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200103", // batch key
+        new LinkedList<>()
+    );
+
+    // 4th
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200104", // batch key
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("C", newDate(20200104), newDate(20200104)));
+        }}
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200104", // batch key
+        new LinkedList<>()
+    );
+
+    // 5th
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200105", // batch key
+        new LinkedList<>()
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200105", // batch key
+        new LinkedList<>()
+    );
+
+    // 6th
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200106", // batch key
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("D", newDate(20200106), newDate(20200106)));
+        }}
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,              // isValid
+        "20200106", // batch key
+        new LinkedList<>()
+    );
+
+    // 7th
+    assertBooleanEquals(iter.prepareNextBatch(), false);
+    checkIteratorStates(
+        iter,
+        false,             // isValid
+        "20200107", // batch key
+        new LinkedList<>()
+    );
+  }
+
+  @Test
+  public void testSingleClosedInputWithDateHour() throws ParseException {
+    // Initialization
+    TimeRangeIterator iter = new TimeRangeIterator(
+        newFileSourceInputList(
+            newDateHour(20201231, 23), newDateHour(20210101, 0)
+        )
+    );
+
+    checkIteratorStates(
+        iter,
+        true,         // isValid
+        "2020123122", // batch key
+        new LinkedList<>()
+    );
+
+    // 1st
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,         // isValid
+        "2020123123", // batch key
+        newFileSourceInputList(newDateHour(20201231, 23), newDateHour(20201231, 23))
+    );
+
+    assertBooleanEquals(iter.prepareNextBatch(), true); // Prepare without pop, nothing changes.
+    checkIteratorStates(
+        iter,
+        true,         // isValid
+        "2020123123", // batch key
+        newFileSourceInputList(newDateHour(20201231, 23), newDateHour(20201231, 23))
+    );
+
+    iter.popNextBatch(); // The batch is popped, while other fields remain.
+    checkIteratorStates(
+        iter,
+        true,         // isValid
+        "2020123123", // batch key
+        new LinkedList<>()
+    );
+
+    // 2nd
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202101010", // batch key
+        newFileSourceInputList(newDateHour(20210101, 0), newDateHour(20210101, 0))
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202101010", // batch key
+        new LinkedList<>()
+    );
+
+    // 3rd
+    assertBooleanEquals(iter.prepareNextBatch(), false);
+    checkIteratorStates(
+        iter,
+        false,       // isValid
+        "202101011", // batch key
+        new LinkedList<>()
+    );
+  }
+
+  @Test
+  public void testSingleOpenInputWithDateHour() throws ParseException {
+    // Initialization
+    TimeRangeIterator iter = new TimeRangeIterator(
+        newFileSourceInputList(newDateHour(20200101, 0), newNow())
+    );
+
+    checkIteratorStates(
+        iter,
+        true,         // isValid
+        "2019123123", // batch key
+        new LinkedList<>()
+    );
+
+    // Prepare
+    for (Time cursor : new Time[]{
+        TimeUtils.newDateHour(20200101, 0), TimeUtils.newDateHour(20200101, 1),
+        TimeUtils.newDateHour(20200101, 2), TimeUtils.newDateHour(20200101, 3),
+        TimeUtils.newDateHour(20200101, 4), TimeUtils.newDateHour(20200101, 5),
+        TimeUtils.newDateHour(20200101, 6), TimeUtils.newDateHour(20200101, 7),
+        TimeUtils.newDateHour(20200101, 8), TimeUtils.newDateHour(20200101, 9),
+        TimeUtils.newDateHour(20200101, 10), TimeUtils.newDateHour(20200101, 11),
+        TimeUtils.newDateHour(20200101, 12), TimeUtils.newDateHour(20200101, 13),
+        TimeUtils.newDateHour(20200101, 14), TimeUtils.newDateHour(20200101, 15),
+        TimeUtils.newDateHour(20200101, 16), TimeUtils.newDateHour(20200101, 17),
+        TimeUtils.newDateHour(20200101, 18), TimeUtils.newDateHour(20200101, 19),
+        TimeUtils.newDateHour(20200101, 20), TimeUtils.newDateHour(20200101, 21),
+        TimeUtils.newDateHour(20200101, 22), TimeUtils.newDateHour(20200101, 23),
+        TimeUtils.newDateHour(20200102, 0), TimeUtils.newDateHour(20200102, 1),
+    }) {
+      int date = cursor.getDateHour().getDate();
+      int hour = cursor.getDateHour().getHour();
+
+      // Prepare
+      assertBooleanEquals(iter.prepareNextBatch(), true);
+      checkIteratorStates(
+          iter,
+          true, // isValid
+          String.format("%d%d", date, hour), // batch cursor
+          newFileSourceInputList(cursor, cursor)
+      );
+
+      // Pop
+      iter.popNextBatch();
+      checkIteratorStates(
+          iter,
+          true, // isValid
+          String.format("%d%d", date, hour), // batch cursor
+          new LinkedList<>()
+      );
+    }
+  }
+
+  @Test
+  public void testMultipleInputsWithDateHour() throws ParseException {
+    // Initialization
+    TimeRangeIterator iter = new TimeRangeIterator(
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("A",
+              newDateHour(20200101, 1),
+              newDateHour(20200101, 2)));
+          add(newInput("B",
+              newDateHour(20200101, 1),
+              newDateHour(20200101, 2))); // Overlapped
+          add(newInput("C",
+              newDateHour(20200101, 3),
+              newDateHour(20200101, 4))); // Jointed
+          add(newInput("D",
+              newDateHour(20200101, 6),
+              newDateHour(20200101, 6))); // Disjointed
+        }});
+
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001010", // batch key
+        new LinkedList<>()
+    );
+
+    // 1st
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001011", // batch key
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("A", newDateHour(20200101, 1), newDateHour(20200101, 1)));
+          add(newInput("B", newDateHour(20200101, 1), newDateHour(20200101, 1)));
+        }}
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001011", // batch key
+        new LinkedList<>()
+    );
+
+    // 2nd
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001012", // batch key
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("A", newDateHour(20200101, 2), newDateHour(20200101, 2)));
+          add(newInput("B", newDateHour(20200101, 2), newDateHour(20200101, 2)));
+        }}
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001012", // batch key
+        new LinkedList<>()
+    );
+
+    // 3rd
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001013", // batch key
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("C", newDateHour(20200101, 3), newDateHour(20200101, 3)));
+        }}
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001013", // batch key
+        new LinkedList<>()
+    );
+
+    // 4th
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001014", // batch key
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("C", newDateHour(20200101, 4), newDateHour(20200101, 4)));
+        }}
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001014", // batch key
+        new LinkedList<>()
+    );
+
+    // 5th
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001015", // batch key
+        new LinkedList<>()
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001015", // batch key
+        new LinkedList<>()
+    );
+
+    // 6th
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001016", // batch key
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("D", newDateHour(20200101, 6), newDateHour(20200101, 6)));
+        }}
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,        // isValid
+        "202001016", // batch key
+        new LinkedList<>()
+    );
+
+    // 7th
+    assertBooleanEquals(iter.prepareNextBatch(), false);
+    checkIteratorStates(
+        iter,
+        false,       // isValid
+        "202001017", // batch key
+        new LinkedList<>()
+    );
+  }
+
+  @Test
+  public void testMultipleInputsWithMixedTimeCases() throws ParseException {
+    // Initialization
+    TimeRangeIterator iter = new TimeRangeIterator(
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("A",
+              newDate(20200101),
+              newDate(20200101)));
+          add(newInput("B",
+              newDateHour(20200101, 13),
+              newDateHour(20200102, 12)));
+        }});
+
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20191231", // batch key
+        new LinkedList<>()
+    );
+
+    // 1st
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20200101", // batch key
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("A", newDate(20200101), newDate(20200101)));
+          add(newInput("B", newDateHour(20200101, 13), newDateHour(20200101, 23)));
+        }}
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20200101", // batch key
+        new LinkedList<>()
+    );
+
+    // 2nd
+    assertBooleanEquals(iter.prepareNextBatch(), true);
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20200102", // batch key
+        new LinkedList<FileSourceInput>() {{
+          add(newInput("B", newDateHour(20200102, 0), newDateHour(20200102, 12)));
+        }}
+    );
+
+    iter.popNextBatch();
+    checkIteratorStates(
+        iter,
+        true,       // isValid
+        "20200102", // batch key
+        new LinkedList<>()
+    );
+
+    // 3rd
+    assertBooleanEquals(iter.prepareNextBatch(), false);
+    checkIteratorStates(
+        iter,
+        false,      // isValid
+        "20200103", // batch key
+        new LinkedList<>()
+    );
   }
 }

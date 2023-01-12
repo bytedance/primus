@@ -1,0 +1,108 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+syntax = "proto3";
+option java_package = "com.bytedance.primus.proto";
+option java_generate_equals_and_hash = true;
+package primus;
+
+import "data.proto";
+
+/**
+ * Task is the unit of workloads assigned to Primus executors, which is
+ * generated from the corresponding DataSource in its origin DataStream.
+ */
+message TaskProto {
+  string group = 1;    // The name of the origin DataStream
+  int64 task_id = 2;   // The unique ID of the task in the group
+  int32 source_id = 3; // The unique ID of the DataSource in the group
+  string source = 4;   // The name of the DataSource in the group
+
+  string checkpoint = 10;
+  int32 num_attempt = 11;
+
+  oneof task {
+    // Batch tasks
+    FileTaskProto file_task = 100;
+    // Streaming tasks
+    KafkaTaskProto kafka_task = 200;
+  }
+}
+
+message FileTaskProto {
+  string batch_key = 1; // The monotonically increasing input batch identifier
+  string path = 2;      // Path to the actual file
+  int64 start = 3;
+  int64 length = 4;
+
+  FileSourceSpec spec = 10; // The origin DataSourceSpec
+}
+
+// Experimental
+message KafkaTaskProto {
+  enum KafkaMessageType {
+    JSON = 0;
+    PB = 1;
+  }
+
+  enum KafkaStartUpMode {
+    GROUP_OFFSETS = 0;
+    EARLIEST = 1;
+    LATEST = 2;
+  }
+
+  string cluster = 1;
+  string topic = 2;
+  string consumer_group = 3;
+  map<string, string> config = 4;
+  KafkaStartUpMode kafka_start_up_mode = 5;
+  KafkaMessageType kafka_message_type = 6;
+}
+
+/**
+ * TaskStatus reflects the status of the corresponding task, as tasks are
+ * executed by executors, TaskStatus contains the information of the progress
+ * and the assigned executor in additional to task metadata.
+ */
+message TaskStatusProto {
+  // Task metadata (shared with TaskProto)
+  string group = 1;
+  int64 task_id = 2;
+  int32 source_id = 3;
+  string source = 4;
+
+  string checkpoint = 10;
+  int32 num_attempt = 11;
+
+  // Task status
+  enum TaskState {
+    RUNNING = 0;
+    SUCCEEDED = 1;
+    FAILED = 2;
+  }
+
+  TaskState task_state = 20;
+  float progress = 21;
+
+  int64 last_assign_time = 30;
+  int64 finish_time = 31;
+  int64 data_consumption_time = 32;
+
+  string assigned_node = 40;
+  string assigned_node_url = 41;
+  string executor_name = 42;
+}

@@ -22,26 +22,25 @@
   ],
   "progressManagerType": "PM_FILE",
   "inputManager": {
+    "fileConfig": {
+      "inputs": [
+        {
+          "name": "data",
+          "spec": {
+            "pathPattern": "/primus/examples/input-file-text/data/",
+            "namePattern": "*",
+            "textInput": {}
+          }
+        }
+      ],
+      "stopPolicy": {
+        "taskSuccessPercent": 100
+      }
+    },
     "workPreserve": {
       "workPreserveType": "HDFS",
       "dumpIntervalSecs": 5,
       "rewindSkipNum": 15000
-    },
-    "fileConfig": {
-      "oneTimeInputs": [
-        {
-          "name": "primus-input-file-text-data",
-          "spec": {
-            "filePath": "/primus/examples/input-file-text/data/*",
-            "textInput": {}
-          }
-        }
-      ]
-    },
-    "messageBufferSize": 8388608,
-    "maxTaskNumPerWorker": 2,
-    "stopPolicy": {
-      "taskSuccessPercent": 100
     }
   }
 }

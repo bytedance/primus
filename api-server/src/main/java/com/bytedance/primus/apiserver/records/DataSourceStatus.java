@@ -23,13 +23,13 @@ import com.bytedance.primus.apiserver.proto.DataProto;
 
 public interface DataSourceStatus {
 
-  DataSourceStatus setSourceId(String sourceId);
+  DataSourceStatus setSourceId(int sourceId);
 
-  String getSourceId();
+  int getSourceId();
 
-  DataSourceStatus setDataConsumptionTime(int time);
+  DataSourceStatus setReport(String description);
 
-  int getDataConsumptionTime();
+  String getReport();
 
   DataProto.DataSourceStatus getProto();
 }

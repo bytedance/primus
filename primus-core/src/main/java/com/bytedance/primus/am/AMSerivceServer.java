@@ -216,8 +216,8 @@ public class AMSerivceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
     String timePoint = null;
     if (task != null) {
       switch (task.getTaskType()) {
-        case SPLIT_TASK:
-          timePoint = task.getSplitTask().getKey();
+        case FILE_TASK:
+          timePoint = task.getFileTask().getBatchKey();
           break;
       }
     }

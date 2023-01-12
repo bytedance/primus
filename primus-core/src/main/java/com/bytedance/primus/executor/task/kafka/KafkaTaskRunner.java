@@ -60,6 +60,7 @@ public class KafkaTaskRunner implements TaskRunner {
   private volatile boolean isStopped;
   private Thread feedThread;
   private MessageBuilder messageBuilder;
+  private final boolean forceFlushMessageBuffer;
 
   public KafkaTaskRunner(Task task, ExecutorContext context, WorkerFeeder workerFeeder) {
     this.context = context;
@@ -78,6 +79,11 @@ public class KafkaTaskRunner implements TaskRunner {
     LOG.info("Start task, " + taskStatus);
     this.topic = task.getKafkaTask().getTopic();
     this.isStopped = false;
+    this.forceFlushMessageBuffer = context
+        .getPrimusExecutorConf()
+        .getInputManager()
+        .getMessageBufferForceFlush();
+
     this.feedThread = new FeedThread();
     this.feedThread.setDaemon(true);
 
@@ -138,7 +144,6 @@ public class KafkaTaskRunner implements TaskRunner {
     public void run() {
       consumer.subscribe(Collections.singletonList(topic));
       PrimusMetrics.TimerMetric latency;
-      boolean skipping = context.getPrimusExecutorConf().getInputManager().getSkipRecords();
       out:
       while (!isStopped) {
         PrimusMetrics.TimerMetric pollLatency =
@@ -160,15 +165,19 @@ public class KafkaTaskRunner implements TaskRunner {
                     put("executor_id", executorId);
                   }},
                   1);
-              if (messageBuilder.needFlush() || skipping) {
+              if (messageBuilder.needFlush() || forceFlushMessageBuffer) {
                 latency =
                     PrimusMetrics.getTimerContextWithAppIdTag(
                         "executor.task_runner.feed.latency",
                         new HashMap<String, String>() {{
                           put("executor_id", executorId);
                         }});
-                workerFeeder
-                    .feedSuccess(messageBuilder.build(), 0, messageBuilder.size(), skipping);
+                workerFeeder.feedSuccess(
+                    messageBuilder.build(),
+                    0, // start
+                    messageBuilder.size(),
+                    forceFlushMessageBuffer
+                );
                 latency.stop();
                 PrimusMetrics.emitStoreWithAppIdTag(
                     "executor.worker_feeder.kafka.feed_bytes",

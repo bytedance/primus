@@ -31,9 +31,9 @@ public interface Task extends Writable {
 
   void setTaskId(long taskId);
 
-  String getSourceId();
+  int getSourceId();
 
-  void setSourceId(String sourceId);
+  void setSourceId(int sourceId);
 
   String getSource();
 
@@ -45,9 +45,9 @@ public interface Task extends Writable {
 
   TaskType getTaskType();
 
-  SplitTask getSplitTask();
+  FileTask getFileTask();
 
-  void setSplitTask(SplitTask splitTask);
+  void setFileTask(FileTask fileTask);
 
   KafkaTask getKafkaTask();
 

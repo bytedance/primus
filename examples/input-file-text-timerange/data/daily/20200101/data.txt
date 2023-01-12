@@ -1,0 +1,4 @@
+Hello from input-file-text-timerange(daily): 2020-01-01 - 0
+Hello from input-file-text-timerange(daily): 2020-01-01 - 1
+Hello from input-file-text-timerange(daily): 2020-01-01 - 2
+Hello from input-file-text-timerange(daily): 2020-01-01 - 3

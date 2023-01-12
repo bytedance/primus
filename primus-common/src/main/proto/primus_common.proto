@@ -27,7 +27,6 @@ message TimeRange {
   Time to = 2;
 }
 
-// TODO: Support timezone offset
 message Time {
   oneof time {
     Date date = 1;
@@ -47,13 +46,6 @@ message Time {
 message PortRange {
   int32 base = 1;
   int32 size = 2;
-}
-
-// TODO: Deprecate and support customized format
-enum DayFormat {
-  DEFAULT_DAY = 0; // yyyymmdd
-  DEFAULT_DAY_DASH = 1; // yyyy-mm-dd
-  DAY_RANGE = 2; //yyyymmdd0000-yyyymmdd0000
 }
 
 // Deprecated TODO: Clean up

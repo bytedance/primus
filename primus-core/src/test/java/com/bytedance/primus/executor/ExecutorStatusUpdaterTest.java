@@ -21,8 +21,8 @@ package com.bytedance.primus.executor;
 
 import java.util.Arrays;
 import java.util.List;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 public class ExecutorStatusUpdaterTest {
 
@@ -31,7 +31,7 @@ public class ExecutorStatusUpdaterTest {
     String oneIpPort = "10.0.0.1:9999";
     List<String> spec = Arrays.asList(oneIpPort);
     List<String> current = Arrays.asList(oneIpPort);
-    Assert.assertTrue(spec.equals(current));
-    Assert.assertFalse(spec.equals(null));
+    Assertions.assertEquals(spec, current);
+    Assertions.assertNotEquals(null, spec);
   }
 }

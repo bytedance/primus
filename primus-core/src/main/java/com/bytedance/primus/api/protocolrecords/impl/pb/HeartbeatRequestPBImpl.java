@@ -28,8 +28,7 @@ import com.bytedance.primus.api.records.impl.pb.TaskStatusPBImpl;
 import com.bytedance.primus.proto.Primus.ExecutorIdProto;
 import com.bytedance.primus.proto.Primus.HeartbeatRequestProto;
 import com.bytedance.primus.proto.Primus.HeartbeatRequestProtoOrBuilder;
-import com.bytedance.primus.proto.Primus.TaskStatusProto;
-
+import com.bytedance.primus.proto.PrimusTask.TaskStatusProto;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;

@@ -31,12 +31,12 @@ import com.bytedance.primus.am.controller.SuspendStatusEnum;
 import com.bytedance.primus.am.datastream.TaskManager;
 import com.bytedance.primus.am.datastream.TaskManagerState;
 import com.bytedance.primus.am.datastream.TaskWrapper;
-import com.bytedance.primus.am.exception.PrimusAMException;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutor;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerEvent;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerEventType;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorState;
 import com.bytedance.primus.api.records.ExecutorId;
+import com.bytedance.primus.api.records.FileTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskCommand;
 import com.bytedance.primus.api.records.TaskCommandType;
@@ -48,6 +48,7 @@ import com.bytedance.primus.apiserver.records.DataSourceSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.metrics.PrimusMetrics.TimerMetric;
+import com.bytedance.primus.common.util.IntegerUtils;
 import com.bytedance.primus.proto.PrimusInput.InputManager;
 import com.bytedance.primus.utils.PrimusConstants;
 import java.io.IOException;
@@ -58,6 +59,8 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,7 +71,9 @@ import org.slf4j.LoggerFactory;
 
 public class FileTaskManager implements TaskManager {
 
-  private static final int DEFAULT_TIMEOUT_MIN_AFTER_FINISH = 30;
+  private static final String DEFAULT_BATCH_KEY = "--"; // Smaller than YYYYMMDD and YYYYMMDDHH
+  private static final int DEFAULT_GRACEFUL_SHUTDOWN_TIME_WAIT_SEC = 30 * 60;
+  private static final int DEFAULT_GRACEFUL_SHUTDOWN_TIME_CHECK_SEC = 30;
   public static final int HISTORY_FAILURE_TASKS_LIMIT_COUNT = 10000;
 
   private Logger LOG;
@@ -92,16 +97,20 @@ public class FileTaskManager implements TaskManager {
   private Random random = new Random();
   private volatile boolean isTimeoutChecking = false;
 
-  private Map<String, TaskWrapper> newlyAssignedTasks;
-  private Map<String, Integer> dataConsumptionTimeMap;
+  private Map<Integer, TaskWrapper> newlyAssignedTasks;
+  private Map<Integer, String> dataSourceBatchKeyMap;
 
   private long version;
   private volatile boolean isStopped = false;
   private volatile boolean isSucceed = false;
 
-  public FileTaskManager(AMContext context, String name, DataStreamSpec dataStreamSpec,
-      String savepointDir, long version)
-      throws IOException, PrimusAMException {
+  public FileTaskManager(
+      AMContext context,
+      String name,
+      DataStreamSpec dataStreamSpec,
+      String savepointDir,
+      long version
+  ) throws IOException {
     this.version = version;
     this.LOG = LoggerFactory.getLogger(FileTaskManager.class.getName() + "[" + name + "]");
     this.context = context;
@@ -122,16 +131,17 @@ public class FileTaskManager implements TaskManager {
     if (maxTaskAttempts <= 0) {
       maxTaskAttempts = PrimusConstants.DEFAULT_MAX_TASK_ATTEMPTS;
     }
-    taskSuccessPercent = inputManager.getStopPolicy().getTaskSuccessPercent();
-    taskFailedPercent = inputManager.getStopPolicy().getTaskFailedPercent();
+
+    taskSuccessPercent = inputManager.getFileConfig().getStopPolicy().getTaskSuccessPercent();
+    taskFailedPercent = inputManager.getFileConfig().getStopPolicy().getTaskFailedPercent();
     if (taskFailedPercent <= 0) {
       taskFailedPercent = PrimusConstants.DEFAULT_FAILED_PERCENT;
     }
 
     newlyAssignedTasks = new ConcurrentHashMap<>();
-    dataConsumptionTimeMap = new ConcurrentHashMap<>();
+    dataSourceBatchKeyMap = new ConcurrentHashMap<>();
     for (DataSourceSpec dataSourceSpec : dataStreamSpec.getDataSourceSpecs()) {
-      dataConsumptionTimeMap.put(dataSourceSpec.getSourceId(), 0);
+      dataSourceBatchKeyMap.put(dataSourceSpec.getSourceId(), "NA");
     }
   }
 
@@ -579,42 +589,32 @@ public class FileTaskManager implements TaskManager {
   }
 
   /**
-   * Return a newly data consumption time of each data source.
-   *
-   * @return a Map contains newly data consumption time of each data source where key is data source
-   * id and value is the data consumption time with format YYYYMMDDHH.
+   * Returns the current batch key of each DataSource.
    */
   @Override
-  public Map<String, Integer> getDataConsumptionTimeMap() { // TODO: Maybe deprecate this map
-    for (Map.Entry<String, TaskWrapper> entry : newlyAssignedTasks.entrySet()) {
-      String sourceId = entry.getKey();
-      Task task = entry.getValue().getTask();
-      int dayHour = 0;
-      try {
-        // key is YYYYMMDD(day granularity) or YYYYMMDDHH(hour granularity)
-        // or YYYYMMDD#*(generated by com.bytedance.primus.am.datastream.file.operator.op.MapDelay)
-        // or YYYYMMDDHH#*(generated by com.bytedance.primus.am.datastream.file.operator.op.MapDelay)
-        String key;
-        if (task.getSplitTask() != null) {
-          key = task.getSplitTask().getKey().split("#")[0];
-        } else {
-          key = "";
-        }
-        if (key.length() == 8) {  // YYYYMMDD
-          dayHour = Integer.valueOf(key) * 100;
-        } else if (key.length() == 10) {  // YYYYMMDDHH
-          dayHour = Integer.valueOf(key);
-        } else {
-          return dataConsumptionTimeMap;
-        }
-      } catch (Exception e) {
-        LOG.error("Failed to get integer from string", e);
-      }
-      int dataConsumptionTime = dataConsumptionTimeMap.get(sourceId);
-      dataConsumptionTime = Math.max(dataConsumptionTime, dayHour);
-      dataConsumptionTimeMap.put(sourceId, dataConsumptionTime);
-    }
-    return dataConsumptionTimeMap;
+  public Map<Integer, String> getDataSourceReports() {
+    // Update dataSourceBatchKeyMap
+    newlyAssignedTasks.forEach((sourceId, value) -> {
+      String batchKey = Optional
+          .of(value)
+          .map(TaskWrapper::getTask)
+          .map(Task::getFileTask)
+          .map(FileTask::getBatchKey)
+          .orElse(DEFAULT_BATCH_KEY);
+
+      dataSourceBatchKeyMap.merge(
+          sourceId,
+          batchKey,
+          (a, b) -> a.compareTo(b) > 0 ? a : b // Bigger key wins
+      );
+    });
+
+    // Assemble output
+    return dataSourceBatchKeyMap.entrySet().stream()
+        .collect(Collectors.toMap(
+            Entry::getKey,
+            e -> "Processing BatchKey: " + e.getValue()
+        ));
   }
 
   public List<TaskWrapper> getPendingTasks(int size) {
@@ -645,7 +645,7 @@ public class FileTaskManager implements TaskManager {
   }
 
   private TaskWrapper pollPendingTask(ExecutorId executorId) {
-    float sampleRate = context.getPrimusConf().getInputManager().getSampleRate();
+    float sampleRate = context.getPrimusConf().getInputManager().getFileConfig().getSampleRate();
     TaskWrapper taskWrapper = sampleRate <= 0
         ? taskStore.pollPendingTask()
         : pollPendingTaskWithSample(sampleRate);
@@ -779,15 +779,14 @@ public class FileTaskManager implements TaskManager {
       Thread thread = new Thread(
           () -> {
             long startTime = System.currentTimeMillis();
-            int timeoutMin = context.getPrimusConf().getInputManager()
-                .getTimeoutMinAfterFinish();
-            if (timeoutMin <= 0) {
-              timeoutMin = DEFAULT_TIMEOUT_MIN_AFTER_FINISH;
-            }
-            int timeoutMs = timeoutMin * 60 * 1000;
-            while ((System.currentTimeMillis() - startTime) < timeoutMs) {
+            int timeoutMillis = IntegerUtils.selectIfPositiveOrDefault(
+                context.getPrimusConf().getInputManager().getGracefulShutdownTimeWaitSec(),
+                DEFAULT_GRACEFUL_SHUTDOWN_TIME_WAIT_SEC
+            );
+
+            while ((System.currentTimeMillis() - startTime) < timeoutMillis) {
               try {
-                Thread.sleep(10 * 1000);
+                Thread.sleep(DEFAULT_GRACEFUL_SHUTDOWN_TIME_CHECK_SEC);
               } catch (InterruptedException e) {
                 // ignore
               }

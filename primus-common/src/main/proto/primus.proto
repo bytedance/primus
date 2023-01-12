@@ -21,69 +21,7 @@ option java_generate_equals_and_hash = true;
 package primus;
 
 import "data.proto";
-
-message TaskProto {
-  string group = 1;
-  int64 task_id = 2;
-  string source_id = 3;
-  string source = 4;
-  string checkpoint = 5;
-  int32 num_attempt = 6;
-
-  oneof task {
-    SplitTaskProto split_task = 100;
-    KafkaTaskProto kafka_task = 101;
-  }
-  message SplitTaskProto {// TODO: Rename to FileTaskProto
-    string path = 1;
-    int64 start = 2;
-    int64 length = 3;
-
-    string key = 10;          // The unique key of a task, which increases monotonically to identify whether the task has been previously generated.
-    FileSourceSpec spec = 11; // The spec where this task is generate from.
-  }
-  message KafkaTaskProto {// TODO: Polish Kafka data source implementation
-    enum KafkaMessageType {
-      JSON = 0;
-      PB = 1;
-    }
-
-    enum KafkaStartUpMode {
-      GROUP_OFFSETS = 0;
-      EARLIEST = 1;
-      LATEST = 2;
-    }
-
-    string cluster = 1;
-    string topic = 2;
-    string consumer_group = 3;
-    map<string, string> config = 4;
-    KafkaStartUpMode kafka_start_up_mode = 5;
-    KafkaMessageType kafka_message_type = 6;
-  }
-}
-
-message TaskStatusProto {
-  enum TaskState {
-    RUNNING = 0;
-    SUCCEEDED = 1;
-    FAILED = 2;
-  }
-
-  string group = 1;
-  int64 task_id = 2;
-  string source_id = 3;
-  TaskState task_state = 4;
-  float progress = 5;
-  string checkpoint = 6;
-  int32 num_attempt = 7;
-  int64 last_assign_time = 8;
-  int64 finish_time = 9;
-  int64 data_consumption_time = 10;
-  string assigned_node = 12;
-  string assigned_node_url = 13;
-  string worker_name = 14;
-}
+import "primus_task.proto";
 
 message ExecutorIdProto {
   string role_name = 1;

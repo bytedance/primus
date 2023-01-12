@@ -196,17 +196,6 @@ public class DataStreamManager extends AbstractService implements
       String savepointDir,
       long version
   ) {
-    LOG.info("Creating a new TaskManager with DataStreamSpec[{}]: {}",
-        dataStreamName, dataStreamSpec);
-
-    if (!Strings.isNullOrEmpty(dataStreamSpec.getWorkflowName())) {
-      LOG.info("Important!!!! DataStream[{}] is defined with PrimusFlow!!" +
-              "Ignore this data change, PrimusFlow will response this:{}",
-          dataStreamName,
-          dataStreamSpec.getWorkflowName());
-      return;
-    }
-
     LOG.info("Normal dataStream, start create TaskManager for DataStream[{}]: {}",
         dataStreamName, dataStreamSpec.getProto().toString());
     createTaskManager(dataStreamName, dataStreamSpec, savepointDir, version);

@@ -17,21 +17,29 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.am.datastream.file.operator.op;
+package com.bytedance.primus.common.utils;
 
-import com.bytedance.primus.io.datasource.file.models.Input;
-import com.bytedance.primus.common.collections.Pair;
-import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorConf;
+import com.bytedance.primus.common.util.StringUtils;
+import java.util.HashMap;
+import java.util.Map;
+import org.junit.Assert;
+import org.junit.Test;
 
-public class MapIdentity<T extends Input> implements Map<T> {
+public class StringUtilsTest {
+  @Test
+  public void testFromTemplateAndDictionary() {
 
-  @Override
-  public void setConf(OperatorConf conf) {
+    String pattern = "/root/{{YYYY}}{{MM}}{{DD}}/{{HH}}/";
+    Map<String, String> dict = new HashMap<String, String>() {{
+      put("\\{\\{YYYY\\}\\}", "2020");
+      put("\\{\\{MM\\}\\}", "01");
+      put("\\{\\{DD\\}\\}", "01");
+      put("\\{\\{HH\\}\\}", "00");
+    }};
 
-  }
-
-  @Override
-  public Pair<String, T> apply(T input) {
-    return new Pair<>(input.getKey(), input);
+    Assert.assertEquals(
+        "/root/20200101/00/",
+        StringUtils.genFromTemplateAndDictionary(pattern, dict)
+    );
   }
 }

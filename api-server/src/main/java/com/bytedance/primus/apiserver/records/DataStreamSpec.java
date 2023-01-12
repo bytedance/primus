@@ -20,7 +20,6 @@
 package com.bytedance.primus.apiserver.records;
 
 import com.bytedance.primus.apiserver.proto.DataProto;
-import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy;
 import java.util.List;
 
 public interface DataStreamSpec {
@@ -29,13 +28,5 @@ public interface DataStreamSpec {
 
   List<DataSourceSpec> getDataSourceSpecs();
 
-  DataStreamSpec setOperatorPolicy(OperatorPolicy operatorPolicy);
-
-  OperatorPolicy getOperatorPolicy();
-
   DataProto.DataStreamSpec getProto();
-
-  String getWorkflowName();
-
-  DataStreamSpec setWorkflowName(String workflowName);
 }

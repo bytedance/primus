@@ -17,27 +17,19 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.am.datastream.file.operator.op;
+package com.bytedance.primus.api.records;
 
-import com.bytedance.primus.io.datasource.file.models.Input;
-import com.bytedance.primus.common.collections.Pair;
-import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy.OperatorConf;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.stream.Collectors;
+import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 
-public class GroupByKeyIdentity<T extends Input> implements GroupByKey<T> {
+public interface FileTask {
 
-  @Override
-  public List<Pair<String, List<T>>> apply(List<Pair<String, T>> inputs) {
-    return inputs.stream()
-        .map(e -> new Pair<String, List<T>>(e.getKey(),
-            new LinkedList<>(Arrays.asList(e.getValue()))))
-        .collect(Collectors.toList());
-  }
+  String getBatchKey();
 
-  @Override
-  public void setConf(OperatorConf conf) {
-  }
+  String getPath();
+
+  long getStart();
+
+  long getLength();
+
+  FileSourceSpec getSpec();
 }

@@ -20,7 +20,6 @@
 package com.bytedance.primus.apiserver.records.impl;
 
 import com.bytedance.primus.apiserver.proto.DataProto;
-import com.bytedance.primus.apiserver.proto.DataProto.OperatorPolicy;
 import com.bytedance.primus.apiserver.records.DataSourceSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
 import java.util.List;
@@ -33,7 +32,6 @@ public class DataStreamSpecImpl implements DataStreamSpec {
   private boolean viaProto = false;
 
   List<DataSourceSpec> dataSourceSpecs;
-  OperatorPolicy operatorPolicy;
   private String workflowName;
 
   public DataStreamSpecImpl() {
@@ -67,51 +65,11 @@ public class DataStreamSpecImpl implements DataStreamSpec {
   }
 
   @Override
-  public synchronized DataStreamSpec setOperatorPolicy(OperatorPolicy operatorPolicy) {
-    maybeInitBuilder();
-    if (operatorPolicy == null) {
-      builder.clearOperatorPolicy();
-    }
-    this.operatorPolicy = operatorPolicy;
-    return this;
-  }
-
-  @Override
-  public synchronized OperatorPolicy getOperatorPolicy() {
-    if (operatorPolicy != null) {
-      return operatorPolicy;
-    }
-    DataProto.DataStreamSpecOrBuilder p = viaProto ? proto : builder;
-    operatorPolicy = p.getOperatorPolicy();
-    return operatorPolicy;
-  }
-
-  @Override
   public synchronized DataProto.DataStreamSpec getProto() {
     mergeLocalToProto();
     proto = viaProto ? proto : builder.build();
     viaProto = true;
     return proto;
-  }
-
-  @Override
-  public String getWorkflowName() {
-    if (workflowName != null) {
-      return workflowName;
-    }
-    DataProto.DataStreamSpecOrBuilder p = viaProto ? proto : builder;
-    workflowName = p.getWorkflowName();
-    return workflowName;
-  }
-
-  @Override
-  public DataStreamSpec setWorkflowName(String workflowName) {
-    maybeInitBuilder();
-    if (workflowName == null) {
-      builder.clearWorkflowName();
-    }
-    this.workflowName = workflowName;
-    return this;
   }
 
   @Override
@@ -126,8 +84,6 @@ public class DataStreamSpecImpl implements DataStreamSpec {
     DataStreamSpecImpl other = (DataStreamSpecImpl) obj;
     boolean result = true;
     result = result && (getDataSourceSpecs().equals(other.getDataSourceSpecs()));
-    result = result && (getOperatorPolicy().equals(other.getOperatorPolicy()));
-    result = result && (getWorkflowName().equals(other.getWorkflowName()));
     return result;
   }
 
@@ -150,9 +106,6 @@ public class DataStreamSpecImpl implements DataStreamSpec {
   private synchronized void mergeLocalToBuilder() {
     if (dataSourceSpecs != null) {
       addDataSourcesToProto();
-    }
-    if (operatorPolicy != null) {
-      builder.setOperatorPolicy(operatorPolicy);
     }
   }
 

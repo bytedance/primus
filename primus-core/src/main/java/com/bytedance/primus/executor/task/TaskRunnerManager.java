@@ -136,7 +136,7 @@ public class TaskRunnerManager extends AbstractService implements
     switch (task.getTaskType()) {
       case KAFKA_TASK:
         return new KafkaTaskRunner(task, executorContext, workerFeeder);
-      case SPLIT_TASK:
+      case FILE_TASK:
         return new CommonFileTaskRunner(task, executorContext, workerFeeder);
       default:
         throw new IOException("Unsupported task type: " + task.getTaskType());

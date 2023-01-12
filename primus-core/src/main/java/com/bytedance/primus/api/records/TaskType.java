@@ -20,6 +20,6 @@
 package com.bytedance.primus.api.records;
 
 public enum TaskType {
-  SPLIT_TASK,
+  FILE_TASK,
   KAFKA_TASK,
 }

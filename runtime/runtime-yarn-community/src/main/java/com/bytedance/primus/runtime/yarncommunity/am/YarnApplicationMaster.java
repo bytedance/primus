@@ -107,7 +107,7 @@ import com.bytedance.primus.runtime.yarncommunity.am.container.launcher.Containe
 import com.bytedance.primus.runtime.yarncommunity.am.container.scheduler.fair.FairContainerManager;
 import com.bytedance.primus.runtime.yarncommunity.utils.YarnConvertor;
 import com.bytedance.primus.utils.AMProcessExitCodeHelper;
-import com.bytedance.primus.utils.FileUtils;
+import com.bytedance.primus.utils.FileSystemUtils;
 import com.bytedance.primus.utils.ResourceUtils;
 import com.bytedance.primus.utils.timeline.NoopTimelineLogger;
 import com.bytedance.primus.utils.timeline.TimelineLogger;
@@ -720,19 +720,19 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
       String targetDir,
       Map<String, LocalResource> localResources
   ) throws IOException, URISyntaxException {
-    URI localURI = FileUtils.resolveURI(filename.trim());
-    if (!FileUtils.addDistributedUri(localURI, distributedUris, distributedNames)) {
+    URI localURI = FileSystemUtils.resolveURI(filename.trim());
+    if (!FileSystemUtils.addDistributedUri(localURI, distributedUris, distributedNames)) {
       return;
     }
 
     FileSystem fs = context.getHadoopFileSystem();
-    Path path = FileUtils.getQualifiedLocalPath(localURI, fs.getConf());
-    String linkname = FileUtils.buildLinkname(path, localURI, destName, targetDir);
+    Path path = FileSystemUtils.getQualifiedLocalPath(localURI, fs.getConf());
+    String linkname = FileSystemUtils.buildLinkname(path, localURI, destName, targetDir);
     if (!localURI.getScheme().equals(HDFS_SCHEME)) {
       path = new Path(fs.getUri().toString() + stagingDir + "/" + linkname);
     }
 
-    FileUtils.addResource(fs, path, linkname, localResources);
+    FileSystemUtils.addResource(fs, path, linkname, localResources);
   }
 
   private HttpServer2 createWebAppHttpServer(

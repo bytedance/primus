@@ -24,8 +24,9 @@ import com.bytedance.primus.api.records.TaskCommandType;
 import com.bytedance.primus.api.records.TaskState;
 import com.bytedance.primus.api.records.TaskType;
 import com.bytedance.primus.proto.Primus.HeartbeatResponseProto.TaskCommandProto;
-import com.bytedance.primus.proto.Primus.TaskProto;
-import com.bytedance.primus.proto.Primus.TaskStatusProto;
+import com.bytedance.primus.proto.PrimusTask.KafkaTaskProto;
+import com.bytedance.primus.proto.PrimusTask.TaskProto;
+import com.bytedance.primus.proto.PrimusTask.TaskStatusProto;
 
 public class ProtoUtils {
   public static TaskCommandProto.TaskCommandType convertToProtoFormat(TaskCommandType t) {
@@ -45,14 +46,16 @@ public class ProtoUtils {
   public static TaskStatusProto.TaskState convertToProtoFormat(TaskState t) {
     return TaskStatusProto.TaskState.valueOf(t.name());
   }
+
   public static TaskState convertFromProtoFormat(TaskStatusProto.TaskState t) {
     return TaskState.valueOf(t.name());
   }
 
-  public static TaskProto.KafkaTaskProto.KafkaStartUpMode convertToProtoFormat(KafkaStartUpMode t) {
-    return TaskProto.KafkaTaskProto.KafkaStartUpMode.valueOf(t.name());
+  public static KafkaTaskProto.KafkaStartUpMode convertToProtoFormat(KafkaStartUpMode t) {
+    return KafkaTaskProto.KafkaStartUpMode.valueOf(t.name());
   }
-  public static KafkaStartUpMode convertFromProtoFormat(TaskProto.KafkaTaskProto.KafkaStartUpMode t) {
+
+  public static KafkaStartUpMode convertFromProtoFormat(KafkaTaskProto.KafkaStartUpMode t) {
     return KafkaStartUpMode.valueOf(t.name());
   }
 }

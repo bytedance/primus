@@ -25,13 +25,13 @@ import java.io.IOException;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class FSDataInputStreamUtilTest {
 
   @Mock
@@ -49,5 +49,4 @@ public class FSDataInputStreamUtilTest {
     FSDataInputStreamUtil.createFSDataInputStreamWithRetry(fileSystem, testPath);
     Mockito.verify(fileSystem, Mockito.times(2)).open(testPath);
   }
-
 }

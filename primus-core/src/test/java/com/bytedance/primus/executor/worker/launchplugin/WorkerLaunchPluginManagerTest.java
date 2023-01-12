@@ -40,19 +40,18 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
-import org.junit.Assert;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
-import org.mockito.runners.MockitoJUnitRunner;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-@RunWith(MockitoJUnitRunner.class)
+@ExtendWith(MockitoExtension.class)
 public class WorkerLaunchPluginManagerTest {
 
   public static final String PONY_PLUGIN = "PonyPlugin";
   @Mock
   private ExecutorContext executorContext;
-
   @Mock
   private WorkerContext workerContext;
 
@@ -64,14 +63,14 @@ public class WorkerLaunchPluginManagerTest {
         .build();
     List<Pair<PluginIdentifier, ChildLaunchPlugin>> userSpecifiedPlugins = WorkerLaunchPluginManager
         .createPlugins(pluginManager, pluginConfigWithoutVersion.getExtendPluginsList());
-    Assert.assertEquals(1, userSpecifiedPlugins.size());
+    Assertions.assertEquals(1, userSpecifiedPlugins.size());
 
     PluginConfig pluginConfigWithVersion = PluginConfig.newBuilder()
         .addExtendPlugins(Plugin.newBuilder().setName(PONY_PLUGIN).setVersion("1.0.0"))
         .build();
     userSpecifiedPlugins = WorkerLaunchPluginManager
         .createPlugins(pluginManager, pluginConfigWithVersion.getExtendPluginsList());
-    Assert.assertEquals(1, userSpecifiedPlugins.size());
+    Assertions.assertEquals(1, userSpecifiedPlugins.size());
 
     PluginConfig pluginConfigWithWrongVersion = PluginConfig.newBuilder()
         .addExtendPlugins(Plugin.newBuilder().setName(PONY_PLUGIN).setVersion("0.0.0"))
@@ -79,7 +78,7 @@ public class WorkerLaunchPluginManagerTest {
 
     userSpecifiedPlugins = WorkerLaunchPluginManager
         .createPlugins(pluginManager, pluginConfigWithWrongVersion.getExtendPluginsList());
-    Assert.assertEquals(0, userSpecifiedPlugins.size());
+    Assertions.assertEquals(0, userSpecifiedPlugins.size());
 
   }
 
@@ -91,10 +90,10 @@ public class WorkerLaunchPluginManagerTest {
         .addExtendPlugins(Plugin.newBuilder().setName(PONY_PLUGIN))
         .build();
     WorkerLaunchPluginManager.fullFillPlugins(emptyList, pluginManager, pluginConfigWithoutVersion);
-    Assert.assertEquals(1, emptyList.size());
+    Assertions.assertEquals(1, emptyList.size());
 
     WorkerLaunchPluginManager.fullFillPlugins(emptyList, pluginManager, pluginConfigWithoutVersion);
-    Assert.assertEquals(1, emptyList.size());
+    Assertions.assertEquals(1, emptyList.size());
 
     pluginConfigWithoutVersion = PluginConfig.newBuilder()
         .addExtendPlugins(Plugin.newBuilder().setName(PONY_PLUGIN))
@@ -104,7 +103,7 @@ public class WorkerLaunchPluginManagerTest {
     ArrayList<ChildLaunchPlugin> ponyPluginWithDisabledPlugin = new ArrayList<>();
     WorkerLaunchPluginManager
         .fullFillPlugins(ponyPluginWithDisabledPlugin, pluginManager, pluginConfigWithoutVersion);
-    Assert.assertEquals(0, ponyPluginWithDisabledPlugin.size());
+    Assertions.assertEquals(0, ponyPluginWithDisabledPlugin.size());
 
   }
 
@@ -129,7 +128,7 @@ public class WorkerLaunchPluginManagerTest {
     WorkerLaunchPluginChain workerLaunchPluginChain = WorkerLaunchPluginManager
         .getWorkerLaunchPluginChain(executorContext, workerContext);
 
-    Assert.assertEquals(4, workerLaunchPluginChain.getWorkerLaunchPlugins().size());
+    Assertions.assertEquals(4, workerLaunchPluginChain.getWorkerLaunchPlugins().size());
     List<String> collect = workerLaunchPluginChain.getWorkerLaunchPlugins().stream()
         .map(t -> t.getClass().getName()).collect(Collectors.toList());
     List<String> expect = Arrays
@@ -137,7 +136,7 @@ public class WorkerLaunchPluginManagerTest {
             "com.bytedance.primus.executor.worker.launchplugin.SocketPlugin",
             "com.bytedance.primus.executor.worker.launchplugin.PrimusConfCompatiblePlugin",
             "com.bytedance.primus.executor.worker.launchplugin.TfConfigPlugin");
-    Assert.assertEquals(expect, collect);
+    Assertions.assertEquals(expect, collect);
 
   }
 
@@ -152,6 +151,7 @@ public class WorkerLaunchPluginManagerTest {
   @Test
   public void testDisableTfConfigFrameworkPlugins() {
     PrimusExecutorConf primusExecutorConf = mock(PrimusExecutorConf.class);
+
     InputManager inputManager = InputManager.newBuilder().setGracefulShutdown(false).build();
     when(primusExecutorConf.getPrimusConf()).thenReturn(PrimusConf.newBuilder().build());
     when(primusExecutorConf.getInputManager()).thenReturn(inputManager);
@@ -171,14 +171,13 @@ public class WorkerLaunchPluginManagerTest {
     WorkerLaunchPluginChain workerLaunchPluginChain = WorkerLaunchPluginManager
         .getWorkerLaunchPluginChain(executorContext, workerContext);
 
-    Assert.assertEquals(3, workerLaunchPluginChain.getWorkerLaunchPlugins().size());
+    Assertions.assertEquals(3, workerLaunchPluginChain.getWorkerLaunchPlugins().size());
     List<String> collect = workerLaunchPluginChain.getWorkerLaunchPlugins().stream()
         .map(t -> t.getClass().getName()).collect(Collectors.toList());
     List<String> expect = Arrays
         .asList("com.bytedance.primus.executor.worker.launchplugin.EnvPlugin",
             "com.bytedance.primus.executor.worker.launchplugin.SocketPlugin",
             "com.bytedance.primus.executor.worker.launchplugin.PrimusConfCompatiblePlugin");
-    Assert.assertEquals(expect, collect);
+    Assertions.assertEquals(expect, collect);
   }
-
 }
