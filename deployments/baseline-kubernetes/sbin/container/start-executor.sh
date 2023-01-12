@@ -31,6 +31,7 @@ ls -ltr ./__primus_conf__
 "$JAVA_HOME"/bin/java -cp ./*:./__primus_lib__/*:"$CLASSPATH" \
     -Xmx1024m \
     -Dlog4j2.configurationFile=/opt/primus-share/__primus_conf__/log4j2.xml \
+    -Djdk.tls.client.protocols=TLSv1.2 \
     com.bytedance.primus.runtime.kubernetesnative.executor.ContainerMain \
     --am_host="$AM_HOST" \
     --am_port="$AM_PORT" \
