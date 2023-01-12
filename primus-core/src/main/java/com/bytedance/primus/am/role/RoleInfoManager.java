@@ -32,6 +32,7 @@ import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.apiserver.records.RoleSpec;
 import com.bytedance.primus.common.event.EventHandler;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -126,8 +127,11 @@ public class RoleInfoManager implements EventHandler<RoleInfoManagerEvent> {
       RoleSpec roleSpec = entry.getValue();
       RoleInfo roleInfo = roleInfoFactory.createRoleInfo(roleSpecMap.keySet(), roleName, roleSpec,
           priority);
-      PrimusMetrics.emitStoreWithOptionalPrefix(
-          "role.replica{role=" + roleName + "}", roleInfo.getRoleSpec().getReplicas());
+      PrimusMetrics.emitStoreWithAppIdTag("role.replica",
+          new HashMap<String, String>() {{
+            put("role", roleName);
+          }},
+          roleInfo.getRoleSpec().getReplicas());
       roleNamePriorityMap.put(roleName, priority);
       priorityRoleInfoMap.put(priority, roleInfo);
       roleNameRoleInfoMap.put(roleName, roleInfo);

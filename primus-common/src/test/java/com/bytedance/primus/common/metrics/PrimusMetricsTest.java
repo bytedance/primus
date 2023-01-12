@@ -17,9 +17,26 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.common.network;
+package com.bytedance.primus.common.metrics;
 
-public enum NetworkTypeEnum {
-  DEFAULT,
-  OVERLAY
+import com.bytedance.primus.proto.PrimusRuntime.RuntimeConf;
+import java.util.HashMap;
+import org.junit.Assert;
+import org.junit.Test;
+
+public class PrimusMetricsTest {
+
+  @Test
+  public void testBuildTaggedMetricNameWithAppId() {
+    PrimusMetrics.init(RuntimeConf.getDefaultInstance(), "primus-0001");
+
+    // TODO: Enrich test coverage
+    Assert.assertEquals(
+        "metric_name{app_id=primus-0001,role=chief}",
+        PrimusMetrics.buildTaggedMetricNameWithAppId(
+            "metric_name",
+            new HashMap<String, String>() {{
+              put("role", "chief");
+            }}));
+  }
 }

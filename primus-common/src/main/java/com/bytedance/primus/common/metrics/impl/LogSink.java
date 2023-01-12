@@ -17,11 +17,28 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.runtime.kubernetesnative.common.operator.status.service;
+package com.bytedance.primus.common.metrics.impl;
 
-import com.bytedance.primus.runtime.kubernetesnative.common.operator.status.model.OperatorJobStatus;
+import com.bytedance.primus.common.metrics.MetricsSink;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Slf4jReporter;
+import java.util.concurrent.TimeUnit;
 
-public interface JobStatusManagerService {
+public class LogSink implements MetricsSink {
 
-  OperatorJobStatus fetchLatest() throws Exception;
+  private static Slf4jReporter reporter;
+
+  public LogSink(MetricRegistry metricRegistry) {
+    reporter = Slf4jReporter.forRegistry(metricRegistry).build();
+  }
+
+  @Override
+  public void start() {
+    reporter.start(15, TimeUnit.SECONDS);
+  }
+
+  @Override
+  public void stop() {
+    reporter.stop();
+  }
 }

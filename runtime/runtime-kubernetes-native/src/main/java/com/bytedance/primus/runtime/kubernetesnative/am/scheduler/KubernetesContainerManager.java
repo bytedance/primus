@@ -42,16 +42,17 @@ import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.model.records.Priority;
 import com.bytedance.primus.common.model.records.impl.pb.ContainerPBImpl;
 import com.bytedance.primus.common.service.AbstractService;
-import com.bytedance.primus.runtime.kubernetesnative.ResourceNameBuilder;
 import com.bytedance.primus.runtime.kubernetesnative.am.KubernetesAMContext;
 import com.bytedance.primus.runtime.kubernetesnative.am.PodLauncher;
 import com.bytedance.primus.runtime.kubernetesnative.am.PodLauncherResult;
 import com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.KubernetesPodStarter;
+import com.bytedance.primus.runtime.kubernetesnative.common.utils.ResourceNameBuilder;
 import io.kubernetes.client.openapi.models.V1Pod;
 import io.kubernetes.client.util.Watch;
 import java.io.IOException;
 import java.net.SocketTimeoutException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -138,7 +139,8 @@ public class KubernetesContainerManager extends AbstractService implements
               schedulerExecutor.getExecutorExitMsg());
         }
         expiredPodQueue.add(schedulerExecutor.getExecutorId());
-        PrimusMetrics.emitCounterWithOptionalPrefix("am.container_manager.executor_expired", 1);
+        PrimusMetrics.emitCounterWithAppIdTag(
+            "am.container_manager.executor_expired", new HashMap<>(), 1);
         break;
       }
       case GRACEFUL_SHUTDOWN: {
@@ -173,7 +175,9 @@ public class KubernetesContainerManager extends AbstractService implements
         new SchedulerExecutorManagerContainerCompletedEvent(
             SchedulerExecutorManagerEventType.CONTAINER_RELEASED,
             container, exitStatus, diag));
-    PrimusMetrics.emitCounterWithOptionalPrefix("am.container_manager.release_container", 1);
+    PrimusMetrics.emitCounterWithAppIdTag(
+        "am.container_manager.release_container",
+        new HashMap<>(), 1);
   }
 
   protected void handleContainerRequestCreated() {
@@ -199,14 +203,6 @@ public class KubernetesContainerManager extends AbstractService implements
             askForContainers();
             cleanExpiredContainer();
 
-            if (context.getPrimusConf().getScheduler().getDisableContainerSucceedApp()
-                && context.getMaster() != null && !context.getMaster().isSuccess()) {
-              LOG.info(
-                  "Scheduler's disableContainerSucceedApp is true and master is not successful so not succeed app");
-              Thread.sleep(ALLOCATE_INTERVAL_MS);
-              continue;
-            }
-
             if (schedulerExecutorManager.isAllSuccess()) {
               finish();
             } else if (schedulerExecutorManager.isAllCompleted()) {
@@ -225,7 +221,7 @@ public class KubernetesContainerManager extends AbstractService implements
       while (!expiredPodQueue.isEmpty()) {
         ExecutorId executorId = expiredPodQueue.poll();
         String podName = ResourceNameBuilder
-            .buildExecutorPodName(context.getAppName(), executorId.toUniqString());
+            .buildExecutorPodName(context.getAppId(), executorId.toUniqString());
         podLauncher.deleteOnePod(podName);
       }
     }
@@ -306,10 +302,12 @@ public class KubernetesContainerManager extends AbstractService implements
 
       while (true) {
         try {
-          String appName = context.getAppName();
           Watch<V1Pod> watch = null;
           try {
-            watch = starter.createExecutorPodWatch(context.getKubernetesNamespace(), appName);
+            watch = starter.createExecutorPodWatch(
+                context.getKubernetesNamespace(),
+                context.getAppId()
+            );
             for (Watch.Response<V1Pod> item : watch) {
               if (item.object == null || item.object.getMetadata() == null) {
                 continue;

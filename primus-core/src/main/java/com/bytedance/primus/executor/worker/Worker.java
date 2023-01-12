@@ -44,6 +44,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,7 +90,7 @@ public class Worker implements Child {
         break;
       case CHILD_STARTED:
         try {
-          switch (executorContext.getPrimusConf().getPrimusConf().getChannelConfigCase()) {
+          switch (executorContext.getPrimusExecutorConf().getPrimusConf().getChannelConfigCase()) {
             case FIFO_PIPE:
               Map<String, String> env = workerContext.getEnvironment();
               String fifoName = env.get(FifoPlugin.FIFO_ENV_KEY);
@@ -109,9 +110,11 @@ public class Worker implements Child {
             submitTime =
                 Long.valueOf(workerContext.getEnvironment().get(PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY));
           }
-          PrimusMetrics.emitStoreWithOptionalPrefix(
-              "executor.worker_launch.submit_running.interval_ms{role="
-                  + executorContext.getExecutorId().getRoleName() + "}",
+          PrimusMetrics.emitStoreWithAppIdTag(
+              "executor.worker_launch.submit_running.interval_ms",
+              new HashMap<String, String>() {{
+                put("role", executorContext.getExecutorId().getRoleName());
+              }},
               (int) (new Date().getTime() - submitTime));
         } catch (FileNotFoundException e) {
           handle(new ChildEvent(ChildEventType.LAUNCH_FAILED, e.getMessage()));
@@ -141,9 +144,12 @@ public class Worker implements Child {
     String exitMessage = "Worker failed";
     if (isCoreDump(exitCode)) {
       exitMessage = "Worker core dumped";
-      PrimusMetrics.emitCounterWithOptionalPrefix(
-          "executor.worker_launch.core_dump{role="
-              + executorId.getRoleName() + "}", 1);
+      PrimusMetrics.emitCounterWithAppIdTag(
+          "executor.worker_launch.core_dump",
+          new HashMap<String, String>() {{
+            put("role", executorId.getRoleName());
+          }},
+          1);
     }
     return exitMessage;
   }

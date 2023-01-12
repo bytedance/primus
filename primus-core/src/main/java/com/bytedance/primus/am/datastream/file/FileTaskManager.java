@@ -53,6 +53,7 @@ import com.bytedance.primus.utils.PrimusConstants;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -232,8 +233,8 @@ public class FileTaskManager implements TaskManager {
     LOG.debug("Receiving heartbeat from {}", executorId);
 
     // Preprocess
-    TimerMetric latency = PrimusMetrics.getTimerContextWithOptionalPrefix(
-        "am.taskmanager.heartbeat.latency");
+    TimerMetric latency = PrimusMetrics.getTimerContextWithAppIdTag(
+        "am.taskmanager.heartbeat.latency", new HashMap<>());
 
     preHeartbeat(executorId);
     List<TaskCommand> taskCommands = new ArrayList<>();
@@ -720,10 +721,10 @@ public class FileTaskManager implements TaskManager {
     int successTaskNum = taskStore.getSuccessTaskNum();
     int failedTaskNum = taskStore.getFailureTaskNum();
     int pendingTaskNum = taskStore.getPendingTaskNum();
-    PrimusMetrics.emitStoreWithOptionalPrefix("total_task_num", totalTaskNum);
-    PrimusMetrics.emitStoreWithOptionalPrefix("success_task_num", successTaskNum);
-    PrimusMetrics.emitStoreWithOptionalPrefix("failed_task_num", failedTaskNum);
-    PrimusMetrics.emitStoreWithOptionalPrefix("pending_task_num", pendingTaskNum);
+    PrimusMetrics.emitStoreWithAppIdTag("total_task_num", new HashMap<>(), totalTaskNum);
+    PrimusMetrics.emitStoreWithAppIdTag("success_task_num", new HashMap<>(), successTaskNum);
+    PrimusMetrics.emitStoreWithAppIdTag("failed_task_num", new HashMap<>(), failedTaskNum);
+    PrimusMetrics.emitStoreWithAppIdTag("pending_task_num", new HashMap<>(), pendingTaskNum);
 
     // check success task percent
     if (totalTaskNum > 0) {

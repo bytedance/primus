@@ -51,11 +51,10 @@ import com.bytedance.primus.common.model.records.NodeId;
 import com.bytedance.primus.common.model.records.Priority;
 import com.bytedance.primus.common.model.records.impl.pb.ContainerPBImpl;
 import com.bytedance.primus.common.network.NetworkConfig;
-import com.bytedance.primus.common.network.NetworkConfigHelper;
-import com.bytedance.primus.common.network.NetworkTypeEnum;
 import com.bytedance.primus.common.service.AbstractService;
 import com.bytedance.primus.common.util.AbstractLivelinessMonitor;
 import com.bytedance.primus.executor.ExecutorExitCode;
+import com.bytedance.primus.proto.PrimusConfOuterClass.NetworkConfig.NetworkType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -71,7 +70,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 import java.util.function.Function;
 import org.apache.commons.configuration.Configuration;
-import org.apache.hadoop.registry.client.api.RegistryOperations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,8 +77,6 @@ public class SchedulerExecutorManager extends AbstractService
     implements EventHandler<SchedulerExecutorManagerEvent> {
 
   private static final Logger LOG = LoggerFactory.getLogger(SchedulerExecutorManager.class);
-  private static final String YARN_ID = "yarn:id";
-  private static final String YARN_PERSISTENCE = "yarn:persistence";
 
   private AMContext context;
   private RoleInfoManager roleInfoManager;
@@ -103,8 +99,6 @@ public class SchedulerExecutorManager extends AbstractService
   private final ReadLock readLock;
   private final WriteLock writeLock;
   private AtomicLong uniqId = new AtomicLong(0);
-  private RegistryOperations registryOperations;
-  private String yarnRegistryRootPath;
 
   private NetworkConfig networkConfig;
 
@@ -125,7 +119,7 @@ public class SchedulerExecutorManager extends AbstractService
     runningExecutorMap = new ConcurrentHashMap<>();
     registeredExecutorUniqIdMap = new ConcurrentHashMap<>();
 
-    networkConfig = NetworkConfigHelper.getNetworkConfig(context.getPrimusConf());
+    networkConfig = new NetworkConfig(context.getPrimusConf());
 
     completedExecutors = new ArrayList<>();
 
@@ -296,7 +290,11 @@ public class SchedulerExecutorManager extends AbstractService
       ExecutorEvent executorEvent = new ExecutorStartEvent(Integer.toString(executorIndex),
           executorId);
       context.getDispatcher().getEventHandler().handle(executorEvent);
-      PrimusMetrics.emitStoreWithOptionalPrefix("am.executor_num{role=" + roleName + "}",
+      PrimusMetrics.emitStoreWithAppIdTag(
+          "am.executor_num",
+          new HashMap<String, String>() {{
+            put("role", roleName);
+          }},
           bitSet.cardinality());
       return executorId;
     } catch (Exception e) {
@@ -340,7 +338,10 @@ public class SchedulerExecutorManager extends AbstractService
       ExecutorEvent executorEvent =
           new ExecutorStartEvent(container.getId().toString(), executorId);
       context.getDispatcher().getEventHandler().handle(executorEvent);
-      PrimusMetrics.emitStoreWithOptionalPrefix("am.executor_num{role=" + roleName + "}",
+      PrimusMetrics.emitStoreWithAppIdTag("am.executor_num",
+          new HashMap<String, String>() {{
+            put("role", roleName);
+          }},
           bitSet.cardinality());
       return executorId;
     } catch (Exception e) {
@@ -418,8 +419,8 @@ public class SchedulerExecutorManager extends AbstractService
   }
 
   private boolean enableIpAndPortFailover() {
-    return NetworkTypeEnum.OVERLAY == networkConfig.getNetworkTypeEnum() && networkConfig
-        .isKeepIpAndPortUnderOverlay();
+    return NetworkType.OVERLAY == networkConfig.getNetworkType()
+        && networkConfig.isKeepIpAndPortUnderOverlay();
   }
 
   private Optional<ExecutorSpec> findPreviousExecutorSpec(ExecutorId executorId) {
@@ -618,8 +619,10 @@ public class SchedulerExecutorManager extends AbstractService
             ExecutorEvent executorEvent = new ExecutorCompleteEvent(context, schedulerExecutor);
             context.getDispatcher().getEventHandler().handle(executorEvent);
           }
-          PrimusMetrics
-              .emitCounterWithOptionalPrefix("am.scheduler_manager.container_released", 1);
+          PrimusMetrics.emitCounterWithAppIdTag(
+              "am.scheduler_manager.container_released",
+              new HashMap<>(),
+              1);
           break;
         }
         case EXECUTOR_EXPIRED: {
@@ -632,8 +635,10 @@ public class SchedulerExecutorManager extends AbstractService
             schedulerExecutor.handle(
                 new SchedulerExecutorEvent(SchedulerExecutorEventType.EXPIRED));
           }
-          PrimusMetrics
-              .emitCounterWithOptionalPrefix("am.scheduler_manager.executor_expired", 1);
+          PrimusMetrics.emitCounterWithAppIdTag(
+              "am.scheduler_manager.executor_expired",
+              new HashMap<>(),
+              1);
           break;
         }
         case EXECUTOR_REQUEST_CREATED: {
@@ -674,7 +679,6 @@ public class SchedulerExecutorManager extends AbstractService
       writeLock.unlock();
     }
   }
-
 
   private void killExecutors(int priority, int startIndex, int endIndex) {
     for (; startIndex < endIndex; startIndex++) {

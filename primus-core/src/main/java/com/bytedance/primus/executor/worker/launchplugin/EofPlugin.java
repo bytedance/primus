@@ -52,7 +52,7 @@ public class EofPlugin implements ChildLaunchPlugin {
 
   @Override
   public void preStop() throws Exception {
-    int gracefulShutdownTimeoutMin = executorContext.getPrimusConf().getPrimusConf()
+    int gracefulShutdownTimeoutMin = executorContext.getPrimusExecutorConf().getPrimusConf()
         .getGracefulShutdownTimeoutMin();
     Callable<Boolean> task = () -> {
       executorContext.getWorkerFeeder().close();

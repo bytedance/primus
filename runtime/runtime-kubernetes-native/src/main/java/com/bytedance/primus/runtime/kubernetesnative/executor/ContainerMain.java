@@ -27,7 +27,7 @@ import com.bytedance.primus.executor.PrimusExecutorConf;
 import com.bytedance.primus.executor.exception.PrimusExecutorException;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.utils.FileUtils;
+import com.bytedance.primus.utils.ConfigurationUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.slf4j.Logger;
@@ -50,15 +50,10 @@ public class ContainerMain {
     PrimusConf primusConf = primusExecutorConf.getPrimusConf();
 
     try {
-      LOG.info("init metric collector");
-      if (primusConf.getRuntimeConf().hasPrometheusPushGatewayConf()) {
-        PrimusMetrics.init(runningEnvironment.getApplicationId() + ".",
-            primusConf.getRuntimeConf().getPrometheusPushGatewayConf().getHost(),
-            primusConf.getRuntimeConf().getPrometheusPushGatewayConf().getPort(),
-            runningEnvironment.getApplicationId());
-      } else {
-        PrimusMetrics.init(runningEnvironment.getApplicationId() + ".");
-      }
+      LOG.info("init metrics");
+      PrimusMetrics.init(
+          primusConf.getRuntimeConf(),
+          runningEnvironment.getApplicationId());
 
       LOG.info("container init...");
       container.init(primusExecutorConf, runningEnvironment);
@@ -90,7 +85,7 @@ public class ContainerMain {
 
     PrimusConfOuterClass.PrimusConf primusConf;
     try {
-      primusConf = FileUtils.buildPrimusConf(configPath);
+      primusConf = ConfigurationUtils.load(configPath);
     } catch (Exception e) {
       throw new PrimusExecutorException(
           "Config parse failed", e, ExecutorExitCode.CONFIG_PARSE_ERROR.getValue());

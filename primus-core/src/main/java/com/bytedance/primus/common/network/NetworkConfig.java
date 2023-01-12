@@ -20,44 +20,56 @@
 package com.bytedance.primus.common.network;
 
 import com.bytedance.primus.proto.PrimusCommon.RunningMode;
+import com.bytedance.primus.proto.PrimusConfOuterClass.NetworkConfig.NetworkType;
+import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
+import lombok.Getter;
 
 public class NetworkConfig {
 
-  private NetworkTypeEnum networkTypeEnum = NetworkTypeEnum.DEFAULT;
+  @Getter
+  private final RunningMode runningMode;
+  @Getter
+  private final boolean keepIpAndPortUnderOverlay;
+  @Getter
+  private final NetworkType networkType;
 
-  private RunningMode runningMode = RunningMode.LOCAL;
-
-  private boolean keepIpAndPortUnderOverlay = false;
-
-  public NetworkTypeEnum getNetworkTypeEnum() {
-    return networkTypeEnum;
+  public NetworkConfig(PrimusConf primusConf) {
+    switch (primusConf.getRunningMode()) {
+      case YARN:
+      case KUBERNETES:
+        this.runningMode = primusConf.getRunningMode();
+        this.networkType = primusConf
+            .getScheduler()
+            .getNetworkConfig()
+            .getNetworkType();
+        this.keepIpAndPortUnderOverlay = primusConf
+            .getScheduler()
+            .getNetworkConfig()
+            .getKeepIpPortUnderOverlay();
+        break;
+      default:
+        throw new IllegalArgumentException("Unknown RunningMode: " + primusConf.getRunningMode());
+    }
   }
 
-  public void setNetworkTypeEnum(NetworkTypeEnum networkTypeEnum) {
-    this.networkTypeEnum = networkTypeEnum;
-  }
-
-  public boolean isKeepIpAndPortUnderOverlay() {
-    return keepIpAndPortUnderOverlay;
-  }
-
-  public void setKeepIpAndPortUnderOverlay(boolean keepIpAndPortUnderOverlay) {
-    this.keepIpAndPortUnderOverlay = keepIpAndPortUnderOverlay;
-  }
-
-  public RunningMode getRunningMode() {
-    return runningMode;
-  }
-
-  public void setRunningMode(RunningMode runningMode) {
-    this.runningMode = runningMode;
+  public NetworkEndpointTypeEnum getNetworkEndpointType() {
+    switch (runningMode) {
+      case KUBERNETES:
+        return NetworkEndpointTypeEnum.IPADDRESS;
+      case YARN:
+        return networkType == NetworkType.OVERLAY && isKeepIpAndPortUnderOverlay()
+            ? NetworkEndpointTypeEnum.IPADDRESS
+            : NetworkEndpointTypeEnum.HOSTNAME;
+      default:
+        throw new IllegalArgumentException("Unsupported RunningMode: " + runningMode);
+    }
   }
 
   @Override
   public String toString() {
-    return "NetworkConfig{" +
-        "netWorkTypeEnum=" + networkTypeEnum +
-        ", keepIpAndPortUnderOverlay=" + keepIpAndPortUnderOverlay +
-        '}';
+    return String.format(
+        "NetworkConfig={RunningMode: %s, NetworkType: %s, KeepIpAndPortUnderOverlay: %s}",
+        runningMode, networkType, keepIpAndPortUnderOverlay
+    );
   }
 }

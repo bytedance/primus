@@ -58,13 +58,13 @@ enum DayFormat {
 
 // Deprecated TODO: Clean up
 enum RunningMode {
-  YARN = 0;
-  LOCAL = 1;
+  UNKNOWN_RUNNING_MODE = 0;
+  YARN = 1;
   KUBERNETES = 2;
 }
 
 enum Protocol {
-  UNKNOWN = 0;
+  UNKNOWN_PROTOCOL = 0;
   HTTP_1 = 1;
   HTTP_2 = 2;
 }

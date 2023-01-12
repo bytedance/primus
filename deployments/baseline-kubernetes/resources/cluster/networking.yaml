@@ -24,11 +24,11 @@ data:
         add_header Content-Type text/plain;
         return 200 'Hello from primus-app-proxy!';
       }
-      location ~/proxy/(?<driverpodname>[^/]*)/$ {
-        proxy_pass http://$driverpodname-svc.primus.svc.cluster.local:44444/index.html;
+      location ~/proxy/(?<applicationid>[^/]*)/$ {
+        proxy_pass http://$applicationid-driver-svc.primus.svc.cluster.local:44444/index.html;
       }
-      location ~/proxy/(?<driverpodname>[^/]*)/(?<target>.+) {
-        proxy_pass http://$driverpodname-svc.primus.svc.cluster.local:44444/$target;
+      location ~/proxy/(?<applicationid>[^/]*)/(?<target>.+) {
+        proxy_pass http://$applicationid-driver-svc.primus.svc.cluster.local:44444/$target;
       }
     }
 ---

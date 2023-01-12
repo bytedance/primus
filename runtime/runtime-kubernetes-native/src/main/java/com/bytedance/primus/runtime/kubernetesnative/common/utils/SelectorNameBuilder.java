@@ -17,15 +17,11 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.runtime.kubernetesnative.common.constants;
+package com.bytedance.primus.runtime.kubernetesnative.common.utils;
 
-// NOTE: Kubernetes native runtime
-public class HadoopConstants {
+public class SelectorNameBuilder {
 
-  /**
-   * Environment Variables
-   */
-  public static final String HADOOP_CONF_DIR_KEY = "HADOOP_CONF_DIR";
-  public static final String HADOOP_CORE_SITE_FILENAME = "core-site.xml";
-  public static final String HADOOP_HDFS_SITE_FILENAME = "hdfs-site.xml";
+  public static String buildExecutorNamePrefix(String appId) {
+    return appId + "-" + "executor";
+  }
 }

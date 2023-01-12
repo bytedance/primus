@@ -23,6 +23,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import org.apache.commons.configuration.BaseConfiguration;
 import org.apache.commons.configuration.Configuration;
 
 /**
@@ -90,10 +91,19 @@ public interface Service extends Closeable {
    * {@link STATE#STOPPED}.
    * @param config the configuration of the service
    * @throws RuntimeException on any failure during the operation
-
    */
   void init(Configuration config);
 
+  /**
+   * Initialize the service with empty configuration.
+   * <p>
+   * Please refer to {@link #init(Configuration)} for more details;
+   *
+   * @throws RuntimeException on any failure during the operation
+   */
+  default void init() {
+    init(new BaseConfiguration());
+  }
 
   /**
    * Start the service.

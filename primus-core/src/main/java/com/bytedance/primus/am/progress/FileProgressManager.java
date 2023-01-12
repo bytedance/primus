@@ -24,6 +24,7 @@ import com.bytedance.primus.am.datastream.DataStreamManager;
 import com.bytedance.primus.am.datastream.TaskManager;
 import com.bytedance.primus.am.datastream.file.FileTaskManager;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
+import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,8 +51,13 @@ public class FileProgressManager extends ProgressManager {
       TaskManager taskManager = entry.getValue();
       if (taskManager instanceof FileTaskManager) {
         float progress = taskManager.getProgress();
-        PrimusMetrics.emitStoreWithOptionalPrefix(
-            "am.progress_manager.progress{name=" + entry.getKey() + "}", progress * 100);
+        PrimusMetrics.emitStoreWithAppIdTag(
+            "am.progress_manager.progress",
+            new HashMap<String, String>() {{
+              put("name", entry.getKey());
+            }},
+            progress * 100
+        );
         if (progress > 0) {
           taskManagerNum += 1;
           totalProgress += progress;
@@ -64,8 +70,8 @@ public class FileProgressManager extends ProgressManager {
     }
     if (taskManagerNum > 0) {
       totalProgress = totalProgress / taskManagerNum;
-      PrimusMetrics.emitStoreWithOptionalPrefix(
-          "am.progress_manager.actually_progress", totalProgress * 100);
+      PrimusMetrics.emitStoreWithAppIdTag(
+          "am.progress_manager.actually_progress", new HashMap<>(), totalProgress * 100);
       setProgress(isRewindAllowed, totalProgress);
     }
   }

@@ -39,6 +39,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.BufferOverflowException;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -46,7 +47,6 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import org.apache.hadoop.hdfs.BlockMissingException;
-import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.RecordReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,7 +58,6 @@ public abstract class FileTaskRunner implements TaskRunner {
 
   protected Task task;
   protected ExecutorContext context;
-  protected JobConf jobConf;
   protected volatile TaskStatus taskStatus;
   protected volatile TaskCheckpoint taskCheckpoint;
 
@@ -71,7 +70,6 @@ public abstract class FileTaskRunner implements TaskRunner {
   public FileTaskRunner(Task task, ExecutorContext context, WorkerFeeder workerFeeder) {
     this.task = task;
     this.context = context;
-    this.jobConf = new JobConf(context.getPrimusConf().getHadoopConf());
     this.taskStatus = new TaskStatusPBImpl();
     this.taskStatus.setGroup(task.getGroup());
     this.taskStatus.setTaskId(task.getTaskId());
@@ -88,7 +86,7 @@ public abstract class FileTaskRunner implements TaskRunner {
         new FeedThread(context.getTimelineLogger(), context.getExecutorId().toString());
     this.feedThread.setDaemon(true);
     this.workerFeeder = workerFeeder;
-    this.maxAllowedIOException = context.getPrimusConf().getInputManager()
+    this.maxAllowedIOException = context.getPrimusExecutorConf().getInputManager()
         .getMaxAllowedIoException();
     if (maxAllowedIOException <= 0) {
       maxAllowedIOException = PrimusConstants.DEFAULT_MAX_ALLOWED_IO_EXCEPTION;
@@ -205,7 +203,7 @@ public abstract class FileTaskRunner implements TaskRunner {
       MessageBuilder messageBuilder = getMessageBuilder();
       boolean succeed = false;
       int rewindSkipNum = getRewindSkipNum();
-      boolean skipping = context.getPrimusConf().getInputManager().getSkipRecords();
+      boolean skipping = context.getPrimusExecutorConf().getInputManager().getSkipRecords();
       PrimusMetrics.TimerMetric latency;
       feedThreadPool = Executors.newSingleThreadExecutor(threadFactory);
       try {
@@ -217,20 +215,26 @@ public abstract class FileTaskRunner implements TaskRunner {
         int ioExceptionNums = 0;
         while (!isStopped) {
           PrimusMetrics.TimerMetric totalLatency =
-              PrimusMetrics.getTimerContextWithOptionalPrefix(
-                  PrimusMetrics.prefixWithSingleTag(
-                      EXECUTOR_TASK_RUNNER_TOTAL_LATENCY, "executor_id", executorId));
+              PrimusMetrics.getTimerContextWithAppIdTag(
+                  EXECUTOR_TASK_RUNNER_TOTAL_LATENCY,
+                  new HashMap<String, String>() {{
+                    put("executor_id", executorId);
+                  }});
           try {
             latency = PrimusMetrics
-                .getTimerContextWithOptionalPrefix(
-                    PrimusMetrics.prefixWithSingleTag(
-                        EXECUTOR_TASK_RUNNER_READ_LATENCY, "executor_id", executorId));
+                .getTimerContextWithAppIdTag(
+                    EXECUTOR_TASK_RUNNER_READ_LATENCY,
+                    new HashMap<String, String>() {{
+                      put("executor_id", executorId);
+                    }});
             boolean hasNext = reader.next(key, value);
             metricToTimeLineEventBridge.record(EXECUTOR_TASK_RUNNER_READ_LATENCY, latency.stop());
             latency = PrimusMetrics
-                .getTimerContextWithOptionalPrefix(
-                    PrimusMetrics.prefixWithSingleTag(
-                        EXECUTOR_TASK_RUNNER_CHECKPOINT_LATENCY, "executor_id", executorId));
+                .getTimerContextWithAppIdTag(
+                    EXECUTOR_TASK_RUNNER_CHECKPOINT_LATENCY,
+                    new HashMap<String, String>() {{
+                      put("executor_id", executorId);
+                    }});
             if (!hasNext) {
               succeed = true;
               break;
@@ -243,43 +247,56 @@ public abstract class FileTaskRunner implements TaskRunner {
             taskStatus.setCheckpoint(taskCheckpoint.getCheckpoint());
             if (task.getNumAttempt() > 1 && (rewindSkipNum--) > 0) {
               PrimusMetrics
-                  .emitCounterWithOptionalPrefix(
-                      PrimusMetrics.prefixWithSingleTag(
-                          "executor.task_runner.file.skip_records", "executor_id", executorId), 1);
+                  .emitCounterWithAppIdTag(
+                      "executor.task_runner.file.skip_records",
+                      new HashMap<String, String>() {{
+                        put("executor_id", executorId);
+                      }},
+                      1);
               continue;
             }
             metricToTimeLineEventBridge
                 .record(EXECUTOR_TASK_RUNNER_CHECKPOINT_LATENCY, latency.stop());
             latency =
-                PrimusMetrics.getTimerContextWithOptionalPrefix(
-                    PrimusMetrics.prefixWithSingleTag(
-                        EXECUTOR_TASK_RUNNER_BUILD_LATENCY, "executor_id", executorId));
+                PrimusMetrics.getTimerContextWithAppIdTag(
+                    EXECUTOR_TASK_RUNNER_BUILD_LATENCY,
+                    new HashMap<String, String>() {{
+                      put("executor_id", executorId);
+                    }});
             messageBuilder.add(key, value);
             metricToTimeLineEventBridge.record(EXECUTOR_TASK_RUNNER_BUILD_LATENCY, latency.stop());
 
             PrimusMetrics
-                .emitCounterWithOptionalPrefix(
-                    PrimusMetrics.prefixWithSingleTag(
-                        "executor.task_runner.file.feed_records", "executor_id", executorId), 1);
+                .emitCounterWithAppIdTag(
+                    "executor.task_runner.file.feed_records",
+                    new HashMap<String, String>() {{
+                      put("executor_id", executorId);
+                    }}, 1);
 
             if (messageBuilder.needFlush() || skipping) {
               latency =
-                  PrimusMetrics.getTimerContextWithOptionalPrefix(
-                      PrimusMetrics.prefixWithSingleTag(
-                          EXECUTOR_TASK_RUNNER_FEED_LATENCY, "executor_id", executorId));
+                  PrimusMetrics.getTimerContextWithAppIdTag(
+                      EXECUTOR_TASK_RUNNER_FEED_LATENCY,
+                      new HashMap<String, String>() {{
+                        put("executor_id", executorId);
+                      }});
               waitUntilFeedSuccess(messageBuilder.build(), 0, messageBuilder.size(), skipping);
               metricToTimeLineEventBridge.record(EXECUTOR_TASK_RUNNER_FEED_LATENCY, latency.stop());
-              PrimusMetrics.emitStoreWithOptionalPrefix(
-                  PrimusMetrics.prefixWithSingleTag(
-                      "executor.worker_feeder.file.feed_bytes", "executor_id", executorId),
+              PrimusMetrics.emitStoreWithAppIdTag(
+                  "executor.worker_feeder.file.feed_bytes",
+                  new HashMap<String, String>() {{
+                    put("executor_id", executorId);
+                  }},
                   messageBuilder.size());
               messageBuilder.reset();
             }
           } catch (BufferOverflowException e) {
             LOG.warn("Failed to write message to buffer", e);
-            PrimusMetrics.emitCounterWithOptionalPrefix(
-                PrimusMetrics.prefixWithSingleTag(
-                    "executor.task_runner.drop_records", "executor_id", executorId),
+            PrimusMetrics.emitCounterWithAppIdTag(
+                "executor.task_runner.drop_records",
+                new HashMap<String, String>() {{
+                  put("executor_id", executorId);
+                }},
                 messageBuilder.getMessageNum());
             messageBuilder.reset();
           } catch (FileNotFoundException e) {
@@ -322,9 +339,11 @@ public abstract class FileTaskRunner implements TaskRunner {
             LOG.info("Feeding remain message bytes to worker");
             try {
               latency =
-                  PrimusMetrics.getTimerContextWithOptionalPrefix(
-                      PrimusMetrics.prefixWithSingleTag(
-                          EXECUTOR_TASK_RUNNER_FEED_LATENCY, "executor_id", executorId));
+                  PrimusMetrics.getTimerContextWithAppIdTag(
+                      EXECUTOR_TASK_RUNNER_FEED_LATENCY,
+                      new HashMap<String, String>() {{
+                        put("executor_id", executorId);
+                      }});
               waitUntilFeedSuccess(messageBuilder.build(), 0, messageBuilder.size(), true);
               metricToTimeLineEventBridge.record(EXECUTOR_TASK_RUNNER_FEED_LATENCY, latency.stop());
             } catch (Exception e) {
@@ -352,7 +371,8 @@ public abstract class FileTaskRunner implements TaskRunner {
   }
 
   protected int getMessageBufferSize() {
-    int messageBufferSize = context.getPrimusConf().getInputManager().getMessageBufferSize();
+    int messageBufferSize = context.getPrimusExecutorConf().getInputManager()
+        .getMessageBufferSize();
     if (messageBufferSize <= 0) {
       messageBufferSize = PrimusConstants.DEFAULT_MESSAGE_BUFFER_SIZE;
     }

@@ -52,7 +52,7 @@ public class ContainerImplTest {
     log.info("Create temp port: {}.", localPort);
     when(primusExecutorConf.getPortList()).thenReturn(Arrays.asList(Integer.toString(localPort)));
     ContainerImpl container = new ContainerImpl();
-    ExecutorContext executorContext = new ExecutorContext(primusExecutorConf, null);
+    ExecutorContext executorContext = new ExecutorContext(primusExecutorConf, null, null);
     container.setContext(executorContext);
     container.setFastestNetworkInterfaceAddress(InetAddress.getLocalHost());
     try {

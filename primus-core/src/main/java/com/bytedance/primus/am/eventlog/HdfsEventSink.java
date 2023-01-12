@@ -34,14 +34,15 @@ public class HdfsEventSink implements EventSink {
   private static final int OUTPUT_BUFFER_SIZE = 100 * 1024;
   private static final String IN_PROGRESS = ".inprogress";
 
-  private AMContext context;
-  private Path logPath;
-  private Path workingLogPath;
-  private FileSystem fs;
+  private final FileSystem fs;
+
+  private final Path logPath;
+  private final Path workingLogPath;
   private PrintWriter writer;
 
   public HdfsEventSink(AMContext context) {
-    this.context = context;
+    this.fs = context.getHadoopFileSystem();
+
     String logPathName = getLogPath(context);
     logPath = new Path(logPathName);
     workingLogPath = new Path(logPathName + IN_PROGRESS);
@@ -50,14 +51,13 @@ public class HdfsEventSink implements EventSink {
   private String getLogPath(AMContext context) {
     return context.getPrimusConf().getEventLogConfig().getHdfsSink().getDir()
         + "/"
-        + context.getAppAttemptId().getApplicationId()
+        + context.getApplicationId()
         + "_"
-        + context.getAppAttemptId().getAttemptId();
+        + context.getAttemptId();
   }
 
   @Override
   public void init() throws Exception {
-    fs = FileSystem.get(context.getHadoopConf());
     if (fs.exists(workingLogPath)) {
       fs.delete(workingLogPath, true);
     }

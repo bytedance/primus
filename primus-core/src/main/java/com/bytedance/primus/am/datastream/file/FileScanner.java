@@ -24,7 +24,6 @@ import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.am.ApplicationMasterEvent;
 import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.bytedance.primus.am.datastream.file.operator.FileOperator;
-import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;
 import com.bytedance.primus.apiserver.records.DataSourceSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
@@ -32,6 +31,7 @@ import com.bytedance.primus.common.collections.Pair;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.metrics.PrimusMetrics.TimerMetric;
 import com.bytedance.primus.common.util.Sleeper;
+import com.bytedance.primus.io.datasource.file.models.Input;
 import com.bytedance.primus.io.datasource.file.models.PrimusInput;
 import com.bytedance.primus.proto.PrimusCommon.DayFormat;
 import com.bytedance.primus.proto.PrimusCommon.Time.TimeCase;
@@ -41,6 +41,7 @@ import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.text.ParseException;
 import java.time.Duration;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
@@ -76,7 +77,7 @@ public class FileScanner {
     this.dataStreamSpec = dataStreamSpec;
     this.fileOperator = fileOperator;
     inputQueue = new LinkedBlockingQueue<>();
-    fileSystem = FileSystem.get(context.getHadoopConf());
+    fileSystem = context.getHadoopFileSystem();
     scannerThread = new ScannerThread();
     scannerThread.start();
   }
@@ -208,14 +209,15 @@ public class FileScanner {
       boolean dayKey,
       boolean checkSuccess) throws IOException, ParseException {
     TimerMetric latency = PrimusMetrics
-        .getTimerContextWithOptionalPrefix("am.filescanner.scan_inputs.latency");
+        .getTimerContextWithAppIdTag(
+            "am.filescanner.scan_inputs.latency", new HashMap<>());
     try {
       if (isDayGranularity) {
         return FileUtils.scanDayInput(fileSystem, fileSourceInput, startDay, endDay,
             dayFormat, checkSuccess);
       } else {
         return FileUtils.scanHourInput(fileSystem, fileSourceInput, startDay, startHour,
-            endDay, endHour, dayFormat, dayKey, checkSuccess, context.getHadoopConf());
+            endDay, endHour, dayFormat, dayKey, checkSuccess);
       }
     } finally {
       latency.stop();

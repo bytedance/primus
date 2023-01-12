@@ -23,6 +23,7 @@ import static com.bytedance.primus.runtime.kubernetesnative.common.constants.Kub
 
 import com.bytedance.blacklist.BlacklistTracker;
 import com.bytedance.blacklist.BlacklistTrackerImpl;
+import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.AMService;
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.am.ApplicationMaster;
@@ -69,7 +70,6 @@ import com.bytedance.primus.common.child.ChildLauncher;
 import com.bytedance.primus.common.child.ChildLauncherEvent;
 import com.bytedance.primus.common.child.ChildLauncherEventType;
 import com.bytedance.primus.common.event.AsyncDispatcher;
-import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.model.records.FinalApplicationStatus;
 import com.bytedance.primus.common.service.CompositeService;
 import com.bytedance.primus.common.util.Sleeper;
@@ -77,8 +77,8 @@ import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.OrderSchedulePolicy.RolePolicy;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusInput.InputManager.ConfigCase;
-import com.bytedance.primus.runtime.kubernetesnative.am.operator.OperatorStateAPIService;
 import com.bytedance.primus.runtime.kubernetesnative.am.scheduler.KubernetesContainerManager;
+import com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants;
 import com.bytedance.primus.utils.AMProcessExitCodeHelper;
 import com.bytedance.primus.utils.ResourceUtils;
 import com.bytedance.primus.utils.timeline.NoopTimelineLogger;
@@ -109,63 +109,63 @@ import org.slf4j.LoggerFactory;
 public class KubernetesApplicationMaster extends CompositeService implements ApplicationMaster {
 
   private static final Logger LOG = LoggerFactory.getLogger(KubernetesApplicationMaster.class);
-  private FinalApplicationStatus finalStatus;
-  private boolean needUnregister;
+
+  private final String appId;
+  private final String driverPodUniqId;
+
+  private FinalApplicationStatus finalStatus = FinalApplicationStatus.UNDEFINED;
+  private int exitCode = ApplicationExitCode.UNDEFINED.getValue();
   private boolean isStopped = false;
-  private URI defaultFs;
+
+  private boolean needUnregister = false;
+  private int maxAppAttempts;
   private Path stagingDir;
-  private KubernetesContainerManager containerManager;
-  private KubernetesAMContext context;
+
   private PrimusConf primusConf;
+  private KubernetesAMContext context;
+
   private AsyncDispatcher dispatcher;
   private AsyncDispatcher statusDispatcher;
-  private ApiServer apiServer;
+
+  private KubernetesContainerManager containerManager;
+  private ApiServer apiServer; // TODO: Design and move into PrimusEngine
 
   private volatile boolean gracefulShutdown = false;
-  private int exitCode;
 
-  private int maxAppAttempts;
 
-  public KubernetesApplicationMaster() {
+  public KubernetesApplicationMaster(
+      String applicationId,
+      String driverPodUniqId
+  ) {
     super(KubernetesApplicationMaster.class.getName());
-    finalStatus = FinalApplicationStatus.FAILED;
-    needUnregister = false;
-    exitCode = ApplicationExitCode.UNDEFINED.getValue();
+
+    this.appId = applicationId;
+    this.driverPodUniqId = driverPodUniqId;
   }
 
-  @Override
   public void init(PrimusConf primusConf) throws Exception {
     this.primusConf = primusConf;
+
     LOG.info("init with conf:" + primusConf.toString());
-    context = new KubernetesAMContext(primusConf);
+    context = new KubernetesAMContext(primusConf, appId, driverPodUniqId);
 
     dispatcher = new AsyncDispatcher();
     context.setDispatcher(dispatcher);
     statusDispatcher = new AsyncDispatcher("statusDispatcher");
     context.setStatusDispatcher(statusDispatcher);
-    defaultFs = FileSystem.getDefaultUri(context.getHadoopConf());
     stagingDir = new Path(context.getEnvs().get(PRIMUS_REMOTE_STAGING_DIR_ENV));
     LOG.info("Kubernetes app stagingDir:" + stagingDir);
 
-    LOG.info("Kubernetes Init Metric, prefix:" + context.getAppName());
-    if (primusConf.getRuntimeConf().hasPrometheusPushGatewayConf()) {
-      PrimusMetrics.init(context.getAppName() + ".",
-          primusConf.getRuntimeConf().getPrometheusPushGatewayConf().getHost(),
-          primusConf.getRuntimeConf().getPrometheusPushGatewayConf().getPort(),
-          context.getAppName());
-    } else {
-      PrimusMetrics.init(context.getAppName() + ".");
-    }
-
     maxAppAttempts = primusConf.getMaxAppAttempts();
-    if (maxAppAttempts == 0) {
-      maxAppAttempts = context.getHadoopConf().getInt(
-          YarnConfiguration.RM_AM_MAX_ATTEMPTS, YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
+    if (maxAppAttempts <= 0) {
+      maxAppAttempts = YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS;
     }
 
     LOG.info("Create API server");
-    apiServer = new ApiServer(context.getDefaultAPIServerPort(),
-        ResourceUtils.buildApiServerConf(context.getPrimusConf().getApiServerConf()));
+    apiServer = new ApiServer(
+        ResourceUtils.buildApiServerConf(context.getPrimusConf().getApiServerConf()),
+        KubernetesConstants.DRIVER_API_SERVER_PORT
+    );
     apiServer.start();
     context.setApiServerHost(apiServer.getHostName());
     context.setApiServerPort(apiServer.getPort());
@@ -176,10 +176,7 @@ public class KubernetesApplicationMaster extends CompositeService implements App
     context.setCoreApi(coreApi);
 
     LOG.info("Create http server");
-    createHttpServer();
-
-    LOG.info("Create k8s operator state server");
-    createOperatorStateAPIServer(context);
+    createHttpServer(context);
 
     LOG.info("Create progress manager");
     ProgressManager progressManager = ProgressManagerFactory.getProgressManager(context);
@@ -297,13 +294,7 @@ public class KubernetesApplicationMaster extends CompositeService implements App
         dataStreamManager);
     addService(dataSavepointController);
 
-    super.init(context.getEnvConf());
-  }
-
-  private void createOperatorStateAPIServer(
-      KubernetesAMContext context) {
-    OperatorStateAPIService operatorStateAPIService = new OperatorStateAPIService(context);
-    addService(operatorStateAPIService);
+    super.init();
   }
 
   /**
@@ -312,11 +303,13 @@ public class KubernetesApplicationMaster extends CompositeService implements App
    * @throws IOException
    * @throws URISyntaxException
    */
-  private void createHttpServer() throws IOException, URISyntaxException {
+  private void createHttpServer(
+      AMContext context
+  ) throws IOException, URISyntaxException {
     HttpServer2 httpServer = new HttpServer2.Builder()
         .setFindPort(true)
         .setName("primus")
-        .addEndpoint(new URI("http://0.0.0.0:44444"))
+        .addEndpoint(new URI("http://0.0.0.0:" + context.getPrimusUiConf().getWebUiPort()))
         .build();
 
     // Add servlets
@@ -417,7 +410,7 @@ public class KubernetesApplicationMaster extends CompositeService implements App
           LOG.error("Handle fail attempt event, cause: " + event.getDiagnosis()
               + ", primus exit code: " + exitCode);
           finalStatus = FinalApplicationStatus.FAILED;
-          needUnregister = context.getAppAttemptId().getAttemptId() >= maxAppAttempts;
+          needUnregister = context.getAttemptId() >= maxAppAttempts;
           gracefulShutdown(event.getGracefulShutdownTimeoutMs());
         }
         break;
@@ -445,7 +438,7 @@ public class KubernetesApplicationMaster extends CompositeService implements App
           this.exitCode = ApplicationExitCode.UNDEFINED.getValue();
           LOG.info("Unknown app event, primus exit code: " + exitCode);
           finalStatus = FinalApplicationStatus.UNDEFINED;
-          needUnregister = context.getAppAttemptId().getAttemptId() >= maxAppAttempts;
+          needUnregister = context.getAttemptId() >= maxAppAttempts;
           gracefulShutdown(event.getGracefulShutdownTimeoutMs());
         }
         break;
@@ -500,9 +493,8 @@ public class KubernetesApplicationMaster extends CompositeService implements App
         context.getHdfsStore().snapshot(true, finalStatus == FinalApplicationStatus.SUCCEEDED);
         Path stagingPath = stagingDir;
         LOG.info("Cleanup staging dir: " + stagingPath);
-        String defaultFsPrefix = defaultFs.toString();
         try {
-          FileSystem dfs = FileSystem.get(context.getHadoopConf());
+          FileSystem dfs = context.getHadoopFileSystem();
           if (!stagingPath.getName().startsWith("primus-")) {
             throw new IllegalStateException("kubernetes only delete staging folder under primus-");
           }

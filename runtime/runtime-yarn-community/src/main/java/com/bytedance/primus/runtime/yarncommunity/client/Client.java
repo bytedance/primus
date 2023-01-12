@@ -22,7 +22,7 @@ package com.bytedance.primus.runtime.yarncommunity.client;
 import com.bytedance.primus.client.ClientCmdParser;
 import com.bytedance.primus.client.ClientCmdRunner;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.utils.FileUtils;
+import com.bytedance.primus.utils.ConfigurationUtils;
 import org.apache.commons.cli.CommandLine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,12 +34,12 @@ public class Client {
 
   public static void main(String[] args) throws Exception {
     // Collect command line parameters
-    CommandLine commandLine = ClientCmdParser.getCmd(args);
+    CommandLine commandLine = ClientCmdParser.parse(args);
 
     String command =
         commandLine.getOptionValue(ClientCmdParser.COMMAND);
     PrimusConf primusConf =
-        FileUtils.buildPrimusConf(commandLine.getOptionValue(ClientCmdParser.CONF));
+        ConfigurationUtils.load(commandLine.getOptionValue(ClientCmdParser.CONF));
     boolean waitAppCompletion =
         Boolean.parseBoolean(commandLine.getOptionValue(ClientCmdParser.WAIT, "true"));
 

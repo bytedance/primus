@@ -29,6 +29,7 @@ import com.bytedance.primus.apiserver.proto.UtilsProto.ResourceType;
 import com.bytedance.primus.apiserver.proto.UtilsProto.ScheduleStrategy;
 import com.bytedance.primus.apiserver.records.RoleSpec;
 import com.bytedance.primus.apiserver.records.impl.RoleSpecImpl;
+import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.yarncommunity.am.YarnAMContext;
 import java.io.IOException;
@@ -60,10 +61,10 @@ public class ContainerLauncherTest {
   public void testBuildExecutorCommand() throws IOException {
     InetSocketAddress rpcAddr = new InetSocketAddress(9090);
     when(yarnAMContext.getRpcAddress()).thenReturn(rpcAddr);
-    PrimusConf primusConf = PrimusConf.newBuilder().build();
+    PrimusConf primusConf = PrimusConf.newBuilder().setRunningMode(RunningMode.YARN).build();
     when(yarnAMContext.getPrimusConf()).thenReturn(primusConf);
     Configuration conf = new YarnConfiguration();
-    when(yarnAMContext.getHadoopConf()).thenReturn(conf);
+    when(yarnAMContext.getYarnConfiguration()).thenReturn(conf);
     ContainerLauncher containerLauncher = new ContainerLauncher(yarnAMContext);
     RoleSpec roleSpec = new RoleSpecImpl();
     ExecutorId executorId = new ExecutorIdPBImpl();

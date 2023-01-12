@@ -19,22 +19,16 @@
 
 package com.bytedance.primus.runtime.yarncommunity.am.container.scheduler.basic.common.impl;
 
-import com.bytedance.primus.am.AMContext;
-import com.bytedance.primus.common.network.NetworkTypeEnum;
-import com.bytedance.primus.common.network.NetworkConfig;
-import com.bytedance.primus.common.network.NetworkConfigHelper;
 import com.bytedance.primus.common.model.records.ApplicationAttemptId;
+import com.bytedance.primus.common.network.NetworkConfig;
+import com.bytedance.primus.runtime.yarncommunity.am.YarnAMContext;
 import com.bytedance.primus.runtime.yarncommunity.am.container.scheduler.basic.common.YarnNetworkManager;
 
 public class YarnNetworkManagerFactory {
 
-  public static YarnNetworkManager createNetworkManager(AMContext amContext) {
-
-    NetworkConfig networkConfig = NetworkConfigHelper.getNetworkConfig(amContext.getPrimusConf());
-
-    NetworkTypeEnum netWorkTypeEnum = networkConfig.getNetworkTypeEnum();
-
-    switch (netWorkTypeEnum) {
+  public static YarnNetworkManager createNetworkManager(YarnAMContext amContext) {
+    NetworkConfig networkConfig = new NetworkConfig(amContext.getPrimusConf());
+    switch (networkConfig.getNetworkType()) {
       case OVERLAY:
         ApplicationAttemptId appAttemptId = amContext.getAppAttemptId();
         return new OverlayYarnNetworkManager(appAttemptId);
@@ -42,6 +36,5 @@ public class YarnNetworkManagerFactory {
       default:
         return new DefaultYarnNetworkManager();
     }
-
   }
 }

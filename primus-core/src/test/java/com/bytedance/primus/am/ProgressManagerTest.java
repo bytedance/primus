@@ -34,6 +34,7 @@ import com.bytedance.primus.common.service.Service.STATE;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.google.protobuf.util.JsonFormat;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
@@ -45,8 +46,16 @@ public class ProgressManagerTest {
 
   private class TestAMContext extends AMContext {
 
-    public TestAMContext(PrimusConf primusConf) {
-      super(primusConf);
+    public TestAMContext(PrimusConf primusConf) throws IOException {
+      super(primusConf, null);
+    }
+
+    public String getApplicationId() {
+      return "application_id_0";
+    }
+
+    public int getAttemptId() {
+      return 0;
     }
   }
 

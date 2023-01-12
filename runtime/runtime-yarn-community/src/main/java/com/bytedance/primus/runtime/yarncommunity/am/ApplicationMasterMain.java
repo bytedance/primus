@@ -21,10 +21,13 @@ package com.bytedance.primus.runtime.yarncommunity.am;
 
 import com.bytedance.primus.am.AMCommandParser;
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.am.ApplicationMaster;
+import com.bytedance.primus.common.metrics.PrimusMetrics;
+import com.bytedance.primus.common.model.ApplicationConstants.Environment;
+import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.utils.FileUtils;
+import com.bytedance.primus.utils.ConfigurationUtils;
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,26 +38,48 @@ public class ApplicationMasterMain {
   public static void main(String[] args) throws Exception {
     CommandLine cmd = AMCommandParser.getCmd(args);
     String configPath = cmd.getOptionValue(AMCommandParser.CONFIGURATION_PATH);
-    PrimusConf primusConf = FileUtils.buildPrimusConf(configPath);
+    PrimusConf primusConf = ConfigurationUtils.load(configPath);
 
-    run(primusConf);
+    ContainerId containerId = getContainerId();
+
+    run(primusConf, containerId);
   }
 
-  public static void run(PrimusConf primusConf) {
-    try {
-      ApplicationMaster am = new YarnApplicationMaster();
+  public static void run(PrimusConf primusConf, ContainerId containerId) {
+    try (YarnApplicationMaster am = new YarnApplicationMaster(containerId)) {
+      LOG.info("Metrics init ...");
+      PrimusMetrics.init(
+          primusConf.getRuntimeConf(),
+          containerId.getApplicationAttemptId().getApplicationId().toString()
+      );
+
       LOG.info("Application master init...");
       am.init(primusConf);
+
       LOG.info("Application master start...");
       am.start();
+
       int exitCode = am.waitForStop();
       LOG.info("Application master exit code: {}.", exitCode);
       System.exit(exitCode);
+
     } catch (Throwable e) {
       LOG.error("Runtime error", e);
       System.exit(ApplicationExitCode.RUNTIME_ERROR.getValue());
-    } finally {
-      LOG.info("Application exit");
     }
+  }
+
+  private static ContainerId getContainerId() {
+    String cid = System.getenv().get(Environment.CONTAINER_ID.name());
+    if (!StringUtils.isEmpty(cid)) {
+      return ContainerId.fromString(cid);
+    }
+
+    cid = System.getProperty(Environment.CONTAINER_ID.name());
+    if (!StringUtils.isEmpty(cid)) {
+      return ContainerId.fromString(cid);
+    }
+
+    throw new RuntimeException("Failed to construct ContainerId");
   }
 }

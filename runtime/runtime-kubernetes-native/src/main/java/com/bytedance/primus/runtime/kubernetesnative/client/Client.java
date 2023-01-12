@@ -22,7 +22,7 @@ package com.bytedance.primus.runtime.kubernetesnative.client;
 import com.bytedance.primus.client.ClientCmdParser;
 import com.bytedance.primus.client.ClientCmdRunner;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.utils.FileUtils;
+import com.bytedance.primus.utils.ConfigurationUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.logging.log4j.LogManager;
 import org.slf4j.Logger;
@@ -34,22 +34,15 @@ public class Client {
   private static final String COMMAND_SUBMIT = "submit";
 
   public static void main(String[] args) throws Exception {
-    // Collect command line parameters
-    CommandLine commandLine = ClientCmdParser.getCmd(args);
+    execute(ClientCmdParser.parse(args));
+  }
+
+  public static void execute(CommandLine commandLine) throws Exception {
     String command =
         commandLine.getOptionValue(ClientCmdParser.COMMAND);
 
-    PrimusConf userPrimusConf = FileUtils.buildPrimusConf(
+    PrimusConf userPrimusConf = ConfigurationUtils.load(
         commandLine.getOptionValue(ClientCmdParser.CONF));
-
-    // TODO: Merge with the logics for merging defaultPrimusConf in KubernetesSubmitCmdRunner.
-    if (commandLine.hasOption(ClientCmdParser.ENV_CONF)) {
-      userPrimusConf = FileUtils
-          .buildPrimusConf(commandLine.getOptionValue(ClientCmdParser.ENV_CONF))
-          .toBuilder()
-          .mergeFrom(userPrimusConf)
-          .build();
-    }
 
     boolean waitAppCompletion = Boolean.parseBoolean(
         commandLine.getOptionValue(ClientCmdParser.WAIT, "true"));

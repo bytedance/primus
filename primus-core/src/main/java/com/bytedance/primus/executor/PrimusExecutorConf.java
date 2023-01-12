@@ -29,13 +29,9 @@ import com.bytedance.primus.executor.exception.PrimusExecutorException;
 import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusInput.InputManager;
-import com.bytedance.primus.utils.ConfigurationUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.commons.configuration.Configuration;
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -48,11 +44,6 @@ public class PrimusExecutorConf {
   private ExecutorId executorId;
 
   protected final PrimusConf primusConf;
-  // Derived from primusConf
-  protected final Configuration envConf;
-  // Derived from primusConf for interacting with Hadoop ecosystems such as HDFS
-  // TODO: Push hadoopConf down to the needing submodules
-  protected final org.apache.hadoop.conf.Configuration hadoopConf;
 
   private CoreApi coreApi;
   private ExecutorSpec executorSpec;
@@ -75,8 +66,6 @@ public class PrimusExecutorConf {
     executorId.setUniqId(uniqId);
 
     this.primusConf = primusConf;
-    this.envConf = ConfigurationUtils.newEnvConf(primusConf);
-    this.hadoopConf = ConfigurationUtils.newHadoopConf(primusConf);
 
     this.portList = new ArrayList<>();
     if (portRangesStr != null) {
@@ -87,17 +76,16 @@ public class PrimusExecutorConf {
     this.apiServerHost = apiServerHost;
     this.apiServerPort = apiServerPort;
 
-    if (!isLocalRunningMode()) {
-      try {
-        LOG.info("Create api client, current_executor:" + executorId.toUniqString());
-        Client client = new DefaultClient(apiServerHost, apiServerPort);
-        coreApi = new CoreApi(client);
-        executorSpec = coreApi.getExecutor(executorId.toUniqString()).getSpec();
-      } catch (Exception e) {
-        throw new PrimusExecutorException("Failed to get executor from api server", e,
-            ExecutorExitCode.GET_EXECUTOR_FAILED.getValue());
-      }
+    try {
+      LOG.info("Create api client, current_executor:" + executorId.toUniqString());
+      Client client = new DefaultClient(apiServerHost, apiServerPort);
+      coreApi = new CoreApi(client);
+      executorSpec = coreApi.getExecutor(executorId.toUniqString()).getSpec();
+    } catch (Exception e) {
+      throw new PrimusExecutorException("Failed to get executor from api server", e,
+          ExecutorExitCode.GET_EXECUTOR_FAILED.getValue());
     }
+
     inputManager = primusConf.getInputManager();
     registerRetryTimes = primusConf.getScheduler().getRegisterRetryTimes();
     heartbeatIntervalMs = primusConf.getScheduler().getHeartbeatIntervalMs();
@@ -140,32 +128,12 @@ public class PrimusExecutorConf {
     return primusConf;
   }
 
-  public Configuration getEnvConf() {
-    return envConf;
-  }
-
-  public org.apache.hadoop.conf.Configuration getHadoopConf() {
-    return hadoopConf;
-  }
-
   public InputManager getInputManager() {
     return inputManager;
   }
 
   public List<String> getPortList() {
     return portList;
-  }
-
-  public String toJsonString() {
-    try {
-      JSONObject json = new JSONObject();
-      json.put("event", PrimusExecutorConf.class.getSimpleName());
-      json.put("executorId", executorId);
-      json.put("envConf", envConf);
-      return json.toString();
-    } catch (JSONException e) {
-      return null;
-    }
   }
 
   public String getApiServerHost() {
@@ -182,9 +150,5 @@ public class PrimusExecutorConf {
 
   public boolean isYarnRunningMode() {
     return primusConf.getRunningMode() == RunningMode.YARN;
-  }
-
-  public boolean isLocalRunningMode() {
-    return primusConf.getRunningMode() == RunningMode.LOCAL;
   }
 }

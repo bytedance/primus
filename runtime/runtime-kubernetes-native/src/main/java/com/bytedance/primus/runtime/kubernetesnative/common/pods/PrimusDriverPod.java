@@ -21,22 +21,28 @@ package com.bytedance.primus.runtime.kubernetesnative.common.pods;
 
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.DRIVER_API_SERVER_PORT;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.DRIVER_EXECUTOR_TRACKER_SERVICE_PORT;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.OPERATOR_STATE_API_SERVER_PORT;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_SELECTOR_LABEL_NAME;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_DRIVER_SELECTOR_LABEL_NAME;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_JOB_NAME_LABEL_NAME;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_KUBERNETES_JOB_NAME_LABEL_NAME;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.KUBERNETES_POD_META_LABEL_OWNER;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_ID_ENV_KEY;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_ID_LABEL_NAME;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_NAME_ENV_KEY;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_NAME_LABEL_NAME;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_DRIVER_POD_UNIQ_ID_ENV_KEY;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_MOUNT_PATH;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_ROLE_DRIVER;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_ROLE_SELECTOR_LABEL_NAME;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.WEB_UI_SERVER_PORT;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.SLEEP_SECONDS_BEFORE_POD_EXIT_ENV_KEY;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.HADOOP_USER_NAME_ENV;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.PRIMUS_LOCAL_MOUNTING_DIR_ENV;
+import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.PRIMUS_REMOTE_STAGING_DIR_ENV;
+import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
 
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
-import com.bytedance.primus.proto.PrimusRuntime.KubernetesContainerConf;
-import com.bytedance.primus.runtime.kubernetesnative.ResourceNameBuilder;
-import com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants;
+import com.bytedance.primus.proto.PrimusRuntime.KubernetesNativeConf;
+import com.bytedance.primus.proto.PrimusRuntime.KubernetesPodConf;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.containers.PrimusDriverContainer;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.containers.PrimusInitContainer;
-import com.bytedance.primus.runtime.kubernetesnative.utils.AnnotationUtil;
+import com.bytedance.primus.runtime.kubernetesnative.common.utils.ResourceNameBuilder;
+import com.bytedance.primus.runtime.kubernetesnative.runtime.dictionary.Dictionary;
 import com.google.common.base.Preconditions;
 import io.kubernetes.client.openapi.ApiClient;
 import io.kubernetes.client.openapi.ApiException;
@@ -57,6 +63,7 @@ import io.kubernetes.client.util.Config;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,23 +79,15 @@ public class PrimusDriverPod extends PrimusBasePod {
 
   private final PrimusPodContext context;
   @Getter
-  private final V1Pod kubernetesPod;
+  private V1Pod kubernetesPod;
 
   public PrimusDriverPod(
       PrimusPodContext context,
-      Map<String, String> resourceLimit,
-      KubernetesContainerConf initContainerConf,
-      KubernetesContainerConf mainContainerConf
+      KubernetesPodConf podConf
   ) throws IOException {
-    super(initContainerConf, mainContainerConf);
+    super(podConf);
 
     this.context = context;
-    this.kubernetesPod = createDriverPod(
-        context,
-        resourceLimit,
-        getSharedVolumes(),
-        getInitContainerMounts(),
-        getMainContainerMounts());
 
     // Setup Kubernetes Client
     // TODO: Make it configurable
@@ -101,33 +100,26 @@ public class PrimusDriverPod extends PrimusBasePod {
       CoreV1Api api = new CoreV1Api();
 
       // Create DriverPod
-      V1Pod driverNamedPod = api.createNamespacedPod(
-          context.getKubernetesSchedulerConfig().getNamespace(),
-          kubernetesPod, "true" /* pretty */, null /* dryRun*/, null /* fieldManager */);
-      context.setDriverPodUid(Objects.requireNonNull(driverNamedPod.getMetadata()).getUid());
-      LOG.info("Driver Pod has been created: {}", driverNamedPod);
+      this.kubernetesPod = createDriverPod(
+          api,
+          context,
+          getSharedVolumes(),
+          getInitContainerMounts(),
+          getMainContainerMounts());
 
       // Build OwnerReference
       V1OwnerReference driverPodOwnerReference = new V1OwnerReference()
-          .name(driverNamedPod.getMetadata().getName())
-          .apiVersion(driverNamedPod.getApiVersion())
-          .uid(driverNamedPod.getMetadata().getUid())
-          .kind(driverNamedPod.getKind());
-      context.setOwnerReference(driverPodOwnerReference);
-      LOG.info("Kubernetes OwnerReference has been created: {}", driverPodOwnerReference);
+          .name(Objects.requireNonNull(kubernetesPod.getMetadata()).getName())
+          .apiVersion(kubernetesPod.getApiVersion())
+          .uid(kubernetesPod.getMetadata().getUid())
+          .kind(kubernetesPod.getKind());
 
       // Create Kubernetes ConfigMap
-      V1ConfigMap configMap = api.createNamespacedConfigMap(
-          context.getKubernetesSchedulerConfig().getNamespace(),
-          loadConfigMap(context),
-          "true" /* pretty */,
-          null /* dryRun*/,
-          null /* fieldManager */);
-      LOG.info("Kubernetes ConfigMap has been created: {}", configMap);
+      createConfigMap(api, driverPodOwnerReference);
 
       // Create Kubernetes services to expose Primus AM services
-      V1Service service = createDriverService(api);
-      LOG.info("Driver service has been created: {}", service);
+      createDriverService(api, driverPodOwnerReference,
+          context.getPrimusUiConf().getWebUiPort());
 
     } catch (ApiException ex) {
       LOG.error("Error when submitting pod: response={}", ex.getResponseBody());
@@ -136,52 +128,58 @@ public class PrimusDriverPod extends PrimusBasePod {
   }
 
   private static V1Pod createDriverPod(
+      CoreV1Api api,
       PrimusPodContext context,
-      Map<String, String> resourceLimit,
       List<V1Volume> sharedVolumes,
       List<V1VolumeMount> initContainerMounts,
       List<V1VolumeMount> mainContainerMounts
-  ) {
+  ) throws ApiException {
     // Preprocess
-    String driverPodName = ResourceNameBuilder.buildDriverPodName(context.getAppName());
-    String driverServiceName = ResourceNameBuilder.buildDriverServiceName(
-        context.getAppName(),
-        context.getKubernetesSchedulerConfig().getNamespace());
-    LOG.info("AppName:" + context.getAppName() + ", DriverName:" + driverPodName);
+    String driverPodName = ResourceNameBuilder.buildDriverPodName(context.getAppId());
+    LOG.info("AppId:" + context.getAppId() + ", DriverName:" + driverPodName);
 
     // Generate containers
+    Preconditions.checkArgument(context.getRuntimeConf().hasKubernetesNativeConf());
+    KubernetesNativeConf kubernetesNativeConf = context.getRuntimeConf().getKubernetesNativeConf();
+
     V1Container initContainer =
         new PrimusInitContainer(
-            context.getAppName(),
+            context.getAppId(),
             context.getHdfsStagingDir().toString(),
-            context.getRuntimeConf().getKubernetesNativeConf().getInitContainerConf(),
+            kubernetesNativeConf.getDriverPodConf().getInitContainerConf(),
+            context.getDriverEnvironMap(),
             initContainerMounts
         ).getKubernetesContainer();
 
     V1Container driverContainer =
         new PrimusDriverContainer(
-            context.getAppName(),
-            driverServiceName,
-            resourceLimit,
-            context.getRuntimeConf().getKubernetesNativeConf().getDriverContainerConf(),
+            context.getAppId(),
+            context.getResourceLimitMap(),
+            kubernetesNativeConf.getDriverPodConf().getMainContainerConf(),
             context.getDriverEnvironMap(),
             mainContainerMounts
         ).getKubernetesContainer();
 
     // Assemble pod
-    V1Pod ret = new V1Pod()
+    Dictionary dictionary = Dictionary.newDictionary(
+        context.getAppId(),
+        context.getAppName(),
+        context.getKubernetesSchedulerConfig().getNamespace(),
+        driverPodName
+    );
+
+    V1Pod raw = new V1Pod()
         .metadata(new V1ObjectMeta()
             .name(driverPodName)
             .namespace(context.getKubernetesSchedulerConfig().getNamespace())
-            .annotations(AnnotationUtil.loadUserDefinedAnnotations(context))
-            .labels(new HashMap<String, String>() {{
-              put(PRIMUS_APP_SELECTOR_LABEL_NAME, context.getAppName());
-              put(PRIMUS_JOB_NAME_LABEL_NAME, context.getJobName());
-              put(PRIMUS_KUBERNETES_JOB_NAME_LABEL_NAME, context.getKubernetesJobName());
-              put(PRIMUS_DRIVER_SELECTOR_LABEL_NAME, driverPodName);
-              put(PRIMUS_ROLE_SELECTOR_LABEL_NAME, PRIMUS_ROLE_DRIVER);
-              put(KubernetesConstants.KUBERNETES_POD_META_LABEL_OWNER, context.getOwner());
-            }}))
+            .labels(dictionary.translate(
+                loadBaseLabelMap(context, driverPodName),
+                kubernetesNativeConf.getDriverPodConf().getLabelsMap()
+            ))
+            .annotations(dictionary.translate(
+                kubernetesNativeConf.getDriverPodConf().getAnnotationsMap()
+            ))
+        )
         .spec(new V1PodSpec()
             .serviceAccountName(context.getKubernetesSchedulerConfig().getServiceAccountName())
             .schedulerName(context.getKubernetesSchedulerConfig().getSchedulerName())
@@ -190,14 +188,106 @@ public class PrimusDriverPod extends PrimusBasePod {
             .initContainers(Collections.singletonList(initContainer))
             .containers(Collections.singletonList(driverContainer)));
 
-    LOG.info("Driver pod settings: {}", ret.toString());
-    return ret;
+    LOG.info("Driver Pod to create: {}", raw);
+    return api.createNamespacedPod(
+        context.getKubernetesSchedulerConfig().getNamespace(),
+        raw, "true" /* pretty */, null /* dryRun*/, null /* fieldManager */);
+  }
+
+  private V1ConfigMap createConfigMap(
+      CoreV1Api api,
+      V1OwnerReference ownerReference
+  ) throws ApiException {
+    V1ConfigMap raw = new V1ConfigMap()
+        .metadata(new V1ObjectMeta()
+            .name(ResourceNameBuilder.buildConfigMapName(context.getAppId()))
+            .namespace(context.getKubernetesSchedulerConfig().getNamespace())
+            .addOwnerReferencesItem(ownerReference))
+        .data(loadConfigMapEnvs(context, ownerReference));
+
+    LOG.info("ConfigMap to create: {}", raw);
+    return api.createNamespacedConfigMap(
+        context.getKubernetesSchedulerConfig().getNamespace(),
+        raw, "true" /* pretty */, null /* dryRun*/, null /* fieldManager */);
+  }
+
+  private V1Service createDriverService(
+      CoreV1Api api,
+      V1OwnerReference ownerReference,
+      int primusWebUiPort
+  ) throws ApiException {
+    V1Service raw = new V1Service()
+        .metadata(new V1ObjectMeta()
+            .name(ResourceNameBuilder.buildDriverShortServiceName(context.getAppId()))
+            .addOwnerReferencesItem(ownerReference))
+        .spec(new V1ServiceSpec()
+            .clusterIP("None")
+            .putSelectorItem(PRIMUS_APP_ID_LABEL_NAME, context.getAppId())
+            .putSelectorItem(PRIMUS_ROLE_SELECTOR_LABEL_NAME, PRIMUS_ROLE_DRIVER)
+            .ports(Arrays.asList(
+                new V1ServicePort()
+                    .name("api-service")
+                    .port(DRIVER_API_SERVER_PORT),
+                new V1ServicePort()
+                    .name("executor-tracker-service")
+                    .port(DRIVER_EXECUTOR_TRACKER_SERVICE_PORT),
+                new V1ServicePort()
+                    .name("web-server")
+                    .port(primusWebUiPort)
+            )));
+
+    LOG.info("Service to create: {}", raw);
+    return api.createNamespacedService(
+        context.getKubernetesSchedulerConfig().getNamespace(), raw,
+        "true" /* pretty */, null /* dryRun*/, null /* fieldManager */);
+  }
+
+  private static Map<String, String> loadConfigMapEnvs(
+      PrimusPodContext context,
+      V1OwnerReference ownerReference
+  ) {
+    // Primus envs
+    Map<String, String> primusEnvs = new HashMap<String, String>() {{
+      put(PRIMUS_APP_ID_ENV_KEY, context.getAppId());
+      put(PRIMUS_APP_NAME_ENV_KEY, context.getAppName());
+
+      put(PRIMUS_DRIVER_POD_UNIQ_ID_ENV_KEY, ownerReference.getUid());
+
+      put(PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY, String.valueOf(new Date().getTime()));
+      put(PRIMUS_REMOTE_STAGING_DIR_ENV, context.getHdfsStagingDir().toString());
+      put(PRIMUS_LOCAL_MOUNTING_DIR_ENV, PRIMUS_MOUNT_PATH);
+
+      put(HADOOP_USER_NAME_ENV, context.getUser());
+      put(SLEEP_SECONDS_BEFORE_POD_EXIT_ENV_KEY,
+          Integer.toString(context.getSleepSecondsBeforePodExit()));
+    }};
+
+    // Assemble the result
+    return new HashMap<String, String>() {{
+      putAll(primusEnvs);
+      putAll(context.getJobEnvironMap());
+    }};
+  }
+
+  // TODO: Unit tests
+  private static Map<String, String> loadBaseLabelMap(
+      PrimusPodContext context,
+      String masterPodName
+  ) {
+    return new HashMap<String, String>() {{
+      // Pod common
+      put(PRIMUS_APP_ID_LABEL_NAME, context.getAppId());
+      put(PRIMUS_APP_NAME_LABEL_NAME, context.getAppName());
+      put(KUBERNETES_POD_META_LABEL_OWNER, context.getUser());
+      // Driver specific
+      put(PRIMUS_ROLE_SELECTOR_LABEL_NAME, PRIMUS_ROLE_DRIVER);
+    }};
   }
 
   public String getAMPodStatus() {
     try {
       CoreV1Api api = new CoreV1Api();
-      String driverPodName = ResourceNameBuilder.buildDriverPodName(context.getAppName());
+      String driverPodName = ResourceNameBuilder.buildDriverPodName(context.getAppId());
       V1Pod driverPod = api
           .readNamespacedPod(driverPodName, context.getKubernetesSchedulerConfig().getNamespace(),
               "true" /* pretty */, false /* exact */, false /* export */);
@@ -214,42 +304,4 @@ public class PrimusDriverPod extends PrimusBasePod {
     }
     return null;
   }
-
-  private V1Service createDriverService(CoreV1Api api) throws ApiException {
-    Preconditions.checkState(
-        context.getDriverPodOwnerReference() != null /* expression */,
-        "owner reference should not be null" /* error msg */);
-
-    String driverName = ResourceNameBuilder.buildDriverPodName(context.getAppName());
-    String driverServiceName = ResourceNameBuilder.buildDriverShortServiceName(
-        context.getAppName());
-
-    V1Service v1Service = new V1Service()
-        .metadata(new V1ObjectMeta()
-            .name(driverServiceName)
-            .addOwnerReferencesItem(context.getDriverPodOwnerReference()))
-        .spec(new V1ServiceSpec()
-            .clusterIP("None")
-            .putSelectorItem(PRIMUS_DRIVER_SELECTOR_LABEL_NAME, driverName)
-            .putSelectorItem(PRIMUS_ROLE_SELECTOR_LABEL_NAME, PRIMUS_ROLE_DRIVER)
-            .ports(Arrays.asList(
-                new V1ServicePort()
-                    .name("api-service")
-                    .port(DRIVER_API_SERVER_PORT),
-                new V1ServicePort()
-                    .name("executor-tracker-service")
-                    .port(DRIVER_EXECUTOR_TRACKER_SERVICE_PORT),
-                new V1ServicePort()
-                    .name("web-server")
-                    .port(WEB_UI_SERVER_PORT),
-                new V1ServicePort()
-                    .name("operator-status-server")
-                    .port(OPERATOR_STATE_API_SERVER_PORT))
-            ));
-
-    return api.createNamespacedService(
-        context.getKubernetesSchedulerConfig().getNamespace(), v1Service,
-        "true" /* pretty */, null /* dryRun*/, null /* fieldManager */);
-  }
-
 }

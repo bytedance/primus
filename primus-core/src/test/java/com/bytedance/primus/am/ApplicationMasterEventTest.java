@@ -21,8 +21,6 @@ package com.bytedance.primus.am;
 
 import static org.mockito.Mockito.when;
 
-import com.bytedance.primus.common.model.records.ApplicationAttemptId;
-import com.bytedance.primus.common.model.records.ApplicationId;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import org.junit.Assert;
 import org.junit.Before;
@@ -37,14 +35,13 @@ public class ApplicationMasterEventTest {
   @Mock
   AMContext context;
 
-
   @Before
   public void init() {
     PrimusConf primusConf = PrimusConf.newBuilder()
         .setGracefulShutdownTimeoutMin(10)
         .build();
-    ApplicationId applicationId = ApplicationId.newInstance(0, 0);
-    when(context.getAppAttemptId()).thenReturn(ApplicationAttemptId.newInstance(applicationId, 1));
+    when(context.getApplicationId()).thenReturn("application_id_0");
+    when(context.getAttemptId()).thenReturn(0);
     when(context.getPrimusConf()).thenReturn(primusConf);
   }
 

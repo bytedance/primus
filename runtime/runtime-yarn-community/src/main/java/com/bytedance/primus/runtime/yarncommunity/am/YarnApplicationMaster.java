@@ -92,6 +92,7 @@ import com.bytedance.primus.common.child.ChildLauncherEventType;
 import com.bytedance.primus.common.event.AsyncDispatcher;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.model.records.ApplicationId;
+import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.model.records.FinalApplicationStatus;
 import com.bytedance.primus.common.service.CompositeService;
 import com.bytedance.primus.common.service.Service;
@@ -140,7 +141,6 @@ import org.apache.hadoop.http.HttpServer2;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.client.api.AMRMClient;
 import org.apache.hadoop.yarn.client.api.NMClient;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -150,199 +150,187 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
   private static final Logger LOG = LoggerFactory.getLogger(YarnApplicationMaster.class);
   protected static int STOP_NM_CLIENT_TIMEOUT = 300;
 
+  private final ContainerId containerId;
+
   private PrimusConf primusConf;
-  private YarnAMContext yarnAMContext;
+  private YarnAMContext context;
 
   private NMClient nmClient;
   private AMRMClient<AMRMClient.ContainerRequest> amRMClient;
   private AsyncDispatcher dispatcher;
   private AsyncDispatcher statusDispatcher;
-  private URI defaultFs;
   private Path stagingDir;
 
   private ApiServer apiServer;
 
   private volatile boolean isStopped;
-  private int maxAppAttempts;
-  private FinalApplicationStatus finalStatus;
-  private boolean needUnregister;
-  private String unregisterDiagnostics;
+  private FinalApplicationStatus finalStatus = FinalApplicationStatus.UNDEFINED;
+  private boolean needUnregister = false;
+  private String unregisterDiagnostics = "";
   private String historyUrl;
   private volatile boolean gracefulShutdown = false;
-  private int exitCode;
+  private int exitCode = ApplicationExitCode.UNDEFINED.getValue();
   private Set<String> distributedUris = new HashSet<>();
   private Set<String> distributedNames = new HashSet<>();
 
-  public YarnApplicationMaster() {
+  public YarnApplicationMaster(ContainerId containerId) {
     super(YarnApplicationMaster.class.getName());
-    finalStatus = FinalApplicationStatus.FAILED;
-    needUnregister = false;
-    unregisterDiagnostics = "";
-    exitCode = ApplicationExitCode.UNDEFINED.getValue();
+    this.containerId = containerId;
   }
 
-  @Override
   public void init(PrimusConf primusConf) throws Exception {
     this.primusConf = primusConf;
 
     LOG.info("Create AMContext");
-    yarnAMContext = new YarnAMContext(primusConf);
-    yarnAMContext.setApplicationMaster(this);
+    context = new YarnAMContext(primusConf, containerId);
 
     LOG.info("Create event dispatchers");
     dispatcher = new AsyncDispatcher();
-    yarnAMContext.setDispatcher(dispatcher);
+    context.setDispatcher(dispatcher);
     statusDispatcher = new AsyncDispatcher("statusDispatcher");
-    yarnAMContext.setStatusDispatcher(statusDispatcher);
+    context.setStatusDispatcher(statusDispatcher);
 
     LOG.info("Init FileSystem");
-    defaultFs = FileSystem.getDefaultUri(yarnAMContext.getHadoopConf());
-    stagingDir = new Path(yarnAMContext.getEnvs().get(STAGING_DIR_KEY));
+    stagingDir = new Path(context.getEnvs().get(STAGING_DIR_KEY));
 
-    // Setup PrimusMetrics and timelineLogger
     // TODO: Move to a new private function
-    ApplicationId appId = yarnAMContext.getAppAttemptId().getApplicationId();
-    PrimusMetrics.init(appId.toString() + ".");
-    historyUrl = yarnAMContext.getMonitorInfoProvider().getHistoryTrackingUrl();
+    ApplicationId appId = context.getAppAttemptId().getApplicationId();
+    PrimusMetrics.init(
+        primusConf.getRuntimeConf(),
+        appId.toString());
+    historyUrl = context.getMonitorInfoProvider().getHistoryTrackingUrl();
 
     // TODO: Make it plugable
+    // Setup timelineLogger
     LOG.info("Create noop timeline listener");
     TimelineLogger timelineLogger = new NoopTimelineLogger();
-    yarnAMContext.setTimelineLogger(timelineLogger);
+    context.setTimelineLogger(timelineLogger);
     dispatcher.register(ExecutorEventType.class, timelineLogger);
 
-    // TODO: Misc
-    maxAppAttempts = getMaxAppAttempts();
-
     LOG.info("Create local resources");
-    Map<String, LocalResource> localResources = createLocalResources(yarnAMContext);
-    yarnAMContext.setLocalResources(localResources);
+    Map<String, LocalResource> localResources = createLocalResources(context);
+    context.setLocalResources(localResources);
 
     LOG.info("Create API server");
     apiServer = new ApiServer(ResourceUtils.buildApiServerConf(primusConf.getApiServerConf()));
     apiServer.start();
-    yarnAMContext.setApiServerHost(apiServer.getHostName());
-    yarnAMContext.setApiServerPort(apiServer.getPort());
+    context.setApiServerHost(apiServer.getHostName());
+    context.setApiServerPort(apiServer.getPort());
 
     LOG.info("Create api client");
     Client client = new DefaultClient(apiServer.getHostName(), apiServer.getPort());
     CoreApi coreApi = new CoreApi(client);
-    yarnAMContext.setCoreApi(coreApi);
+    context.setCoreApi(coreApi);
 
     LOG.info("Create nm and rm client");
     amRMClient = AMRMClient.createAMRMClient();
-    amRMClient.init(yarnAMContext.getHadoopConf());
+    amRMClient.init(context.getYarnConfiguration());
     amRMClient.start();
 
     nmClient = NMClient.createNMClient();
-    nmClient.init(yarnAMContext.getHadoopConf());
+    nmClient.init(context.getYarnConfiguration());
     nmClient.start();
 
-    yarnAMContext.setAmRMClient(amRMClient);
-    yarnAMContext.setNmClient(nmClient);
-
-    // LOG.info("Create PrimusFlow status service");
-    // PrimusFlowStatusService flowStatusService = new PrimusFlowStatusService(yarnAMContext);
-    // yarnAMContext.setPrimusFlowStatusService(flowStatusService);
-    // addService(flowStatusService);
+    context.setAmRMClient(amRMClient);
+    context.setNmClient(nmClient);
 
     LOG.info("Create http server");
-    yarnAMContext.setHttpServer(createWebAppHttpServer(yarnAMContext));
+    context.setHttpServer(createWebAppHttpServer(context));
 
     LOG.info("Create container launcher"); // TODO: Create an interface and add to AMContext
-    ContainerLauncher containerLauncher = new ContainerLauncher(yarnAMContext);
+    ContainerLauncher containerLauncher = new ContainerLauncher(context);
     dispatcher.register(ContainerLauncherEventType.class, containerLauncher);
 
     LOG.info("Create role info manager");
     RoleInfoManager roleInfoManager = new RoleInfoManager(
-        yarnAMContext,
+        context,
         new YarnRoleInfoFactory(primusConf));
     dispatcher.register(RoleInfoManagerEventType.class, roleInfoManager);
-    yarnAMContext.setRoleInfoManager(roleInfoManager);
+    context.setRoleInfoManager(roleInfoManager);
 
     LOG.info("Create failover policy manager");
-    FailoverPolicyManager failoverPolicyManager = new FailoverPolicyManager(yarnAMContext);
+    FailoverPolicyManager failoverPolicyManager = new FailoverPolicyManager(context);
     dispatcher.register(FailoverPolicyManagerEventType.class, failoverPolicyManager);
-    yarnAMContext.setFailoverPolicyManager(failoverPolicyManager);
+    context.setFailoverPolicyManager(failoverPolicyManager);
 
     LOG.info("Create schedule policy manager");
-    SchedulePolicyManager schedulePolicyManager = new SchedulePolicyManager(yarnAMContext);
+    SchedulePolicyManager schedulePolicyManager = new SchedulePolicyManager(context);
     dispatcher.register(SchedulePolicyManagerEventType.class, schedulePolicyManager);
-    yarnAMContext.setSchedulePolicyManager(schedulePolicyManager);
+    context.setSchedulePolicyManager(schedulePolicyManager);
 
     LOG.info("Create executor monitor");
-    ExecutorMonitor monitor = new ExecutorMonitor(yarnAMContext);
+    ExecutorMonitor monitor = new ExecutorMonitor(context);
     addService(monitor);
-    yarnAMContext.setMonitor(monitor);
+    context.setMonitor(monitor);
 
     LOG.info("Create scheduler executor manager");
-    SchedulerExecutorManager schedulerExecutorManager = new SchedulerExecutorManager(yarnAMContext);
-    yarnAMContext.setSchedulerExecutorManager(schedulerExecutorManager);
+    SchedulerExecutorManager schedulerExecutorManager = new SchedulerExecutorManager(context);
+    context.setSchedulerExecutorManager(schedulerExecutorManager);
     addService(schedulerExecutorManager);
 
     LOG.info("Checking PONY manager");
     if (primusConf.getScheduler().getSchedulePolicy().hasPonyPolicy()) {
       LOG.info("Setting PONY manager");
       PonyManager ponyManager = new PonyManager(
-          yarnAMContext,
+          context,
           primusConf.getScheduler().getSchedulePolicy().getPonyPolicy().getPsRoleName());
       ponyManager.setSchedulerExecutorManager(schedulerExecutorManager);
-      yarnAMContext.setPonyManager(ponyManager);
+      context.setPonyManager(ponyManager);
 
       dispatcher.register(PonyEventType.class, ponyManager);
-      if (yarnAMContext.getTimelineLogger() != null) {
-        dispatcher.register(PonyEventType.class, yarnAMContext.getTimelineLogger());
+      if (context.getTimelineLogger() != null) {
+        dispatcher.register(PonyEventType.class, context.getTimelineLogger());
       }
     }
 
     LOG.info("Create executor tracker service");
-    ExecutorTrackerService trackerService = new ExecutorTrackerService(yarnAMContext);
+    ExecutorTrackerService trackerService = new ExecutorTrackerService(context);
     addService(trackerService);
-    AMService amService = new AMService(yarnAMContext);
-    yarnAMContext.setAmService(amService);
+    AMService amService = new AMService(context);
+    context.setAmService(amService);
     addService(amService);
 
     LOG.info("Create container manager");
-    YarnContainerManager containerManagerService = new FairContainerManager(yarnAMContext);
-    yarnAMContext.setContainerManager(containerManagerService);
+    YarnContainerManager containerManagerService = new FairContainerManager(context);
+    context.setContainerManager(containerManagerService);
     addService(containerManagerService);
 
     LOG.info("Create data stream manager");
-    DataStreamManager dataStreamManager = new DataStreamManager(yarnAMContext);
-    yarnAMContext.setDataStreamManager(dataStreamManager);
+    DataStreamManager dataStreamManager = new DataStreamManager(context);
+    context.setDataStreamManager(dataStreamManager);
     addService(dataStreamManager);
 
     LOG.info("Create suspend manager");
     SuspendManager suspendManager = new SuspendManager(dataStreamManager);
-    yarnAMContext.setSuspendManager(suspendManager);
+    context.setSuspendManager(suspendManager);
     addService(suspendManager);
 
     LOG.info("Create progress manager");
-    ProgressManager progressManager = ProgressManagerFactory.getProgressManager(yarnAMContext);
-    yarnAMContext.setProgressManager(progressManager);
+    ProgressManager progressManager = ProgressManagerFactory.getProgressManager(context);
+    context.setProgressManager(progressManager);
     addService(progressManager);
 
     LOG.info("Create hdfs store");
-    HdfsStore hdfsStore = new HdfsStore(yarnAMContext);
-    yarnAMContext.setHdfsStore(hdfsStore);
+    HdfsStore hdfsStore = new HdfsStore(context);
+    context.setHdfsStore(hdfsStore);
     addService(hdfsStore);
 
     LOG.info("Create logging listener");
-    EventLoggingListener eventLoggingListener = new EventLoggingListener(yarnAMContext);
+    EventLoggingListener eventLoggingListener = new EventLoggingListener(context);
     addService(eventLoggingListener);
 
     LOG.info("Create ApiServerExecutorStateUpdateListener listener");
     ApiServerExecutorStateUpdateListener apiServerExecutorStateUpdateListener =
-        new ApiServerExecutorStateUpdateListener(yarnAMContext);
+        new ApiServerExecutorStateUpdateListener(context);
     addService(apiServerExecutorStateUpdateListener);
 
     StatusEventLoggingListener statusLoggingListener =
-        new StatusEventLoggingListener(yarnAMContext);
-    yarnAMContext.setStatusLoggingListener(statusLoggingListener);
+        new StatusEventLoggingListener(context);
+    context.setStatusLoggingListener(statusLoggingListener);
     addService(statusLoggingListener);
 
-    yarnAMContext.setStatusEventWrapper(new StatusEventWrapper(yarnAMContext));
-    yarnAMContext.setBlacklistTrackerOpt(createBlacklistTracker());
+    context.setStatusEventWrapper(new StatusEventWrapper(context));
+    context.setBlacklistTrackerOpt(createBlacklistTracker());
 
     ChildLauncher masterLauncher = new ChildLauncher(primusConf.getRuntimeConf());
     addService(masterLauncher);
@@ -363,23 +351,23 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     addService(dispatcher);
     addService(statusDispatcher);
 
-    JobController jobController = new JobController(yarnAMContext);
-    yarnAMContext.setJobController(jobController);
+    JobController jobController = new JobController(context);
+    context.setJobController(jobController);
     addService(jobController);
 
-    DataController dataController = new DataController(yarnAMContext);
-    yarnAMContext.setDataController(dataController);
+    DataController dataController = new DataController(context);
+    context.setDataController(dataController);
     addService(dataController);
 
-    NodeAttributeController nodeAttributeController = new NodeAttributeController(yarnAMContext);
-    yarnAMContext.setNodeAttributeController(nodeAttributeController);
+    NodeAttributeController nodeAttributeController = new NodeAttributeController(context);
+    context.setNodeAttributeController(nodeAttributeController);
     addService(nodeAttributeController);
 
     DataSavepointController dataSavepointController = new DataSavepointController(coreApi,
         dataStreamManager);
     addService(dataSavepointController);
 
-    this.init(yarnAMContext.getEnvConf());
+    this.init();
   }
 
   @Override
@@ -387,20 +375,20 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     isStopped = false;
     super.serviceStart();
 
-    yarnAMContext.logStatusEvent(yarnAMContext.getStatusEventWrapper().buildAMStartEvent());
+    context.logStatusEvent(context.getStatusEventWrapper().buildAMStartEvent());
     Thread.sleep(15 * 1000); // Watch interface is async so sleep a while to wait for creation
 
     // TODO: Comment
     if (primusConf.getScheduler().getCommand().isEmpty()) {
-      Job job = ResourceUtils.buildJob(yarnAMContext.getPrimusConf());
-      if (yarnAMContext.getPrimusConf().getScheduler().getSchedulePolicy().hasOrderPolicy()) {
+      Job job = ResourceUtils.buildJob(context.getPrimusConf());
+      if (context.getPrimusConf().getScheduler().getSchedulePolicy().hasOrderPolicy()) {
         LOG.info("Add data to api server before schedule role by order");
         Data data = ResourceUtils.buildData(primusConf);
-        yarnAMContext.getCoreApi().create(Data.class, data);
+        context.getCoreApi().create(Data.class, data);
         List<String> roleNames = getRoleNames();
         scheduleRoleByOrder(job, roleNames);
       } else {
-        yarnAMContext.getCoreApi().createJob(job);
+        context.getCoreApi().createJob(job);
       }
 
       return;
@@ -410,18 +398,18 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     Map<String, String> envs = new HashMap<>(System.getenv());
     envs.put(Constants.API_SERVER_RPC_HOST_ENV, apiServer.getHostName());
     envs.put(Constants.API_SERVER_RPC_PORT_ENV, String.valueOf(apiServer.getPort()));
-    envs.put(PRIMUS_AM_RPC_HOST, yarnAMContext.getAmService().getHostName());
-    envs.put(PRIMUS_AM_RPC_PORT, String.valueOf(yarnAMContext.getAmService().getPort()));
+    envs.put(PRIMUS_AM_RPC_HOST, context.getAmService().getHostName());
+    envs.put(PRIMUS_AM_RPC_PORT, String.valueOf(context.getAmService().getPort()));
     MasterContext masterContext = new MasterContext(primusConf.getScheduler().getCommand(), envs);
-    Master master = new Master(yarnAMContext, masterContext, dispatcher);
-    yarnAMContext.setMaster(master);
+    Master master = new Master(context, masterContext, dispatcher);
+    context.setMaster(master);
     dispatcher.getEventHandler()
         .handle(new ChildLauncherEvent(ChildLauncherEventType.LAUNCH, master));
   }
 
   public List<String> getRoleNames() {
     List<String> ret = new ArrayList<>();
-    for (RolePolicy rolePolicy : yarnAMContext.getPrimusConf().getScheduler().getSchedulePolicy()
+    for (RolePolicy rolePolicy : context.getPrimusConf().getScheduler().getSchedulePolicy()
         .getOrderPolicy().getRolePolicyList()) {
       ret.add(rolePolicy.getRoleName());
     }
@@ -438,18 +426,18 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     for (String roleName : roleNames) {
       job.getSpec().getRoleSpecs().put(roleName, roleSpecMap.get(roleName));
       if (i == 0) {
-        yarnAMContext.getCoreApi().createJob(job);
+        context.getCoreApi().createJob(job);
       } else {
-        Long version = yarnAMContext.getCoreApi().getJob(job.getMeta().getName()).getMeta()
+        Long version = context.getCoreApi().getJob(job.getMeta().getName()).getMeta()
             .getVersion();
-        yarnAMContext.getCoreApi().replaceJob(job, version);
+        context.getCoreApi().replaceJob(job, version);
       }
       i++;
       RoleStatus roleStatus = null;
       while (roleStatus == null
           || roleStatus.getActiveNum() + roleStatus.getFailedNum() + roleStatus.getSucceedNum()
           != roleSpecMap.get(roleName).getReplicas()) {
-        roleStatus = yarnAMContext.getCoreApi().getJob(job.getMeta().getName()).getStatus()
+        roleStatus = context.getCoreApi().getJob(job.getMeta().getName()).getStatus()
             .getRoleStatuses().get(roleName);
         Thread.sleep(1000);
       }
@@ -458,9 +446,9 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
 
   @Override
   public synchronized void handle(ApplicationMasterEvent event) {
-    yarnAMContext.getTimelineLogger()
-        .logEvent(PRIMUS_VERSION.name(), yarnAMContext.getVersion());
-    yarnAMContext.getTimelineLogger()
+    context.getTimelineLogger()
+        .logEvent(PRIMUS_VERSION.name(), context.getVersion());
+    context.getTimelineLogger()
         .logEvent(PRIMUS_APPLICATION_MASTER_EVENT.name(), event.getType().name());
     switch (event.getType()) {
       case SUCCESS:
@@ -473,7 +461,7 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
           finalStatus = FinalApplicationStatus.SUCCEEDED;
           needUnregister = true;
           unregisterDiagnostics = event.getDiagnosis();
-          yarnAMContext.getProgressManager().setProgress(1f);
+          context.getProgressManager().setProgress(1f);
           gracefulShutdown(event.getGracefulShutdownTimeoutMs());
         }
         break;
@@ -483,7 +471,7 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
           LOG.error("Handle fail attempt event, cause: " + event.getDiagnosis()
               + ", primus exit code: " + exitCode);
           finalStatus = FinalApplicationStatus.FAILED;
-          needUnregister = yarnAMContext.getAppAttemptId().getAttemptId() >= maxAppAttempts;
+          needUnregister = context.getAppAttemptId().getAttemptId() >= context.getMaxAppAttempts();
           unregisterDiagnostics = event.getDiagnosis();
           gracefulShutdown(event.getGracefulShutdownTimeoutMs());
         }
@@ -502,25 +490,25 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
       case SUSPEND_APP:
         ApplicationMasterSuspendAppEvent e = (ApplicationMasterSuspendAppEvent) event;
         LOG.info("Handle suspend app event, cause: " + event.getDiagnosis());
-        yarnAMContext.getSuspendManager().suspend(e.getSnapshotId());
+        context.getSuspendManager().suspend(e.getSnapshotId());
         break;
       case RESUME_APP:
         LOG.info("Handle resume app event, cause: " + event.getDiagnosis());
-        yarnAMContext.getSuspendManager().resume();
+        context.getSuspendManager().resume();
         break;
       default:
         if (!gracefulShutdown) {
           this.exitCode = ApplicationExitCode.UNDEFINED.getValue();
           LOG.info("Unknown app event, primus exit code: " + exitCode);
           finalStatus = FinalApplicationStatus.UNDEFINED;
-          needUnregister = yarnAMContext.getAppAttemptId().getAttemptId() >= maxAppAttempts;
+          needUnregister = context.getAppAttemptId().getAttemptId() >= context.getMaxAppAttempts();
           unregisterDiagnostics = event.getDiagnosis();
           gracefulShutdown(event.getGracefulShutdownTimeoutMs());
         }
         break;
     }
     if (gracefulShutdown) {
-      yarnAMContext.logStatusEvent(yarnAMContext.getStatusEventWrapper()
+      context.logStatusEvent(context.getStatusEventWrapper()
           .buildAMEndEvent(finalStatus, exitCode, unregisterDiagnostics));
     }
   }
@@ -528,7 +516,7 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
   public void gracefulShutdown(long timeoutMs) {
     LOG.info("start gracefulShutdown, timeout:{}", timeoutMs);
     PrimusMetrics.TimerMetric gracefulShutdownLatency =
-        PrimusMetrics.getTimerContextWithOptionalPrefix("am.graceful_shutdown.latency");
+        PrimusMetrics.getTimerContextWithAppIdTag("am.graceful_shutdown.latency", new HashMap<>());
     this.gracefulShutdown = true;
     try {
       Thread.sleep(primusConf.getSleepBeforeExitMs());
@@ -540,11 +528,11 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     Thread thread = new Thread(() -> {
       long startTime = System.currentTimeMillis();
       boolean isTimeout = false;
-      while (yarnAMContext.getSchedulerExecutorManager().getContainerExecutorMap().size() > 0
+      while (context.getSchedulerExecutorManager().getContainerExecutorMap().size() > 0
           && !isTimeout) {
         try {
           LOG.info("Running executor number "
-              + yarnAMContext.getSchedulerExecutorManager().getContainerExecutorMap().size()
+              + context.getSchedulerExecutorManager().getContainerExecutorMap().size()
               + ", graceful shutdown");
           Thread.sleep(3000);
         } catch (InterruptedException e) {
@@ -554,9 +542,9 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
       }
       if (isTimeout) {
         LOG.warn("Graceful shutdown timeout, remaining container "
-            + yarnAMContext.getSchedulerExecutorManager().getContainerExecutorMap().size());
+            + context.getSchedulerExecutorManager().getContainerExecutorMap().size());
       }
-      yarnAMContext.getTimelineLogger().logEvent(PRIMUS_APP_SHUTDOWN.name(),
+      context.getTimelineLogger().logEvent(PRIMUS_APP_SHUTDOWN.name(),
           String.valueOf(gracefulShutdownLatency.stop()));
       isStopped = true;
     });
@@ -568,25 +556,25 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     LOG.info("Abort application");
     try {
       PrimusMetrics.TimerMetric saveHistoryLatency =
-          PrimusMetrics.getTimerContextWithOptionalPrefix("am.save_history.latency");
+          PrimusMetrics.getTimerContextWithAppIdTag("am.save_history.latency", new HashMap<>());
       saveHistory();
-      yarnAMContext.getTimelineLogger()
+      context.getTimelineLogger()
           .logEvent(PRIMUS_APP_SAVE_HISTORY.name(), String.valueOf(saveHistoryLatency.stop()));
       PrimusMetrics.TimerMetric stopComponentLatency =
-          PrimusMetrics.getTimerContextWithOptionalPrefix("am.stop_component.latency");
+          PrimusMetrics.getTimerContextWithAppIdTag("am.stop_component.latency", new HashMap<>());
       stop();
-      yarnAMContext.getTimelineLogger()
+      context.getTimelineLogger()
           .logEvent(PRIMUS_APP_STOP_COMPONENT.name(), String.valueOf(stopComponentLatency.stop()));
       cleanup();
       PrimusMetrics.TimerMetric stopNMLatency =
-          PrimusMetrics.getTimerContextWithOptionalPrefix("am.stop_nm.latency");
+          PrimusMetrics.getTimerContextWithAppIdTag("am.stop_nm.latency", new HashMap<>());
       unregisterApp();
       stopNMClientWithTimeout(nmClient);
       amRMClient.stop();
       apiServer.stop();
-      yarnAMContext.getTimelineLogger()
+      context.getTimelineLogger()
           .logEvent(PRIMUS_APP_STOP_NM.name(), String.valueOf(stopNMLatency.stop()));
-      yarnAMContext.getTimelineLogger().shutdown();
+      context.getTimelineLogger().shutdown();
     } catch (Exception e) {
       LOG.warn("Failed to abort application", e);
     }
@@ -595,13 +583,13 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
   private void saveHistory() {
     try {
       if (needUnregister) {
-        yarnAMContext.setFinalStatus(finalStatus);
-        yarnAMContext.setExitCode(exitCode);
-        yarnAMContext.setDiagnostic(
+        context.setFinalStatus(finalStatus);
+        context.setExitCode(exitCode);
+        context.setDiagnostic(
             unregisterDiagnostics
                 + ElasticResourceContainerScheduleStrategy.getOutOfMemoryMessage());
-        yarnAMContext.setFinishTime(new Date());
-        yarnAMContext.getHdfsStore()
+        context.setFinishTime(new Date());
+        context.getHdfsStore()
             .snapshot(true, finalStatus == FinalApplicationStatus.SUCCEEDED);
       }
     } catch (Exception e) {
@@ -611,11 +599,10 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
 
   public void cleanup() {
     if (needUnregister) {
-      Path stagingPath = new Path(yarnAMContext.getEnvs().get(STAGING_DIR_KEY));
+      Path stagingPath = new Path(context.getEnvs().get(STAGING_DIR_KEY));
       LOG.info("Cleanup staging dir: " + stagingPath);
-      String defaultFsPrefix = defaultFs.toString();
       try {
-        FileSystem dfs = (new Path(defaultFsPrefix)).getFileSystem(yarnAMContext.getHadoopConf());
+        FileSystem dfs = context.getHadoopFileSystem();
         if (dfs.exists(stagingPath)) {
           dfs.delete(stagingPath, true);
         }
@@ -650,7 +637,7 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
       }
     }
     abort();
-    int exitCode = new AMProcessExitCodeHelper(yarnAMContext.getFinalStatus()).getExitCode();
+    int exitCode = new AMProcessExitCodeHelper(context.getFinalStatus()).getExitCode();
     return exitCode;
   }
 
@@ -738,32 +725,23 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
       return;
     }
 
-    Path path = FileUtils.getQualifiedLocalPath(localURI, yarnAMContext.getHadoopConf());
+    FileSystem fs = context.getHadoopFileSystem();
+    Path path = FileUtils.getQualifiedLocalPath(localURI, fs.getConf());
     String linkname = FileUtils.buildLinkname(path, localURI, destName, targetDir);
     if (!localURI.getScheme().equals(HDFS_SCHEME)) {
-      path = new Path(defaultFs.toString() + stagingDir + "/" + linkname);
+      path = new Path(fs.getUri().toString() + stagingDir + "/" + linkname);
     }
 
-    FileUtils.addResource(path, linkname, yarnAMContext.getHadoopConf(), localResources);
+    FileUtils.addResource(fs, path, linkname, localResources);
   }
 
-  // TODO: Move to yarnAMContext
-  private int getMaxAppAttempts() {
-    int maxAppAttempts = primusConf.getMaxAppAttempts();
-    if (maxAppAttempts == 0) {
-      maxAppAttempts = yarnAMContext.getHadoopConf().getInt(
-          YarnConfiguration.RM_AM_MAX_ATTEMPTS,
-          YarnConfiguration.DEFAULT_RM_AM_MAX_ATTEMPTS);
-    }
-    return maxAppAttempts;
-  }
-
-  private HttpServer2 createWebAppHttpServer(AMContext amContext)
-      throws URISyntaxException, IOException {
+  private HttpServer2 createWebAppHttpServer(
+      AMContext amContext
+  ) throws URISyntaxException, IOException {
     HttpServer2 httpServer = new HttpServer2.Builder()
         .setFindPort(true)
         .setName("primus")
-        .addEndpoint(new URI("http://0.0.0.0:44444"))
+        .addEndpoint(new URI("http://0.0.0.0:" + amContext.getPrimusUiConf().getWebUiPort()))
         .build();
 
     new HashMap<String, Class<? extends HttpServlet>>() {{
@@ -789,10 +767,11 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     return httpServer;
   }
 
+
   private void checkAndUpdateData() {
     if (!primusConf.hasInputManager() ||
         primusConf.getInputManager().getConfigCase() == ConfigCase.CONFIG_NOT_SET ||
-        yarnAMContext.getPrimusConf().getScheduler().getSchedulePolicy().hasOrderPolicy()) {
+        context.getPrimusConf().getScheduler().getSchedulePolicy().hasOrderPolicy()) {
       // already set data to api server before scheduleRoleByOrder()
       return;
     }
@@ -805,12 +784,12 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
     while (true) {
       try {
         Thread.sleep(5000);
-        yarnAMContext.getCoreApi().create(Data.class, data);
+        context.getCoreApi().create(Data.class, data);
 
         return;
       } catch (Exception e1) {
         try {
-          List<Data> dataList = yarnAMContext.getCoreApi().listDatas();
+          List<Data> dataList = context.getCoreApi().listDatas();
           if (dataList != null && !dataList.isEmpty()) {
             LOG.info("Data has been added to api server by someone");
             return;
@@ -821,8 +800,8 @@ public class YarnApplicationMaster extends CompositeService implements Applicati
         LOG.warn("Failed to create data to api server, retry", e1);
         retryTimes += 1;
         if (retryTimes > maxRetryTimes) {
-          yarnAMContext.getDispatcher().getEventHandler().handle(
-              new ApplicationMasterEvent(yarnAMContext, ApplicationMasterEventType.FAIL_ATTEMPT,
+          context.getDispatcher().getEventHandler().handle(
+              new ApplicationMasterEvent(context, ApplicationMasterEventType.FAIL_ATTEMPT,
                   "Failed to set and check data",
                   ApplicationExitCode.ABORT.getValue()));
           return;

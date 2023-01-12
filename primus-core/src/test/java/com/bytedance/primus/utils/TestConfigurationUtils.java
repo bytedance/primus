@@ -17,31 +17,29 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.runtime.kubernetesnative.common.operator.status.model;
+package com.bytedance.primus.utils;
 
-public class APIServerEndPoint {
+import java.io.File;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Objects;
+import org.junit.Assert;
+import org.junit.Test;
 
-  public APIServerEndPoint(String host, int port) {
-    this.host = host;
-    this.port = port;
-  }
+public class TestConfigurationUtils {
 
-  private String host;
-  private int port;
-
-  public String getHost() {
-    return host;
-  }
-
-  public void setHost(String host) {
-    this.host = host;
-  }
-
-  public int getPort() {
-    return port;
-  }
-
-  public void setPort(int port) {
-    this.port = port;
+  @Test
+  public void testLoadPrimusConf() {
+    String root = "../examples";
+    Arrays
+        .stream(Objects.requireNonNull(new File(root).list()))
+        .map(file -> String.join("/", root, file, "primus_config.json"))
+        .forEach(path -> {
+          try {
+            ResourceUtils.buildJob(ConfigurationUtils.load(path));
+          } catch (IOException e) {
+            Assert.assertNull("Caught an exception when processing: " + path, e);
+          }
+        });
   }
 }

@@ -38,18 +38,14 @@ public class ApiServer {
   private int port;
 
   public ApiServer() throws Exception {
-    this(0, null);
+    this(null, 0);
   }
 
   public ApiServer(ApiServerConf conf) throws Exception {
-    this(0, conf);
+    this(conf, 0);
   }
 
-  public ApiServer(int port) throws Exception {
-    this(port, null);
-  }
-
-  public ApiServer(int port, ApiServerConf conf) throws Exception {
+  public ApiServer(ApiServerConf conf, int port) throws Exception {
     address = new InetSocketAddress(port);
     server = NettyServerBuilder.forAddress(address)
         .maxMessageSize(Constants.MAX_MESSAGE_SIZE)

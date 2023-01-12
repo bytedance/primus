@@ -32,13 +32,12 @@ import com.bytedance.primus.common.model.records.Container;
 import com.bytedance.primus.common.model.records.ContainerId;
 import com.bytedance.primus.common.model.records.Priority;
 import com.bytedance.primus.common.model.records.impl.pb.ContainerPBImpl;
-import com.bytedance.primus.proto.PrimusRuntime.RuntimeConf.KubernetesNativeConf;
-import com.bytedance.primus.runtime.kubernetesnative.ResourceNameBuilder;
+import com.bytedance.primus.proto.PrimusRuntime.KubernetesNativeConf;
 import com.bytedance.primus.runtime.kubernetesnative.am.scheduler.KubernetesContainerManager;
-import com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.KubernetesPodStarter;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.KubernetesPodStopper;
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.PrimusExecutorPod;
+import com.bytedance.primus.runtime.kubernetesnative.common.utils.ResourceNameBuilder;
 import com.google.common.collect.ImmutableMap;
 import io.kubernetes.client.openapi.ApiException;
 import java.util.HashMap;
@@ -72,7 +71,7 @@ public class PodLauncher {
         .createExecutorForK8s(
             roleInfo,
             KubernetesContainerManager.FAKE_YARN_APPLICATION_ID,
-            (id) -> ResourceNameBuilder.buildExecutorPodName(context.getAppName(), id)
+            (id) -> ResourceNameBuilder.buildExecutorPodName(context.getAppId(), id)
         );
 
     // Register to Primus API server
@@ -92,10 +91,9 @@ public class PodLauncher {
         context,
         roleInfo,
         ResourceNameBuilder.buildExecutorPodName(
-            context.getAppName(),
+            context.getAppId(),
             executorId.toUniqString()),
-        runtimeConf.getInitContainerConf(),
-        runtimeConf.getExecutorContainerConf(),
+        runtimeConf.getExecutorPodConf(),
         buildExecutorEnvironment(
             roleInfo,
             executorId)
@@ -111,12 +109,15 @@ public class PodLauncher {
     try {
       LOG.info("Starting executor pod: {}", executorPod.getKubernetesPod());
       executorPodStarter.startPod(context.getKubernetesNamespace(), executorPod.getKubernetesPod());
-      PrimusMetrics.emitCounterWithOptionalPrefix("am.pod_launcher.start_pod", 1);
-      PrimusMetrics.emitCounterWithOptionalPrefix("am.container_launcher.start_container", 1);
+      PrimusMetrics.emitCounterWithAppIdTag(
+          "am.pod_launcher.start_pod", new HashMap<>(), 1);
+      PrimusMetrics.emitCounterWithAppIdTag(
+          "am.container_launcher.start_container", new HashMap<>(), 1);
       return PodLauncherResult.succeed(container);
 
     } catch (ApiException e) {
-      PrimusMetrics.emitCounterWithOptionalPrefix("am.pod_launcher.start_pod_error", 1);
+      PrimusMetrics.emitCounterWithAppIdTag(
+          "am.pod_launcher.start_pod_error", new HashMap<>(), 1);
       LOG.error(
           "error when start Pod: {}, reason: {}, err: {}",
           executorPod.getPodName(), e.getResponseBody(), e);
@@ -134,9 +135,6 @@ public class PodLauncher {
         .put("EXECUTOR_JAVA_OPTS", roleInfo.getRoleSpec().getExecutorSpecTemplate().getJavaOpts())
         .put("AM_APISERVER_HOST", context.getDriverHostName())
         .put("AM_APISERVER_PORT", Integer.toString(context.getApiServerPort()))
-        .put("APPLICATION_ID", FAKE_YARN_APPLICATION_ID.toString())
-        .put(KubernetesConstants.FAKE_YARN_CONTAINER_ID_ENV_NAME,
-            KubernetesContainerManager.getContainerIdByUniqId(executorId.getUniqId()).toString())
         .put("PORT_RANGES", DEFAULT_EXECUTOR_PORT_RANGES)
         .build();
     Map<String, String> mutableMap = new HashMap<>(envMap);

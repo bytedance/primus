@@ -99,6 +99,7 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
         context.getPrimusConf()
             .getRuntimeConf()
             .getYarnCommunityConf()
+            .getPrimusUiConf()
             .getHistoryTrackingUrlFormat(),
         getAmUrlFormatterDictionary()
     );
@@ -113,6 +114,7 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
         context.getPrimusConf()
             .getRuntimeConf()
             .getYarnCommunityConf()
+            .getPrimusUiConf()
             .getContainerLogUrlFormat(),
         getAmUrlFormatterDictionary()
     );
@@ -124,7 +126,8 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
         context.getPrimusConf()
             .getRuntimeConf()
             .getYarnCommunityConf()
-            .getContainerHistoryLogUrlFormat(),
+            .getPrimusUiConf()
+            .getHistoryContainerLogUrlFormat(),
         getAmUrlFormatterDictionary()
     );
   }
@@ -135,6 +138,7 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
         context.getPrimusConf()
             .getRuntimeConf()
             .getYarnCommunityConf()
+            .getPrimusUiConf()
             .getContainerLogUrlFormat(),
         getExecutorUrlFormatterDictionary(schedulerExecutor)
     );
@@ -146,7 +150,8 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
         context.getPrimusConf()
             .getRuntimeConf()
             .getYarnCommunityConf()
-            .getContainerHistoryLogUrlFormat(),
+            .getPrimusUiConf()
+            .getHistoryContainerLogUrlFormat(),
         getExecutorUrlFormatterDictionary(schedulerExecutor)
     );
   }

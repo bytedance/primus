@@ -9,8 +9,8 @@ ${PRIMUS_HOME}  the path to the installed Primus
 ${HADOOP_HOME}  the path to the installed Hadoop
 ${KAFKA_HOME}   the path to the installed Kafka
 
-${KUBERNETES_APPLICATION_ID_EXTRACT_PATTERN}   kubectl -n primus logs ([a-zA-Z0-9-_]+)
-${KUBERNETES_APPLICATION_URL_EXTRACT_PATTERN}  Kubernetes AM tracking URL: (http://[a-zA-Z0-9-_/.:]+)
+${KUBERNETES_APPLICATION_ID_EXTRACT_PATTERN}   Primus Application ID: ([a-zA-Z0-9-_]+)
+${KUBERNETES_APPLICATION_URL_EXTRACT_PATTERN}  Tracking URL: (http://[a-zA-Z0-9-_/.:]+)
 
 *** Keywords ***
 prepare hdfs data  [Arguments]  ${src}  ${dst}
@@ -28,7 +28,7 @@ submit primus application   [Arguments]  ${primus_conf}
                             command result contains  cat ${client_log_file} | grep current  current driver pod status: Succeeded
 
                             Log  Extracting application ID
-                            ${application_id} =  command result matches  cat ${client_log_file} | grep kubectl  ${KUBERNETES_APPLICATION_ID_EXTRACT_PATTERN}
+                            ${application_id} =  command result matches  cat ${client_log_file} | grep "Primus Application ID:"  ${KUBERNETES_APPLICATION_ID_EXTRACT_PATTERN}
                             [Return]  ${application_id}
 
 submit primus application async   [Arguments]  ${primus_conf}
@@ -45,13 +45,13 @@ submit primus application async   [Arguments]  ${primus_conf}
 
 kill primus application and wait for client  [Arguments]  ${process}  ${application_id}
                                              Log  Killing Primus application of ${application_id}
-                                             Run Process  kubectl  -n  primus  delete  pod  ${application_id}
+                                             Run Process  kubectl  -n  primus  delete  pod  -l  primus.k8s.io/app-id-selector\=${application_id}
                                              ${result} =  Wait For Process  ${process}
                                              Should Contain  ${result.stdout}  current driver pod status: Failed
 
 grep primus application logs  [Arguments]  ${application_id}  ${process_cmd}
                               Log  Checking the logs of ${application_id}
-                              ${logs} =  Run Process  bash  -c  kubectl -n primus logs -l primus.k8s.io/app-selector\=${application_id} --tail\=-1 | ${process_cmd}
+                              ${logs} =  Run Process  bash  -c  kubectl -n primus logs -l primus.k8s.io/app-id-selector\=${application_id} --tail\=-1 | ${process_cmd}
                               ${splitted} =  Split To Lines  ${logs.stdout}
                               [Return]  ${splitted}
 

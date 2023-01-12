@@ -22,12 +22,27 @@ package com.bytedance.primus.am;
 import com.bytedance.primus.common.event.EventHandler;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 
+/**
+ * ApplicationMaster is the center of a Primus application, which is responsible for tracking the
+ * application status, orchestrating computational resources, and scheduling data inputs.
+ */
 public interface ApplicationMaster extends EventHandler<ApplicationMasterEvent> {
 
-  void init(PrimusConf primusConf) throws Exception;
+  /**
+   * init() enforces every ApplicationMaster implementation relies only on PrimusConf, and thus
+   * shares highly similar internal architecture.
+   */
+  void init(PrimusConf conf) throws Exception;
 
+  /**
+   * start() activates the ApplicationMaster which then start driving the entire Primus
+   * Application.
+   */
   void start() throws Exception;
 
+  /**
+   * waitForStop() is a utility that helps caller harness the exit code after the completion of the
+   * Primus application
+   */
   int waitForStop() throws Exception;
-
 }

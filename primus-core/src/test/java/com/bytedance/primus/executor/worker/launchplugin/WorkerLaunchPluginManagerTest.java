@@ -122,7 +122,7 @@ public class WorkerLaunchPluginManagerTest {
     ExecutorSpec executorSpec = new ExecutorSpecImpl(executorSpecProto);
 
     when(primusExecutorConf.getExecutorSpec()).thenReturn(executorSpec);
-    when(executorContext.getPrimusConf()).thenReturn(primusExecutorConf);
+    when(executorContext.getPrimusExecutorConf()).thenReturn(primusExecutorConf);
     ExecutorId executorId = getExecutorId();
     when(executorContext.getExecutorId()).thenReturn(executorId);
 
@@ -164,7 +164,7 @@ public class WorkerLaunchPluginManagerTest {
     ExecutorSpec executorSpec = new ExecutorSpecImpl(executorSpecProto);
 
     when(primusExecutorConf.getExecutorSpec()).thenReturn(executorSpec);
-    when(executorContext.getPrimusConf()).thenReturn(primusExecutorConf);
+    when(executorContext.getPrimusExecutorConf()).thenReturn(primusExecutorConf);
     ExecutorId executorId = getExecutorId();
     when(executorContext.getExecutorId()).thenReturn(executorId);
 

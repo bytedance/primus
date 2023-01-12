@@ -43,6 +43,7 @@ import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -143,7 +144,7 @@ public class FileTaskStore implements TaskStore {
   private Path runningTaskStatusesPath;
   private ReentrantReadWriteLock taskFileLock;  // lock for tasks* file, not including running/success/failure task
   private Path snapshotDir;
-  private FileSystem fs;
+  private final FileSystem fs;
   private int copyThreadCnt;
   private volatile boolean isStopped = false;
   private TaskSaver taskSaver;
@@ -179,7 +180,7 @@ public class FileTaskStore implements TaskStore {
     nextTaskIdToLoad = 1;
 
     taskIdFileIdMap = new TreeMap<>();
-    storeDir = getStoreDir(context.getApplicationNameForStorage(), name, primusConf);
+    storeDir = getStoreDir(context.getApplicationId(), name, primusConf);
     tasksMetaPath = new Path(storeDir, TASKS_META_FILENAME);
     tasksIndexPath = new Path(storeDir, TASKS_INDEX_FILENAME);
     tasksPath = new Path(storeDir, TASKS_FILENAME);
@@ -189,7 +190,7 @@ public class FileTaskStore implements TaskStore {
     taskFileLock = new ReentrantReadWriteLock();
     snapshotDir = new Path(storeDir, SNAPSHOT_FILENAME);
 
-    fs = FileSystem.get(context.getHadoopConf());
+    fs = context.getHadoopFileSystem();
     taskSaver = new TaskSaver();
     taskLoader = new TaskLoader();
     taskPreserver = new TaskPreserver();
@@ -203,7 +204,12 @@ public class FileTaskStore implements TaskStore {
     if (oldStorePathExist && oldStoreFileCount != 0) {
       LOG.info("Recovering states...");
       TimerMetric recoverLatency = PrimusMetrics
-          .getTimerContextWithOptionalPrefix("am.taskstore.recover.cost{name=" + name + "}");
+          .getTimerContextWithAppIdTag(
+              "am.taskstore.recover.cost",
+              new HashMap<String, String>() {{
+                put("name", name);
+              }}
+          );
       long latency = System.currentTimeMillis();
       if (oldStorePath != storePath) {
         LOG.info("Delete all checkpoint files under storePath:{}", storePath);
@@ -279,8 +285,11 @@ public class FileTaskStore implements TaskStore {
   @Override
   public List<TaskWrapper> getPendingTasks(int size) {
     int pendingTaskNumInMemory = oldPendingTasks.size() + newPendingTasks.size();
-    PrimusMetrics.emitCounterWithOptionalPrefix("am.taskstore.memory_pending_task_num",
-        pendingTaskNumInMemory);
+    PrimusMetrics.emitCounterWithAppIdTag(
+        "am.taskstore.memory_pending_task_num",
+        new HashMap<>(),
+        pendingTaskNumInMemory
+    );
     List<TaskWrapper> tasks = new LinkedList<>();
     if (size <= 0) {
       throw new UnsupportedOperationException(FileTaskStore.class.getSimpleName()
@@ -355,7 +364,6 @@ public class FileTaskStore implements TaskStore {
     List<TaskWrapper> tasks =
         getFailureTasksFromFs(
             context.getPrimusConf(),
-            context.getHadoopConf(),
             -1);
     tasks.addAll(failureTasks);
     return tasks;
@@ -366,7 +374,6 @@ public class FileTaskStore implements TaskStore {
     List<TaskWrapper> tasks =
         getFailureTasksFromFs(
             context.getPrimusConf(),
-            context.getHadoopConf(),
             limit
         );
     tasks.addAll(failureTasks);
@@ -413,12 +420,10 @@ public class FileTaskStore implements TaskStore {
     return new Path(snapshotDir, Integer.toString(snapshotId)).toString();
   }
 
-  public List<TaskWrapper> getFailureTasksFromFs(PrimusConf primusConf,
-      Configuration yarnConf, int limit) {
+  public List<TaskWrapper> getFailureTasksFromFs(PrimusConf primusConf, int limit) {
     try {
-      String storeDir = getStoreDir(context.getApplicationNameForStorage(), name, primusConf);
+      String storeDir = getStoreDir(context.getApplicationId(), name, primusConf);
       Path taskStatusesPath = new Path(storeDir, FAILURE_TASK_STATUSES_FILENAME);
-      FileSystem fs = FileSystem.get(yarnConf);
       LOG.info("Start getFinishedTasksFromFs limit: {}", limit);
       return getFinishedTasksFromFs(fs, storeDir, taskStatusesPath, limit);
     } catch (IOException e) {
@@ -561,7 +566,10 @@ public class FileTaskStore implements TaskStore {
           try {
             taskFileLock.writeLock().lock();
             TimerMetric latency =
-                PrimusMetrics.getTimerContextWithOptionalPrefix("am.taskstore.saver.latency");
+                PrimusMetrics.getTimerContextWithAppIdTag(
+                    "am.taskstore.saver.latency",
+                    new HashMap<>());
+
             Task task = newTasks.poll();
             updateIndex(task.getTaskId(), fileId);
             Path tmpTasksPath = new Path(tasksPath + "." + fileId + ".tmp");
@@ -626,7 +634,7 @@ public class FileTaskStore implements TaskStore {
     public void logTaskBuildFailed(String errmsg) {
       String eventType = "BUILD_TASK_FAILED";
       JsonObject buildTaskFailed = new JsonObject();
-      buildTaskFailed.addProperty("attemptId", context.getAppAttemptId().getAttemptId());
+      buildTaskFailed.addProperty("attemptId", context.getAttemptId());
       buildTaskFailed.addProperty("errmsg", errmsg);
       context.getTimelineLogger().logEvent(eventType, buildTaskFailed.toString());
     }
@@ -767,8 +775,9 @@ public class FileTaskStore implements TaskStore {
 
     private long loadTasks(Path path, long startPosition) throws IOException {
       try {
-        TimerMetric latency =
-            PrimusMetrics.getTimerContextWithOptionalPrefix("am.taskstore.loader.latency");
+        TimerMetric latency = PrimusMetrics
+            .getTimerContextWithAppIdTag("am.taskstore.loader.latency", new HashMap<>());
+
         FSDataInputStream tasksInputStream = fs.open(path);
         tasksInputStream.seek(startPosition);
         TaskPBImpl task = null;
@@ -829,8 +838,11 @@ public class FileTaskStore implements TaskStore {
           deleteStaleSnapshot(lastSnapshotId);
 
           // Add a metric to check if snapshot id is useful
-          PrimusMetrics.emitCounter("snapshot_id.app_count{app="
-              + context.getAppAttemptId().getApplicationId() + "}", 1);
+          int finalLastSnapshotId = lastSnapshotId;
+          PrimusMetrics.emitCounterWithAppIdTag(
+              "snapshot_id.app_count", new HashMap<String, String>() {{
+                put("snapshot_id", String.valueOf(finalLastSnapshotId));
+              }}, 1);
         }
         preserve();
         threadSleep(dumpIntervalSeconds);
@@ -842,10 +854,11 @@ public class FileTaskStore implements TaskStore {
       try {
         // prevent others thread to modify states of running/success/failure tasks
         readWriteLock.writeLock().lock();
-        TimerMetric preserveLatency =
-            PrimusMetrics.getTimerContextWithOptionalPrefix("am.preserve.latency");
+        TimerMetric preserveLatency = PrimusMetrics
+            .getTimerContextWithAppIdTag("am.preserve.latency", new HashMap<>());
         TimerMetric serializedLatency = PrimusMetrics
-            .getTimerContextWithOptionalPrefix("am.preserve.serialized_latency");
+            .getTimerContextWithAppIdTag("am.preserve.serialized_latency", new HashMap<>());
+
         // Serialized and make a copy in memory to avoid big critical section
         List<byte[]> runningTaskStatuses = cloneRunningTaskStatuses();
         List<byte[]> successTaskStatuses = cloneSuccessTaskStatuses();
@@ -858,7 +871,8 @@ public class FileTaskStore implements TaskStore {
         readWriteLock.writeLock().unlock();
 
         TimerMetric writeLatency =
-            PrimusMetrics.getTimerContextWithOptionalPrefix("am.preserve.write_latency");
+            PrimusMetrics.getTimerContextWithAppIdTag("am.preserve.write_latency", new HashMap<>());
+
         CompletionService<Integer> completion = new ExecutorCompletionService<>(executorService);
         completion.submit(() -> preserveRunningTasks(runningTaskStatuses));
         completion.submit(() -> preserveFinishTasks(successTaskStatuses, successTaskStatusesPath));
@@ -877,9 +891,10 @@ public class FileTaskStore implements TaskStore {
         LOG.debug(preserveInfo);
         writeLatency.stop();
         preserveLatency.stop();
-        PrimusMetrics.emitStoreWithOptionalPrefix("am.preserve.size", size);
-        PrimusMetrics.emitStoreWithOptionalPrefix("am.preserve.tasks_num",
+        PrimusMetrics.emitStoreWithAppIdTag("am.preserve.size", new HashMap<>(), size);
+        PrimusMetrics.emitStoreWithAppIdTag("am.preserve.tasks_num", new HashMap<>(),
             runningTaskStatuses.size() + successTaskStatuses.size() + failureTaskStatuses.size());
+
       } catch (IOException e) {
         LOG.warn("Failed to save state of running tasks", e);
       } finally {
@@ -895,8 +910,10 @@ public class FileTaskStore implements TaskStore {
       Configuration conf = new Configuration();
       try {
         TimerMetric latency =
-            PrimusMetrics.getTimerContextWithOptionalPrefix(
-                "am.snapshot.latency{snapshot=" + snapshotPath + "}");
+            PrimusMetrics.getTimerContextWithAppIdTag(
+                "am.snapshot.latency", new HashMap<String, String>() {{
+                  put("snapshot", snapshotPath.getName());
+                }});
         if (!fs.exists(snapshotPath)) {
           fs.mkdirs(snapshotPath);
         }
@@ -1033,7 +1050,7 @@ public class FileTaskStore implements TaskStore {
 
     public void recover() throws IOException {
       int snapshotId = context.getPrimusConf().getInputManager().getWorkPreserve().getSnapshotId();
-      if (context.getAppAttemptId().getAttemptId() == 1 && snapshotId > 0) {
+      if (context.getAttemptId() == 1 && snapshotId > 0) {
         LOG.info("Start to recover snapshot, snapshot id " + snapshotId);
         recoverSnapshot(snapshotId);
       }
@@ -1074,8 +1091,9 @@ public class FileTaskStore implements TaskStore {
         long maxRunningTaskId = 0;
         int threadNum = Math.min(32, Math.max(3, taskNum / 500));
         LOG.info("{} tasks need recover", taskNum);
-        TimerMetric recoverTaskLatency =
-            PrimusMetrics.getTimerContextWithOptionalPrefix("am.taskstore.recover_task.latency");
+        TimerMetric recoverTaskLatency = PrimusMetrics
+            .getTimerContextWithAppIdTag("am.taskstore.recover_task.latency", new HashMap<>());
+
         ExecutorService executorService =
             Executors.newFixedThreadPool(
                 threadNum,
@@ -1091,9 +1109,10 @@ public class FileTaskStore implements TaskStore {
           Future<TaskWrapper> task =
               executorService.submit(
                   () -> {
-                    TimerMetric latency =
-                        PrimusMetrics.getTimerContextWithOptionalPrefix(
-                            "am.taskstore.load_task_from_fs.latency");
+                    TimerMetric latency = PrimusMetrics.getTimerContextWithAppIdTag(
+                        "am.taskstore.load_task_from_fs.latency",
+                        new HashMap<>());
+
                     try {
                       Task newTask =
                           getTaskFromFs(fs, storeDir, taskIdFileIdMap, taskStatus.getTaskId());
@@ -1134,8 +1153,9 @@ public class FileTaskStore implements TaskStore {
       Configuration conf = new Configuration();
       Path snapshotPath = new Path(snapshotDir, Integer.toString(snapshotId));
       LOG.info("Start to recover snapshot: " + snapshotPath);
-      TimerMetric latency =
-          PrimusMetrics.getTimerContextWithOptionalPrefix("am.taskstore.recover_snapshot.latency");
+      TimerMetric latency = PrimusMetrics
+          .getTimerContextWithAppIdTag("am.taskstore.recover_snapshot.latency", new HashMap<>());
+
       CompletionService<Boolean> completion = new ExecutorCompletionService<>(executorService);
 
       int futureNum = 6;
@@ -1304,8 +1324,10 @@ public class FileTaskStore implements TaskStore {
 
   private boolean copyFilesParallel(String filesPrefix, Path destPath, int parallel) {
     TimerMetric latency =
-        PrimusMetrics.getTimerContextWithOptionalPrefix(
-            "am.taskstore.copy_all_file.latency{dest_path=" + destPath + "}");
+        PrimusMetrics.getTimerContextWithAppIdTag(
+            "am.taskstore.copy_all_file.latency", new HashMap<String, String>() {{
+              put("dest_path", destPath.getName());
+            }});
     LOG.info("Copy files " + filesPrefix + " to dest " + destPath + " in " + parallel + " threads");
     boolean result = true;
     try {
@@ -1323,9 +1345,11 @@ public class FileTaskStore implements TaskStore {
         futures.add(
             pool.submit(
                 () -> {
-                  TimerMetric oneFilelatency =
-                      PrimusMetrics.getTimerContextWithOptionalPrefix(
-                          "am.taskstore.copy_one_file.latency{dest_path=" + destPath + "}");
+                  TimerMetric oneFileLatency =
+                      PrimusMetrics.getTimerContextWithAppIdTag(
+                          "am.taskstore.copy_one_file.latency", new HashMap<String, String>() {{
+                            put("dest_path", destPath.getName());
+                          }});
                   try {
                     return FileUtil.copy(
                         fs,
@@ -1339,8 +1363,8 @@ public class FileTaskStore implements TaskStore {
                     LOG.error("Failed to copy file", e);
                     return false;
                   } finally {
-                    if (oneFilelatency != null) {
-                      oneFilelatency.stop();
+                    if (oneFileLatency != null) {
+                      oneFileLatency.stop();
                     }
                   }
                 }));

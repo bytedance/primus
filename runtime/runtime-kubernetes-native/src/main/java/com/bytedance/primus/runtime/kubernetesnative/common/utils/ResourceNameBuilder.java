@@ -17,27 +17,27 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.common.metrics;
+package com.bytedance.primus.runtime.kubernetesnative.common.utils;
 
-import com.codahale.metrics.MetricRegistry;
-import com.codahale.metrics.Slf4jReporter;
-import java.util.concurrent.TimeUnit;
+public class ResourceNameBuilder {
 
-public class LogSink implements MetricsSink {
-
-  private static Slf4jReporter reporter;
-
-  public LogSink(MetricRegistry metricRegistry) {
-    reporter = Slf4jReporter.forRegistry(metricRegistry).build();
+  public static String buildConfigMapName(String appId) {
+    return appId + "-" + "config";
   }
 
-  @Override
-  public void start() {
-    reporter.start(15, TimeUnit.SECONDS);
+  public static String buildDriverPodName(String appId) {
+    return appId + "-" + "driver";
   }
 
-  @Override
-  public void stop() {
-    reporter.stop();
+  public static String buildDriverShortServiceName(String appId) {
+    return buildDriverPodName(appId) + "-" + "svc";
+  }
+
+  public static String buildDriverServiceName(String appId, String namespace) {
+    return buildDriverPodName(appId) + "-" + "svc." + namespace + ".svc";
+  }
+
+  public static String buildExecutorPodName(String appId, String executorUniqId) {
+    return appId + "-" + executorUniqId.replace("_", "-");
   }
 }

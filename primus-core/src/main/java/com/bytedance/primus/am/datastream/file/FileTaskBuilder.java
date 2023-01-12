@@ -46,6 +46,7 @@ import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import java.io.IOException;
 import java.nio.file.NoSuchFileException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.BlockingQueue;
@@ -54,7 +55,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.security.AccessControlException;
 import org.slf4j.Logger;
@@ -67,13 +67,15 @@ public class FileTaskBuilder {
   private static final int MAX_NUM_BUILD_TASK_THREADS = 50;
 
   private Logger LOG;
-  private AMContext context;
+
+  private final AMContext context;
+  private final FileSystem fileSystem;
+
   private String name;
   private TaskStore taskStore;
   private FileOperator fileOperator;
   private Task lastSavedTask;
   private FileScanner fileScanner;
-  private FileSystem fileSystem;
 
   private long currentTaskId;
   private volatile boolean isFinished;
@@ -90,12 +92,13 @@ public class FileTaskBuilder {
       TaskStore taskStore) throws IOException {
     this.LOG = LoggerFactory.getLogger(FileTaskBuilder.class.getName() + "[" + name + "]");
     this.context = context;
+    this.fileSystem = context.getHadoopFileSystem();
+
     this.name = name;
     this.taskStore = taskStore;
     fileOperator = FileOperatorFactory.getFileOperator(dataStreamSpec.getOperatorPolicy());
     lastSavedTask = taskStore.getLastSavedTask();
     fileScanner = new FileScanner(context, name, dataStreamSpec, fileOperator);
-    fileSystem = FileSystem.get(context.getHadoopConf());
     currentTaskId = (lastSavedTask != null ? lastSavedTask.getTaskId() : 0);
     isFinished = false;
 
@@ -123,10 +126,9 @@ public class FileTaskBuilder {
         .handle(new ApplicationMasterEvent(context, eventType, diag, exitCode));
   }
 
-  public List<BaseSplit> getFileSplits(Input input, FileSystem fileSystem,
-      Configuration conf) {
-    TimerMetric latency =
-        PrimusMetrics.getTimerContextWithOptionalPrefix("am.taskbuilder.splitter.latency");
+  public List<BaseSplit> getFileSplits(FileSystem fileSystem, Input input) {
+    TimerMetric latency = PrimusMetrics.getTimerContextWithAppIdTag(
+        "am.taskbuilder.splitter.latency", new HashMap<>());
     List<BaseSplit> result = new LinkedList<>();
     int ioExceptions = 0;
     while (true) {
@@ -165,8 +167,7 @@ public class FileTaskBuilder {
     return result;
   }
 
-  public List<BaseSplit> getFileSplits(List<Input> inputs, FileSystem fileSystem,
-      Configuration conf) {
+  public List<BaseSplit> getFileSplits(FileSystem fileSystem, List<Input> inputs) {
     List<BaseSplit> primusSplits = new LinkedList<>();
     String key = null;
     for (Input input : inputs) {
@@ -176,7 +177,7 @@ public class FileTaskBuilder {
       } else {
         assert key.equals(input.getKey());
       }
-      primusSplits.addAll(getFileSplits(input, fileSystem, conf));
+      primusSplits.addAll(getFileSplits(fileSystem, input));
     }
     if (key != null) {
       Pair<String, List<BaseSplit>> pair = fileOperator.mapPartitions(
@@ -189,7 +190,8 @@ public class FileTaskBuilder {
 
   private List<Task> buildTask(List<BaseSplit> splits) {
     TimerMetric latency =
-        PrimusMetrics.getTimerContextWithOptionalPrefix("am.taskbuilder.builder.latency");
+        PrimusMetrics.getTimerContextWithAppIdTag(
+            "am.taskbuilder.builder.latency", new HashMap<>());
     List<Task> tasks = new LinkedList<>();
     for (BaseSplit split : splits) {
       if (isBuilt(split, lastSavedTask)) {
@@ -271,7 +273,7 @@ public class FileTaskBuilder {
           // blocking until available
           List<Input> inputs = fileScanner.getInputQueue().take();
           Future<List<BaseSplit>> future = pool
-              .submit(() -> getFileSplits(inputs, fileSystem, context.getHadoopConf()));
+              .submit(() -> getFileSplits(fileSystem, inputs));
           splitsBlockingQueue.put(future);  // blocking if no capacity, for avoiding OOM
         } catch (InterruptedException interruptedException) {
           LOG.info("Ignore interrupted exception and continue to get inputs");

@@ -17,29 +17,23 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.utils;
+package com.bytedance.primus.common.metrics.impl;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Objects;
+import com.bytedance.primus.common.metrics.impl.PrometheusPrimusSampleBuilder.MetricId;
+import java.util.HashMap;
 import org.junit.Assert;
 import org.junit.Test;
 
-public class TestResourceUtils {
+public class PrometheusPrimusSampleBuilderTest {
 
   @Test
-  public void testBuildJob() {
-    String root = "../examples";
-    Arrays
-        .stream(Objects.requireNonNull(new File(root).list()))
-        .map(file -> String.join("/", root, file, "primus_config.json"))
-        .forEach(path -> {
-          try {
-            ResourceUtils.buildJob(FileUtils.buildPrimusConf(path));
-          } catch (IOException e) {
-            Assert.assertNull("Caught an exception when processing: " + path, e);
-          }
-        });
+  public void TestMetricId() {
+    // TODO: Enrich test coverage
+    MetricId metricId = new MetricId("metric_name{app_id=primus-0001,role=chief}");
+    Assert.assertEquals("metric_name", metricId.name);
+    Assert.assertEquals(new HashMap<String, String>() {{
+      put("app_id", "primus-0001");
+      put("role", "chief");
+    }}, metricId.labels);
   }
 }

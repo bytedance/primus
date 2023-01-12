@@ -71,6 +71,10 @@ public class StringUtils {
   // Returns a string built by replacing every occurrence of the dictionary keys in template string
   // with their corresponding dictionary values. Note that, the dictionary is not ordered.
   public static String genFromTemplateAndDictionary(String template, Map<String, String> dict) {
+    if (template == null) {
+      return null;
+    }
+
     return dict.entrySet().stream()
         .map(entry -> new Pair<>(entry.getKey(), entry.getValue()))
         .reduce(new Pair<>("placeholder", template), (acc, pair) -> new Pair<>(

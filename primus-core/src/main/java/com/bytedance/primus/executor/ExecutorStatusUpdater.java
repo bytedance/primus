@@ -37,7 +37,6 @@ import com.bytedance.primus.api.records.impl.pb.EndpointPBImpl;
 import com.bytedance.primus.api.records.impl.pb.ExecutorSpecPBImpl;
 import com.bytedance.primus.common.event.Dispatcher;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
-import com.bytedance.primus.common.network.NetworkConfigHelper;
 import com.bytedance.primus.common.network.NetworkEndpointTypeEnum;
 import com.bytedance.primus.common.service.AbstractService;
 import com.bytedance.primus.executor.exception.PrimusExecutorException;
@@ -52,6 +51,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import java.net.ServerSocket;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -85,7 +85,7 @@ public class ExecutorStatusUpdater extends AbstractService {
 
   @Override
   protected void serviceInit(Configuration conf) throws Exception {
-    PrimusExecutorConf primusExecutorConf = executorContext.getPrimusConf();
+    PrimusExecutorConf primusExecutorConf = executorContext.getPrimusExecutorConf();
     amManagedChannel = ManagedChannelBuilder
         .forAddress(
             primusExecutorConf.getAmHost(),
@@ -119,7 +119,8 @@ public class ExecutorStatusUpdater extends AbstractService {
     ClusterSpec clusterSpec = null;
     RegisterResponse response = null;
     for (int times = 0;
-        clusterSpec == null && times < executorContext.getPrimusConf().getRegisterRetryTimes();
+        clusterSpec == null && times < executorContext.getPrimusExecutorConf()
+            .getRegisterRetryTimes();
         ++times) {
       LOG.info("executor " + executorContext.getExecutorId().toString() +
           " is registering, retryTimes " + times);
@@ -127,7 +128,7 @@ public class ExecutorStatusUpdater extends AbstractService {
       try {
         response = new RegisterResponsePBImpl(amBlockingStub.register(request.getProto()));
         clusterSpec = response.getClusterSpec();
-        Thread.sleep(executorContext.getPrimusConf().getHeartbeatIntervalMs());
+        Thread.sleep(executorContext.getPrimusExecutorConf().getHeartbeatIntervalMs());
       } catch (InterruptedException e) {
         // ignore
       } catch (Exception e) {
@@ -158,13 +159,14 @@ public class ExecutorStatusUpdater extends AbstractService {
     for (ServerSocket socket : executorContext.getFrameworkSocketList()) {
       EndpointPBImpl endpoint = new EndpointPBImpl();
 
-      NetworkEndpointTypeEnum networkEndpointType = NetworkConfigHelper
-          .getNetworkEndpointType(executorContext.getNetworkConfig());
-      if (NetworkEndpointTypeEnum.IPADDRESS == networkEndpointType) {
-        endpoint.setHostname(socket.getInetAddress().getHostAddress());
-      } else {
-        endpoint.setHostname(socket.getInetAddress().getHostName());
-      }
+      NetworkEndpointTypeEnum endpointType = executorContext
+          .getNetworkConfig()
+          .getNetworkEndpointType();
+      endpoint.setHostname(endpointType == NetworkEndpointTypeEnum.IPADDRESS
+          ? socket.getInetAddress().getHostAddress()
+          : socket.getInetAddress().getHostName()
+      );
+
       endpoint.setPort(socket.getLocalPort());
       endpoints.add(endpoint);
     }
@@ -248,7 +250,7 @@ public class ExecutorStatusUpdater extends AbstractService {
               break;
           }
           try {
-            Thread.sleep(executorContext.getPrimusConf().getHeartbeatIntervalMs());
+            Thread.sleep(executorContext.getPrimusExecutorConf().getHeartbeatIntervalMs());
           } catch (InterruptedException e) {
             // ignore
           }
@@ -270,11 +272,12 @@ public class ExecutorStatusUpdater extends AbstractService {
       try {
         LOG.debug("Sending heartbeat: {}", gson.toJson(request));
         PrimusMetrics.TimerMetric heartbeatLatency =
-            PrimusMetrics.getTimerContextWithOptionalPrefix(
-                PrimusMetrics.prefixWithSingleTag(
-                    "executor.heartbeat.latency",
-                    "executor_id",
-                    executorContext.getExecutorId().toString()));
+            PrimusMetrics.getTimerContextWithAppIdTag(
+                "executor.heartbeat.latency",
+                new HashMap<String, String>() {{
+                  put("executor_id", executorContext.getExecutorId().toString());
+                }}
+            );
 
         HeartbeatResponse response =
             new HeartbeatResponsePBImpl(amBlockingStub.heartbeat(request.getProto()));
@@ -294,7 +297,7 @@ public class ExecutorStatusUpdater extends AbstractService {
         ++retryTimes;
       }
 
-      if (retryTimes >= executorContext.getPrimusConf().getHeartbeatRetryTimes()) {
+      if (retryTimes >= executorContext.getPrimusExecutorConf().getHeartbeatRetryTimes()) {
         throw new PrimusExecutorException("heartbeat failed",
             ExecutorExitCode.HEARTBEAT_FAIL.getValue());
       }

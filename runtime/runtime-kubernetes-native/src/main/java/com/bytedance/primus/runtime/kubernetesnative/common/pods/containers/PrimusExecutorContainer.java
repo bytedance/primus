@@ -20,8 +20,6 @@
 package com.bytedance.primus.runtime.kubernetesnative.common.pods.containers;
 
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_DEFAULT_IMAGE_PULL_POLICY;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.RUNTIME_IDC_NAME_DEFAULT_VALUE;
-import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.RUNTIME_IDC_NAME_KEY;
 
 import com.bytedance.primus.am.role.RoleInfo;
 import com.bytedance.primus.common.util.StringUtils;
@@ -39,11 +37,11 @@ public class PrimusExecutorContainer extends PrimusBaseContainer {
   private final V1Container kubernetesContainer;
 
   public PrimusExecutorContainer(
-      String appName,
+      String appId,
       RoleInfo roleInfo,
       KubernetesContainerConf containerConf,
-      Map<String, String> environmentMap,
-      List<V1VolumeMount> mainContainerMounts
+      Map<String, String> envs,
+      List<V1VolumeMount> mounts
   ) {
     kubernetesContainer = new V1Container()
         // Basic
@@ -54,17 +52,16 @@ public class PrimusExecutorContainer extends PrimusBaseContainer {
             PRIMUS_DEFAULT_IMAGE_PULL_POLICY))
         .resources(getResourceRequirements(roleInfo))
         // Env
-        .addEnvFromItem(retrieveKubernetesConfigMap(appName))
+        .addEnvFromItem(retrieveKubernetesConfigMap(appId))
         .env(combineEnvironmentVariables(
             // Default envs
             new HashMap<String, String>() {{
-              put(RUNTIME_IDC_NAME_KEY, RUNTIME_IDC_NAME_DEFAULT_VALUE);
             }},
             // Customized envs
-            environmentMap)
+            envs)
         )
         // Volumes
-        .volumeMounts(mainContainerMounts)
+        .volumeMounts(mounts)
         // Command
         .command(containerConf.getCommandList())
         .args(containerConf.getArgsList());

@@ -36,6 +36,7 @@ import java.nio.BufferOverflowException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Properties;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -85,7 +86,7 @@ public class KafkaTaskRunner implements TaskRunner {
     props.putAll(task.getKafkaTask().getConfig());
     this.consumer = new KafkaConsumer<>(props);
     int messageBufferSize =
-        context.getPrimusConf().getPrimusConf().getInputManager().getMessageBufferSize();
+        context.getPrimusExecutorConf().getPrimusConf().getInputManager().getMessageBufferSize();
     if (messageBufferSize <= 0) {
       messageBufferSize = PrimusConstants.DEFAULT_MESSAGE_BUFFER_SIZE;
     }
@@ -137,13 +138,15 @@ public class KafkaTaskRunner implements TaskRunner {
     public void run() {
       consumer.subscribe(Collections.singletonList(topic));
       PrimusMetrics.TimerMetric latency;
-      boolean skipping = context.getPrimusConf().getInputManager().getSkipRecords();
+      boolean skipping = context.getPrimusExecutorConf().getInputManager().getSkipRecords();
       out:
       while (!isStopped) {
         PrimusMetrics.TimerMetric pollLatency =
-            PrimusMetrics.getTimerContextWithOptionalPrefix(
-                PrimusMetrics.prefixWithSingleTag(
-                    "executor.task_runner.kafka.latency", "executor_id", executorId));
+            PrimusMetrics.getTimerContextWithAppIdTag(
+                "executor.task_runner.kafka.latency",
+                new HashMap<String, String>() {{
+                  put("executor_id", executorId);
+                }});
         ConsumerRecords<byte[], byte[]> records = consumer.poll(CONSUMER_POLL_TIMEOUT_DURATION);
         pollLatency.stop();
 
@@ -151,20 +154,27 @@ public class KafkaTaskRunner implements TaskRunner {
           for (ConsumerRecord<byte[], byte[]> record : records) {
             if (!isStopped) {
               messageBuilder.add(record.key(), record.value());
-              PrimusMetrics.emitCounterWithOptionalPrefix(
-                  "executor.task_runner.file.feed_records{executor_id=" + executorId + "}",
+              PrimusMetrics.emitCounterWithAppIdTag(
+                  "executor.task_runner.file.feed_records",
+                  new HashMap<String, String>() {{
+                    put("executor_id", executorId);
+                  }},
                   1);
               if (messageBuilder.needFlush() || skipping) {
                 latency =
-                    PrimusMetrics.getTimerContextWithOptionalPrefix(
-                        PrimusMetrics.prefixWithSingleTag(
-                            "executor.task_runner.feed.latency", "executor_id", executorId));
+                    PrimusMetrics.getTimerContextWithAppIdTag(
+                        "executor.task_runner.feed.latency",
+                        new HashMap<String, String>() {{
+                          put("executor_id", executorId);
+                        }});
                 workerFeeder
                     .feedSuccess(messageBuilder.build(), 0, messageBuilder.size(), skipping);
                 latency.stop();
-                PrimusMetrics.emitStoreWithOptionalPrefix(
-                    PrimusMetrics.prefixWithSingleTag(
-                        "executor.worker_feeder.kafka.feed_bytes", "executor_id", executorId),
+                PrimusMetrics.emitStoreWithAppIdTag(
+                    "executor.worker_feeder.kafka.feed_bytes",
+                    new HashMap<String, String>() {{
+                      put("executor_id", executorId);
+                    }},
                     messageBuilder.size());
                 messageBuilder.reset();
               }
@@ -176,17 +186,21 @@ public class KafkaTaskRunner implements TaskRunner {
 
           if (messageBuilder.size() > 0) {
             workerFeeder.feedSuccess(messageBuilder.build(), 0, messageBuilder.size(), true);
-            PrimusMetrics.emitStoreWithOptionalPrefix(
-                PrimusMetrics.prefixWithSingleTag(
-                    "executor.worker_feeder.file.feed_bytes", "executor_id", executorId),
+            PrimusMetrics.emitStoreWithAppIdTag(
+                "executor.worker_feeder.file.feed_bytes",
+                new HashMap<String, String>() {{
+                  put("executor_id", executorId);
+                }},
                 messageBuilder.size());
             messageBuilder.reset();
           }
         } catch (BufferOverflowException e) {
           LOG.warn("Failed to write message to buffer", e);
-          PrimusMetrics.emitCounterWithOptionalPrefix(
-              PrimusMetrics.prefixWithSingleTag(
-                  "executor.task_runner.drop_records", "executor_id", executorId),
+          PrimusMetrics.emitCounterWithAppIdTag(
+              "executor.task_runner.drop_records",
+              new HashMap<String, String>() {{
+                put("executor_id", executorId);
+              }},
               messageBuilder.getMessageNum());
           messageBuilder.reset();
         } catch (Exception e) {

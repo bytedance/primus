@@ -17,20 +17,24 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.am.state;
+package com.bytedance.primus.common.util;
 
+import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import java.io.IOException;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 
-public interface StateStore {
-  void init();
+public class RuntimeUtils {
 
-  void start();
-
-  void stop();
-
-  byte[] loadTaskState(String jobId, String taskId) throws IOException;
-
-  void saveTaskJournalState(String jobId, String taskId, byte[] state) throws IOException;
-
-  void saveTaskSnapshotState(String jobId, String taskId, byte[] state) throws IOException;
+  // TODO: Create Primus FileSystem interface and abstract direct dependencies on HDFS.
+  static public FileSystem loadHadoopFileSystem(PrimusConf primusConf) throws IOException {
+    Configuration base = new Configuration();
+    if (primusConf.getRuntimeConf().hasHdfsConf()) {
+      primusConf.getRuntimeConf()
+          .getHdfsConf()
+          .getHadoopConfMap()
+          .forEach(base::set);
+    }
+    return FileSystem.get(base);
+  }
 }

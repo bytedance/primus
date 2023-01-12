@@ -19,6 +19,10 @@
 
 package com.bytedance.primus.common.metrics;
 
+import com.bytedance.primus.common.metrics.impl.LogSink;
+import com.bytedance.primus.common.metrics.impl.PrometheusPushGatewaySink;
+import com.bytedance.primus.proto.PrimusRuntime.RuntimeConf;
+import com.bytedance.primus.proto.PrimusRuntime.RuntimeConf.PrometheusPushGatewayConf;
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Metric;
@@ -26,30 +30,44 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.util.concurrent.AtomicDouble;
+import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class PrimusMetrics {
 
+  private static final Logger LOG = LoggerFactory.getLogger(PrimusMetrics.class);
+  private static final String APP_ID_TAG_NAME = "app_id";
+
   private static final TimerMetric emptyTimerMetric = new TimerMetric(null);
-  private static MetricRegistry metrics = new MetricRegistry();
+  private static final MetricRegistry metrics = new MetricRegistry();
+  private static final ConcurrentHashMap<String, AtomicLong> storeValues = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, AtomicDouble> storeValuesDouble = new ConcurrentHashMap<>();
+  private static final ConcurrentHashMap<String, Timer> timerValues = new ConcurrentHashMap<>();
+
   private static MetricsSink sink = null;
-  private static ConcurrentHashMap<String, AtomicLong> storeValues = new ConcurrentHashMap<>();
-  private static ConcurrentHashMap<String, AtomicDouble> storeValuesDouble = new ConcurrentHashMap<>();
-  private static ConcurrentHashMap<String, Timer> timerValues = new ConcurrentHashMap<>();
-  private static String optionalPrefix;
+  private static String appId = null;
+  private static boolean sanitizeMetricName = false;
 
-  // TODO: Create init(String optionalPrefix, RuntimeConf conf) instead.
-  public static void init(String optionalPrefix) {
-    PrimusMetrics.optionalPrefix = optionalPrefix;
-    sink = new LogSink(metrics);
-  }
+  public static void init(RuntimeConf runtimeConf, String appId) {
+    PrimusMetrics.appId = appId;
 
-  public static void init(String optionalPrefix, String host, int port, String jobName) {
-    PrimusMetrics.optionalPrefix = optionalPrefix;
+    if (runtimeConf.hasPrometheusPushGatewayConf()) {
+      PrometheusPushGatewayConf conf = runtimeConf.getPrometheusPushGatewayConf();
+      sanitizeMetricName = true;
+      sink = new PrometheusPushGatewaySink(
+          metrics,
+          conf.getHost(),
+          conf.getPort()
+      );
+    } else {
+      LOG.warn("Metrics isn't configured in RuntimeConf, default to LogSink.");
+      sink = new LogSink(metrics);
+    }
 
-    sink = new PrometheusPushGatewaySink(host, port, jobName, metrics);
     sink.start();
   }
 
@@ -68,63 +86,56 @@ public class PrimusMetrics {
     return metrics.getGauges(filter);
   }
 
-  public static long getGauge(String key) {
-    return storeValues.get(key).get();
+  public static void emitCounterWithAppIdTag(String name, Map<String, String> tags, long count) {
+    emitCounter(buildTaggedMetricNameWithAppId(name, tags), count);
   }
 
-  public static void emitCounterWithOptionalPrefix(String name, long count) {
-    emitCounter(optionalPrefix + name, count);
-  }
-
-  public static void emitCounter(String name, long count) {
+  private static void emitCounter(String name, long count) {
     if (sink == null) {
       return;
     }
     metrics.counter(name).inc(count);
   }
 
-  public static void emitStoreWithOptionalPrefix(String name, int count) {
-    emitStore(optionalPrefix + name, count);
+  public static void emitStoreWithAppIdTag(String name, Map<String, String> tags, int count) {
+    emitStore(buildTaggedMetricNameWithAppId(name, tags), count);
   }
 
-  public static void emitStore(String name, int count) {
+  private static void emitStore(String name, int count) {
     if (sink == null) {
       return;
     }
     storeValues.computeIfAbsent(name, k -> {
-          final AtomicLong newGauge = new AtomicLong(0);
-          metrics.register(name, (Gauge) () -> newGauge.longValue());
-          return newGauge;
-        }
-    );
+      final AtomicLong newGauge = new AtomicLong(0);
+      metrics.register(name, (Gauge<Long>) newGauge::longValue);
+      return newGauge;
+    });
     AtomicLong gauge = storeValues.get(name);
     gauge.set(count);
   }
 
-  public static void emitStoreWithOptionalPrefix(String name, double count) {
-    emitStore(optionalPrefix + name, count);
+  public static void emitStoreWithAppIdTag(String name, Map<String, String> tags, double count) {
+    emitStore(buildTaggedMetricNameWithAppId(name, tags), count);
   }
 
-  public static void emitStore(String name, double count) {
+  private static void emitStore(String name, double count) {
     if (sink == null) {
       return;
     }
-    storeValuesDouble.computeIfAbsent(
-        name,
-        k -> {
-          final AtomicDouble newGauge = new AtomicDouble(0);
-          metrics.register(name, (Gauge<Double>) newGauge::doubleValue);
-          return newGauge;
-        });
+    storeValuesDouble.computeIfAbsent(name, k -> {
+      final AtomicDouble newGauge = new AtomicDouble(0);
+      metrics.register(name, (Gauge<Double>) newGauge::get);
+      return newGauge;
+    });
     AtomicDouble gauge = storeValuesDouble.get(name);
     gauge.set(count);
   }
 
-  public static TimerMetric getTimerContextWithOptionalPrefix(String name) {
-    return getTimerContext(optionalPrefix + name);
+  public static TimerMetric getTimerContextWithAppIdTag(String name, Map<String, String> tags) {
+    return getTimerContext(buildTaggedMetricNameWithAppId(name, tags));
   }
 
-  public static TimerMetric getTimerContext(String name) {
+  private static TimerMetric getTimerContext(String name) {
     if (sink == null) {
       return emptyTimerMetric;
     }
@@ -136,10 +147,9 @@ public class PrimusMetrics {
     return new TimerMetric(t.time());
   }
 
-
   public static class TimerMetric {
 
-    private Timer.Context context;
+    private final Timer.Context context;
 
     public TimerMetric(Timer.Context context) {
       this.context = context;
@@ -153,9 +163,9 @@ public class PrimusMetrics {
     }
   }
 
-  public static class PrimusMetricFilter implements MetricFilter {
+  private static class PrimusMetricFilter implements MetricFilter {
 
-    private String pattern;
+    private final String pattern;
 
     public PrimusMetricFilter(String pattern) {
       this.pattern = pattern;
@@ -167,9 +177,22 @@ public class PrimusMetrics {
     }
   }
 
-  public static String prefixWithSingleTag(String prefix, String tag, String value) {
-    StringBuilder stringBuilder = new StringBuilder();
-    stringBuilder.append(prefix).append("{").append(tag).append("=").append(value).append("}");
-    return stringBuilder.toString();
+  public static String buildTaggedMetricNameWithAppId(String name, Map<String, String> tags) {
+    String combinedTags = tags.entrySet().stream()
+        .map(e -> buildTag(e.getKey(), e.getValue()))
+        .reduce(
+            buildTag(APP_ID_TAG_NAME, appId),
+            (a, b) -> a + "," + b
+        );
+
+    return String.format("%s{%s}",
+        sanitizeMetricName
+            ? name.replaceAll("[^0-9a-zA-Z_]", "__")
+            : name,
+        combinedTags);
+  }
+
+  private static String buildTag(String name, String value) {
+    return name + "=" + value;
   }
 }

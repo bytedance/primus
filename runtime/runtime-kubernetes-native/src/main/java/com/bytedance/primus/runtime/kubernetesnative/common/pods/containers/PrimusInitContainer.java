@@ -23,13 +23,14 @@ import static com.bytedance.primus.runtime.kubernetesnative.common.constants.Kub
 
 import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusRuntime.KubernetesContainerConf;
-import com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.kubernetes.client.openapi.models.V1Container;
 import io.kubernetes.client.openapi.models.V1EnvVar;
 import io.kubernetes.client.openapi.models.V1VolumeMount;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import lombok.Getter;
 
 public class PrimusInitContainer extends PrimusBaseContainer {
@@ -38,10 +39,11 @@ public class PrimusInitContainer extends PrimusBaseContainer {
   private final V1Container kubernetesContainer;
 
   public PrimusInitContainer(
-      String appName,
+      String appId,
       String stagingPath,
       KubernetesContainerConf containerConf,
-      List<V1VolumeMount> mainContainerMounts
+      Map<String, String> envs,
+      List<V1VolumeMount> mounts
   ) {
     // Input check
     Preconditions.checkArgument(
@@ -57,12 +59,14 @@ public class PrimusInitContainer extends PrimusBaseContainer {
             containerConf.getImagePullPolicy(),
             PRIMUS_DEFAULT_IMAGE_PULL_POLICY))
         // Env
-        .addEnvFromItem(retrieveKubernetesConfigMap(appName))
-        .addEnvItem(new V1EnvVar()
-            .name(KubernetesConstants.RUNTIME_IDC_NAME_KEY)
-            .value(KubernetesConstants.RUNTIME_IDC_NAME_DEFAULT_VALUE))
+        .addEnvFromItem(retrieveKubernetesConfigMap(appId))
+        .env(envs.entrySet().stream()
+            .map(pair -> new V1EnvVar()
+                .name(pair.getKey())
+                .value(pair.getValue()))
+            .collect(Collectors.toList()))
         // Volumes
-        .volumeMounts(mainContainerMounts)
+        .volumeMounts(mounts)
         // Command
         .command(containerConf.getCommandList())
         .args(containerConf.getArgsList());

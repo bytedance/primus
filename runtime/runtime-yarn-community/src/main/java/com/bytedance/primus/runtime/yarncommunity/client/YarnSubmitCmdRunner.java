@@ -31,12 +31,14 @@ import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_VERSION_ENV_KEY;
 import static com.bytedance.primus.utils.PrimusConstants.STAGING_DIR_KEY;
 
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.client.SubmitCmdRunner;
+import com.bytedance.primus.client.ClientCmdRunner;
+import com.bytedance.primus.common.util.RuntimeUtils;
+import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.yarncommunity.am.ApplicationMasterMain;
+import com.bytedance.primus.runtime.yarncommunity.am.YarnAMContext;
 import com.bytedance.primus.utils.ConfigurationUtils;
-import com.bytedance.primus.utils.FileUtils;
 import com.bytedance.primus.utils.ProtoJsonConverter;
 import java.io.IOException;
 import java.net.URI;
@@ -75,7 +77,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 
-public class YarnSubmitCmdRunner extends SubmitCmdRunner {
+public class YarnSubmitCmdRunner implements ClientCmdRunner {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(YarnSubmitCmdRunner.class);
 
@@ -96,11 +98,9 @@ public class YarnSubmitCmdRunner extends SubmitCmdRunner {
 
   public YarnSubmitCmdRunner(PrimusConf primusConf) throws Exception {
     userPrimusConf = primusConf;
-    Configuration conf = ConfigurationUtils.newHadoopConf(userPrimusConf);
+    yarnConf = new YarnConfiguration(YarnAMContext.loadYarnConfiguration(primusConf));
 
-    yarnConf = new YarnConfiguration(conf);
-
-    dfs = FileSystem.get(conf);
+    dfs = RuntimeUtils.loadHadoopFileSystem(primusConf);
     defaultFsUri = dfs.getUri();
   }
 
@@ -182,12 +182,12 @@ public class YarnSubmitCmdRunner extends SubmitCmdRunner {
 
   private PrimusConf getMergedPrimusConf(PrimusConf userConf) throws IOException {
     String defaultConfigPath = getConfDir() + "/" + DEFAULT_PRIMUS_CONF_FILENAME;
-    PrimusConf defaultConf = FileUtils.buildPrimusConf(defaultConfigPath);
-    PrimusConf mergedConf = PrimusConf.newBuilder()
+    PrimusConf defaultConf = ConfigurationUtils.load(defaultConfigPath);
+    return PrimusConf.newBuilder()
         .mergeFrom(defaultConf)
         .mergeFrom(userConf)
+        .setRunningMode(RunningMode.YARN)
         .build();
-    return mergedConf;
   }
 
   private String buildConfigFile(PrimusConfOuterClass.PrimusConf primusConf) throws IOException {

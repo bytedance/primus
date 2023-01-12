@@ -34,12 +34,11 @@ import java.net.StandardSocketOptions;
 import java.nio.ByteBuffer;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -58,7 +57,6 @@ public class WorkerFeeder implements EventHandler<WorkerFeederEvent> {
   private long lastLength = 0;
   private long currentLength = 0;
 
-  private String customThroughputMetricName;
   private MetricToTimeLineEventBridge metricToTimeLineEventBridge;
   private int port;
   private BlockingQueue<byte[]> messageQueue = null;
@@ -71,17 +69,6 @@ public class WorkerFeeder implements EventHandler<WorkerFeederEvent> {
     this.executorId = executorContext.getExecutorId().toString();
     this.lastTime = System.currentTimeMillis();
 
-    if (executorContext.getPrimusConf().getPrimusConf().getCustomMetricTagsCount() > 0) {
-      ArrayList<String> tags = new ArrayList<>();
-      for (Map.Entry<String, String> tag : executorContext.getPrimusConf().getPrimusConf()
-          .getCustomMetricTagsMap().entrySet()) {
-        tags.add(tag.getKey() + "=" + tag.getValue());
-      }
-      customThroughputMetricName = "throughput{" + String.join(",", tags) + "}";
-    } else {
-      customThroughputMetricName = null;
-    }
-
     TimelineLogger timelineLogger = executorContext.getTimelineLogger();
     int workerFeedMetricBatchSize = TimeLineConfigHelper
         .getMaxWorkerFeederWriteMetricBatchSize(timelineLogger.getTimelineConfig());
@@ -90,7 +77,7 @@ public class WorkerFeeder implements EventHandler<WorkerFeederEvent> {
 
     if (serverSocketChannel != null) {
       maxNumWorkerFeederClients = Math.max(1,
-          executorContext.getPrimusConf().getPrimusConf().getInputManager()
+          executorContext.getPrimusExecutorConf().getPrimusConf().getInputManager()
               .getMaxNumWorkerFeederClients());
       LOG.info("maxNumWorkerFeederClients: " + maxNumWorkerFeederClients);
       messageQueue = new LinkedBlockingQueue<>(maxNumPendingMessages);
@@ -110,7 +97,8 @@ public class WorkerFeeder implements EventHandler<WorkerFeederEvent> {
             int sendBufferSize = channel.getOption(StandardSocketOptions.SO_SNDBUF);
             LOG.info("Socket channel sendBufferSize: " + sendBufferSize);
             // TODO: find the optimal send buffer size that maximize the throughput
-            sendBufferSize = executorContext.getPrimusConf().getPrimusConf().getInputManager()
+            sendBufferSize = executorContext.getPrimusExecutorConf().getPrimusConf()
+                .getInputManager()
                 .getSocketSendBufferSize();
             if (sendBufferSize <= 0) {
               sendBufferSize = 100 * 1024 * 1024;
@@ -167,9 +155,11 @@ public class WorkerFeeder implements EventHandler<WorkerFeederEvent> {
     while (!Thread.currentThread().isInterrupted()) {
       try {
         PrimusMetrics.TimerMetric latency =
-            PrimusMetrics.getTimerContextWithOptionalPrefix(
-                PrimusMetrics.prefixWithSingleTag(
-                    EXECUTOR_TASK_RUNNER_WRITE_LATENCY, "executor_id", executorId));
+            PrimusMetrics.getTimerContextWithAppIdTag(
+                EXECUTOR_TASK_RUNNER_WRITE_LATENCY,
+                new HashMap<String, String>() {{
+                  put("executor_id", executorId);
+                }});
         if (messageQueue != null) {
           messageQueue.put(Arrays.copyOfRange(b, start, start + length));
         } else {
@@ -186,12 +176,12 @@ public class WorkerFeeder implements EventHandler<WorkerFeederEvent> {
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastTime > 1000) {
           int throughput = (int) ((currentLength - lastLength) / (currentTime - lastTime));
-          PrimusMetrics.emitStoreWithOptionalPrefix(
-              PrimusMetrics.prefixWithSingleTag("executor.throughput", "executor_id", executorId),
-              throughput);
-          if (customThroughputMetricName != null) {
-            PrimusMetrics.emitStore(customThroughputMetricName, throughput);
-          }
+          PrimusMetrics.emitStoreWithAppIdTag(
+              "executor.throughput", new HashMap<String, String>() {{
+                put("executor_id", executorId);
+              }},
+              throughput
+          );
           lastLength = currentLength;
           lastTime = currentTime;
         }

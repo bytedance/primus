@@ -184,8 +184,18 @@ message Scheduler {
   string command = 14;
   YarnScheduler am_scheduler = 15;
   bool enable_update_resource = 16;
-  KubernetesScheduler kubernetes_scheduler = 17;
-  bool disable_container_succeed_app = 18;
+
+  // Experimental zone
+  NetworkConfig network_config = 101;
+}
+
+message NetworkConfig {
+  enum NetworkType {
+    DEFAULT = 0;
+    OVERLAY = 1;
+  }
+  NetworkType network_type = 1;
+  bool keep_ip_port_under_overlay = 2;
 }
 
 enum ProgressManagerType {
@@ -237,12 +247,6 @@ message TimelineConfig {
   MetricToTimelineEventBridgeConfig metric_to_timeline_event_bridge_config = 10;
 }
 
-message KubernetesJobConf {
-  string kubernetes_job_name = 1;
-  string owner = 2; // defaults to submit user
-  string psm = 3;
-}
-
 message UniqueNameConfig {
   enum UniqueType {
     REGION = 0;
@@ -292,7 +296,6 @@ message PrimusConf {
   repeated Role role = 7;
   Scheduler scheduler = 8;
   string history_hdfs_base = 12;
-  map<string, string> yarn_conf = 13;
   int32 priority = 14;
   PortRange port_range = 15;
   string region = 16;
@@ -313,7 +316,6 @@ message PrimusConf {
   TimelineConfig timeline_config = 29;
   int32 graceful_shutdown_timeout_min = 30;
   int32 am_allocation_timeout_min = 31;
-  KubernetesJobConf kubernetes_job_conf = 32; // TODO: Move to runtime
   UniqueNameConfig unique_name_config = 33;
   ApiServerConf api_server_conf = 34;
 

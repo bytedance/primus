@@ -6,8 +6,8 @@
       "roleName": "chief",
       "num": 1,
       "vcores": 1,
-      "memoryMb": 256,
-      "jvmMemoryMb": 256,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
       "command": "env && echo 'Hello from Chief' && echo 'Goodbye from Chief'",
       "successPercent": 100,
       "failover": {
@@ -21,8 +21,8 @@
       "roleName": "ps",
       "num": 1,
       "vcores": 1,
-      "memoryMb": 256,
-      "jvmMemoryMb": 256,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
       "command": "env && echo 'Hello from PS' && echo 'Goodbye from PS'",
       "successPercent": 100,
       "failover": {
@@ -36,8 +36,8 @@
       "roleName": "worker",
       "num": 1,
       "vcores": 1,
-      "memoryMb": 256,
-      "jvmMemoryMb": 256,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
       "command": "env && echo 'Hello from Worker' && echo 'Goodbye from Worker'",
       "successPercent": 100,
       "failover": {
