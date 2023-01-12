@@ -55,6 +55,7 @@ import com.bytedance.primus.apiserver.records.Meta;
 import com.bytedance.primus.apiserver.records.impl.DataSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.JobSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.MetaImpl;
+import com.bytedance.primus.common.util.IntegerUtils;
 import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.ApiServerConf;
@@ -228,7 +229,12 @@ public class ResourceUtils {
   public static ExecutorSpec buildExecutorSpec(Role role) {
     ExecutorSpec.Builder executorBuilder = ExecutorSpec.newBuilder();
     executorBuilder.addAllResourceRequests(buildResourceRequest(role));
-    String javaOpt = "-Xmx" + role.getJvmMemoryMb() + "m";
+    // TODO: Isolate JVM memory size from general JVM options
+    String javaOpt = String.format("-Xmx%dm",
+        IntegerUtils.selectIfPositiveOrDefault(
+            role.getJvmMemoryMb(),
+            PrimusConstants.DEFAULT_EXECUTOR_JAVA_MEMORY_MB
+        ));
     if (!role.getJavaOpts().isEmpty()) {
       javaOpt = javaOpt + " " + role.getJavaOpts();
     }
