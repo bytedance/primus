@@ -27,6 +27,7 @@ echo "================================"
 
 "$JAVA_HOME"/bin/java -cp ./*:./__primus_lib__/*:"$CLASSPATH" \
     -Dlog4j2.configurationFile=/opt/primus-share/__primus_conf__/log4j2.xml \
+    -Djdk.tls.client.protocols=TLSv1.2 \
     -Xmx"$PRIMUS_AM_JAVA_MEMORY_XMX" \
     com.bytedance.primus.runtime.kubernetesnative.am.KubernetesApplicationMasterMain \
     --config __primus_conf__/primus.conf

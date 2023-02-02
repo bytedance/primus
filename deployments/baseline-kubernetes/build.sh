@@ -47,9 +47,9 @@ done
 # Compile Primus jar
 if [[ $PACKAGE_ONLY != "true" ]]; then
   if [[ $SKIP_TESTS == "true" ]]; then
-    mvn clean package -DskipTests -P stable
+    mvn clean package -Djdk.tls.client.protocols=TLSv1.2 -DskipTests -P stable
   else
-    mvn clean package -P stable
+    mvn clean package -Djdk.tls.client.protocols=TLSv1.2 -P stable
   fi
 fi
 

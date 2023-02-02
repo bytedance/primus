@@ -46,6 +46,8 @@ public class PrimusConstants {
   public static final String LOG4J_PROPERTIES = "log4j2.xml";
   public static final String PRIMUS_EXECUTOR_UNIQUE_ID = "PRIMUS_EXECUTOR_UNIQUE_ID";
 
+  public static final int DEFAULT_EXECUTOR_JAVA_MEMORY_MB = 512;
+
   public static final int DEFAULT_MAX_TASK_NUM_PER_WORKER = 1;
   public static final int DEFAULT_MAX_TASK_ATTEMPTS = 2;
 
