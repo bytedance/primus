@@ -660,7 +660,7 @@ public class SchedulerExecutorManager extends AbstractService
             int roleNum = roleInfo.getRoleSpec().getReplicas();
             int oldRequestNum = priorityRequestNumMap.getOrDefault(priority, 0);
             if (roleNum < oldRequestNum) {
-              killExecutors(priority, roleNum, oldRequestNum);
+              killExecutors(priority, roleNum, oldRequestNum, false /* force */);
             }
             priorityRequestNumMap.put(priority, roleNum);
             float successPercent = roleInfo.getRoleSpec().getSuccessPolicy().getSuccessPercent();
@@ -672,7 +672,10 @@ public class SchedulerExecutorManager extends AbstractService
           break;
         }
         case EXECUTOR_KILL:
-          killExecutor(e.getExecutorId());
+          killExecutor(e.getExecutorId(), false /* force */);
+          break;
+        case EXECUTOR_KILL_FORCIBLY:
+          killExecutor(e.getExecutorId(), true /* force */);
           break;
       }
     } finally {
@@ -680,21 +683,23 @@ public class SchedulerExecutorManager extends AbstractService
     }
   }
 
-  private void killExecutors(int priority, int startIndex, int endIndex) {
+  private void killExecutors(int priority, int startIndex, int endIndex, boolean force) {
     for (; startIndex < endIndex; startIndex++) {
       ExecutorId executorId = new ExecutorIdPBImpl();
       String roleName = roleInfoManager.getPriorityRoleInfoMap().get(priority).getRoleName();
       executorId.setRoleName(roleName);
       executorId.setIndex(startIndex);
-      killExecutor(executorId);
+      killExecutor(executorId, force);
     }
   }
 
-  private void killExecutor(ExecutorId executorId) {
+  private void killExecutor(ExecutorId executorId, boolean force) {
     SchedulerExecutor schedulerExecutor = runningExecutorMap.get(executorId);
     if (schedulerExecutor != null) {
       LOG.info("Killing executor " + executorId);
-      schedulerExecutor.handle(new SchedulerExecutorEvent(SchedulerExecutorEventType.KILL));
+      schedulerExecutor.handle(force
+          ? new SchedulerExecutorEvent(SchedulerExecutorEventType.KILL_FORCIBLY)
+          : new SchedulerExecutorEvent(SchedulerExecutorEventType.KILL));
     }
   }
 

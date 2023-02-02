@@ -19,6 +19,8 @@
 
 package com.bytedance.primus.runtime.yarncommunity.am.container;
 
+import static com.bytedance.primus.am.container.ContainerManagerEventType.FORCIBLY_SHUTDOWN;
+import static com.bytedance.primus.am.container.ContainerManagerEventType.GRACEFUL_SHUTDOWN;
 import static org.apache.hadoop.yarn.api.records.ExecutionType.GUARANTEED;
 
 import com.bytedance.blacklist.BlacklistTracker;
@@ -46,6 +48,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
@@ -91,7 +94,7 @@ public abstract class YarnContainerManager extends ContainerManager {
   protected Set<String> blacklistRemovals = new HashSet<>();
 
   protected volatile boolean isStopped = false;
-  protected volatile boolean gracefulShutdown = false;
+  protected volatile boolean isShuttingDown = false;
   protected Thread containerManagerThread = new ContainerManagerThread();
 
   public YarnContainerManager(YarnAMContext context) {
@@ -169,22 +172,37 @@ public abstract class YarnContainerManager extends ContainerManager {
             "am.container_manager.executor_expired", new HashMap<>(), 1);
         break;
       }
-      case GRACEFUL_SHUTDOWN: {
-        LOG.info("Graceful shutdown! Kill all running containers");
-        gracefulShutdown = true;
-        runningContainerMap.keySet().forEach(containerId -> {
-          SchedulerExecutor schedulerExecutor =
-              schedulerExecutorManager.getSchedulerExecutor(containerId.toString());
-          if (schedulerExecutor != null) {
-            LOG.info("Killing container " + containerId);
-            context.getDispatcher().getEventHandler()
-                .handle(new SchedulerExecutorManagerEvent(
-                    SchedulerExecutorManagerEventType.EXECUTOR_KILL,
-                    schedulerExecutor.getExecutorId()));
-          }
-        });
+      case GRACEFUL_SHUTDOWN:
+      case FORCIBLY_SHUTDOWN:
+        LOG.info("Start killing all running containers");
+        isShuttingDown = true;
+        runningContainerMap.keySet().stream()
+            .map(cid -> schedulerExecutorManager.getSchedulerExecutor(cid.toString()))
+            .filter(Objects::nonNull)
+            .forEach(schedulerExecutor -> {
+              if (event.getType() == GRACEFUL_SHUTDOWN) {
+                LOG.info(
+                    "Gracefully killing container: {}",
+                    schedulerExecutor.getContainer().getId());
+                context
+                    .getDispatcher()
+                    .getEventHandler()
+                    .handle(new SchedulerExecutorManagerEvent(
+                        SchedulerExecutorManagerEventType.EXECUTOR_KILL,
+                        schedulerExecutor.getExecutorId()));
+              } else if (event.getType() == FORCIBLY_SHUTDOWN) {
+                LOG.info(
+                    "Forcibly killing container: {}",
+                    schedulerExecutor.getContainer().getId());
+                context
+                    .getDispatcher()
+                    .getEventHandler()
+                    .handle(new SchedulerExecutorManagerEvent(
+                        SchedulerExecutorManagerEventType.EXECUTOR_KILL_FORCIBLY,
+                        schedulerExecutor.getExecutorId()));
+              }
+            });
         break;
-      }
     }
   }
 
@@ -394,7 +412,7 @@ public abstract class YarnContainerManager extends ContainerManager {
             checkAndUpdateRunningContainers();
           }
 
-          if (!gracefulShutdown) {
+          if (!isShuttingDown) {
             askForContainers();
 
             if (schedulerExecutorManager.isAllSuccess()) {

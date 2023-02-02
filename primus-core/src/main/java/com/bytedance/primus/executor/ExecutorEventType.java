@@ -24,6 +24,7 @@ public enum ExecutorEventType {
   START,
   REGISTERED,
   KILL,
+  KILL_FORCIBLY,
 
   // producer : com.bytedance.primus.executor.worker
   STARTED,

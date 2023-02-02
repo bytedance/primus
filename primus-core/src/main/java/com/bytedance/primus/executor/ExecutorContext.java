@@ -20,6 +20,7 @@
 package com.bytedance.primus.executor;
 
 import com.bytedance.primus.api.records.ExecutorId;
+import com.bytedance.primus.api.records.ExecutorState;
 import com.bytedance.primus.apiserver.proto.ResourceProto.ConsulConfig;
 import com.bytedance.primus.common.child.ChildLauncher;
 import com.bytedance.primus.common.event.Dispatcher;
@@ -29,10 +30,12 @@ import com.bytedance.primus.common.network.NetworkConfig;
 import com.bytedance.primus.executor.environment.RunningEnvironment;
 import com.bytedance.primus.executor.task.TaskRunnerManager;
 import com.bytedance.primus.executor.task.WorkerFeeder;
+import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.utils.timeline.TimelineLogger;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.UnknownHostException;
+import java.time.Duration;
 import java.util.List;
 import lombok.Getter;
 import org.apache.hadoop.fs.FileSystem;
@@ -202,5 +205,12 @@ public class ExecutorContext {
 
   public void setRunning(boolean running) {
     this.running = running;
+  }
+
+  public Duration getGracefulShutdownDuration() {
+    PrimusConf primusConf = getPrimusExecutorConf().getPrimusConf();
+    return executor.getExecutorState() != ExecutorState.KILLING_FORCIBLY
+        ? Duration.ofMinutes(primusConf.getGracefulShutdownTimeoutMin())
+        : Duration.ZERO;
   }
 }

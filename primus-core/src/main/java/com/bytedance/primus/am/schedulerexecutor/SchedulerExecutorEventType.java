@@ -28,5 +28,6 @@ public enum SchedulerExecutorEventType {
   RELEASED,
   BLACKLIST,
   KILL,
+  KILL_FORCIBLY, // Instruct executor to quit without serving graceful shutdown time wait.
   KILLED,
 }

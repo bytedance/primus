@@ -86,14 +86,20 @@ public class ExecutorImpl implements Executor {
           .addTransition(ExecutorState.RUNNING,
               ExecutorState.RUNNING,
               ExecutorEventType.START)
+
+          // Ensure the work still starts even when being killed right after registered, since some
+          // training frameworks, such as Monolith, rely on worker with index 0 initiating the
+          // training process. Since AM retains the kill command, the worker will still be killed
+          // after being launched.
+          // TODO(hopang): simplify the state machine.
           .addTransition(ExecutorState.REGISTERED,
-              ExecutorState.EXITED_WITH_KILLED,
+              ExecutorState.STARTING,
               ExecutorEventType.KILL,
-              new KilledTransition())
+              new RegisteredToStartingTransition())
           .addTransition(ExecutorState.STARTING,
-              ExecutorState.KILLING,
-              ExecutorEventType.KILL,
-              new KillingTransition())
+              ExecutorState.STARTING,
+              ExecutorEventType.KILL)
+
           .addTransition(ExecutorState.RUNNING,
               ExecutorState.KILLING,
               ExecutorEventType.KILL,
@@ -145,6 +151,10 @@ public class ExecutorImpl implements Executor {
               ExecutorState.EXITED_WITH_SUCCESS,
               ExecutorEventType.SUCCEEDED,
               new SucceededTransition())
+          .addTransition(ExecutorState.KILLING_FORCIBLY,
+              ExecutorState.EXITED_WITH_KILLED,
+              ExecutorEventType.KILLED,
+              new KilledTransition())
           .addTransition(ExecutorState.EXITED_WITH_SUCCESS,
               ExecutorState.EXITED_WITH_SUCCESS,
               ExecutorEventType.KILL)
@@ -157,6 +167,45 @@ public class ExecutorImpl implements Executor {
           .addTransition(ExecutorState.EXITED_WITH_KILLED,
               ExecutorState.EXITED_WITH_KILLED,
               ExecutorEventType.KILL)
+
+          // TODO: Streamline core state machines
+          .addTransition(ExecutorState.NEW,
+              ExecutorState.KILLING_FORCIBLY,
+              ExecutorEventType.KILL_FORCIBLY,
+              new KillingForciblyTransition())
+          .addTransition(ExecutorState.REGISTERED,
+              ExecutorState.KILLING_FORCIBLY,
+              ExecutorEventType.KILL_FORCIBLY,
+              new KillingForciblyTransition())
+          .addTransition(ExecutorState.STARTING,
+              ExecutorState.KILLING_FORCIBLY,
+              ExecutorEventType.KILL_FORCIBLY,
+              new KillingForciblyTransition())
+          .addTransition(ExecutorState.RUNNING,
+              ExecutorState.KILLING_FORCIBLY,
+              ExecutorEventType.KILL_FORCIBLY,
+              new KillingForciblyTransition())
+          .addTransition(ExecutorState.KILLING,
+              ExecutorState.KILLING_FORCIBLY,
+              ExecutorEventType.KILL_FORCIBLY,
+              new KillingForciblyTransition())
+          .addTransition(ExecutorState.KILLING_FORCIBLY,
+              ExecutorState.KILLING_FORCIBLY,
+              ExecutorEventType.KILL_FORCIBLY)
+          .addTransition(ExecutorState.RECOVERING,
+              ExecutorState.KILLING_FORCIBLY,
+              ExecutorEventType.KILL_FORCIBLY,
+              new KillingForciblyTransition())
+          .addTransition(ExecutorState.EXITED_WITH_FAILURE,
+              ExecutorState.EXITED_WITH_FAILURE,
+              ExecutorEventType.KILL_FORCIBLY)
+          .addTransition(ExecutorState.EXITED_WITH_SUCCESS,
+              ExecutorState.EXITED_WITH_SUCCESS,
+              ExecutorEventType.KILL_FORCIBLY)
+          .addTransition(ExecutorState.EXITED_WITH_KILLED,
+              ExecutorState.EXITED_WITH_KILLED,
+              ExecutorEventType.KILL_FORCIBLY)
+
           .installTopology();
 
   private final StateMachine<ExecutorState, ExecutorEventType, ExecutorEvent> stateMachine;
@@ -249,6 +298,23 @@ public class ExecutorImpl implements Executor {
       LOG.info("Executor[" + executor.executorContext.getExecutorId() + "] begin to stopProcess");
       executor.dispatcher.getEventHandler()
           .handle(new TaskRunnerManagerEvent(TaskRunnerManagerEventType.TASK_REMOVE_ALL,
+              executor.getExecutorId()));
+    }
+  }
+
+  static class KillingForciblyTransition implements
+      SingleArcTransition<ExecutorImpl, ExecutorEvent> {
+
+    @Override
+    public void transition(ExecutorImpl executor, ExecutorEvent event) {
+      LOG.info(
+          "Executor[{}] begin to stopProcess forcibly",
+          executor.executorContext.getExecutorId());
+      // TODO: Streamline core state machines
+      executor.dispatcher
+          .getEventHandler()
+          .handle(new TaskRunnerManagerEvent(
+              TaskRunnerManagerEventType.TASK_REMOVE_ALL,
               executor.getExecutorId()));
     }
   }

@@ -24,6 +24,7 @@ import com.bytedance.primus.executor.ExecutorContext;
 import com.bytedance.primus.executor.worker.WorkerContext;
 import com.bytedance.primus.utils.concurrent.CallableExecutionUtils;
 import com.bytedance.primus.utils.concurrent.CallableExecutionUtilsBuilder;
+import java.time.Duration;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
@@ -52,20 +53,19 @@ public class EofPlugin implements ChildLaunchPlugin {
 
   @Override
   public void preStop() throws Exception {
-    int gracefulShutdownTimeoutMin = executorContext.getPrimusExecutorConf().getPrimusConf()
-        .getGracefulShutdownTimeoutMin();
+    Duration gracefulShutdownTimeoutDuration = executorContext.getGracefulShutdownDuration();
     Callable<Boolean> task = () -> {
       executorContext.getWorkerFeeder().close();
       executorContext.getChildLauncher().waitFor(
-          gracefulShutdownTimeoutMin,
-          TimeUnit.MINUTES);
+          gracefulShutdownTimeoutDuration.getSeconds(),
+          TimeUnit.SECONDS);
       return true;
     };
     CallableExecutionUtils callableExecutionUtils = new CallableExecutionUtilsBuilder<Boolean>()
         .setCallable(task)
         .setThreadName("EofPluginPreStopThread")
-        .setTimeout(gracefulShutdownTimeoutMin)
-        .setTimeUnit(TimeUnit.MINUTES)
+        .setTimeout((int) gracefulShutdownTimeoutDuration.getSeconds())
+        .setTimeUnit(TimeUnit.SECONDS)
         .createCallableExecutionUtils();
     callableExecutionUtils.doExecuteCallable(false);
   }
