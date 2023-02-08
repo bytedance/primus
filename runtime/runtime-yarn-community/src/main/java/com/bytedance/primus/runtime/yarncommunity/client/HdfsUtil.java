@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
 
 public class HdfsUtil {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(HdfsUtil.class);
+  private static final Logger LOG = LoggerFactory.getLogger(HdfsUtil.class);
 
   public static URI resolveURI(String file) throws URISyntaxException {
     URI uri = new URI(file);
@@ -66,16 +66,15 @@ public class HdfsUtil {
   }
 
   public static void addResource(
+      FileSystem fs,
       Path path,
       String linkname,
-      Configuration conf,
       Map<String, LocalResource> cacheFiles
   ) throws IOException {
-    FileSystem fs = FileSystem.get(path.toUri(), conf);
     LocalResource rsrc = new LocalResourcePBImpl();
     FileStatus rsrcStat = fs.getFileStatus(path);
     URL resource = ConverterUtils.getYarnUrlFromPath(fs.resolvePath(rsrcStat.getPath()));
-    LOGGER.info("Add resource[" + resource + "], path[" + path + "], linkname[" + linkname + "]");
+    LOG.info("Add resource[" + resource + "], path[" + path + "], linkname[" + linkname + "]");
     rsrc.setResource(resource);
     rsrc.setSize(rsrcStat.getLen());
     rsrc.setTimestamp(rsrcStat.getModificationTime());
@@ -111,10 +110,10 @@ public class HdfsUtil {
     String uriStr = uri.toString();
     String fileName = new File(uri.getPath()).getName();
     if (distributedUris.contains(uriStr)) {
-      LOGGER.warn("Same path resource " + uri + " added multiple times to distributed cache.");
+      LOG.warn("Same path resource " + uri + " added multiple times to distributed cache.");
       return false;
     } else if (distributedNames.contains(fileName)) {
-      LOGGER.warn("Same name resource " + uri + " added multiple times to distributed cache");
+      LOG.warn("Same name resource " + uri + " added multiple times to distributed cache");
       return false;
     } else {
       distributedUris.add(uriStr);

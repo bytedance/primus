@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Bytedance Inc.
+ * Copyright 2023 Bytedance Inc.
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,18 +17,35 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.common.collections;
+package com.bytedance.primus.common.util;
 
-import lombok.Data;
+import java.io.Closeable;
+import java.util.concurrent.locks.Lock;
 
-@Data
-public class Pair<K, V> {
+public class LockUtils {
 
-  private K key;
-  private V value;
+  public static LockWrapper lock(Lock... locks) {
+    // NOTE: the order matters to prevent deadlocks
+    for (Lock lock : locks) {
+      lock.lock();
+    }
+    return new LockWrapper(locks);
+  }
 
-  public Pair(K key, V value) {
-    this.key = key;
-    this.value = value;
+  public static class LockWrapper implements Closeable {
+
+    private final Lock[] locks;
+
+    private LockWrapper(Lock[] locks) {
+      this.locks = locks;
+    }
+
+    @Override
+    public void close() {
+      // NOTE: the order matters to prevent deadlocks
+      for (Lock lock : locks) {
+        lock.unlock();
+      }
+    }
   }
 }

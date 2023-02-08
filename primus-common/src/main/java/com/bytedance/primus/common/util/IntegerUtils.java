@@ -19,7 +19,24 @@
 
 package com.bytedance.primus.common.util;
 
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class IntegerUtils {
+
+  private static final Logger LOG = LoggerFactory.getLogger(IntegerUtils.class);
+
+  public static int ensureBounded(int value, int lower, int upper) {
+    return Math.min(
+        upper,
+        Math.max(
+            lower,
+            value
+        )
+    );
+  }
 
   public static int ensurePositiveOrDefault(int v, int d) {
     return v > 0 ? v : d;
@@ -27,5 +44,29 @@ public class IntegerUtils {
 
   public static long ensurePositiveOrDefault(long v, long d) {
     return v > 0 ? v : d;
+  }
+
+  public static long maxLong(long value, long... values) {
+    return Arrays.stream(values).reduce(value, Math::max);
+  }
+
+  public static void updateAtomicLongIfLarger(
+      AtomicLong current,
+      long desiredValue,
+      String msg
+  ) {
+    while (true) {
+      long currentValue = current.get();
+      if (desiredValue <= currentValue) {
+        LOG.warn(
+            "Failed to update atomic long, current: {}, desired: {} msg: {}",
+            currentValue, desiredValue, msg
+        );
+        break;
+      }
+      if (current.compareAndSet(currentValue, desiredValue)) {
+        break;
+      }
+    }
   }
 }

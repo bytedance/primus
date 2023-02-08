@@ -59,6 +59,19 @@ public class StringUtils {
     return sb.toString();
   }
 
+  /**
+   * @param timestampA
+   * @param timestampB
+   * @return
+   */
+  public static int compareTimeStampStrings(String timestampA, String timestampB) {
+    int lenA = timestampA.length();
+    int lenB = timestampB.length();
+    return lenA == lenB
+        ? timestampA.compareTo(timestampB)
+        : (lenA > lenB) ? 1 : -1;
+  }
+
   // Returns the last token of the input string delimited by the delimiter if there are tokens
   // generated from the input else empty string is returned.
   public static String getLastToken(String input, String delimiter) {

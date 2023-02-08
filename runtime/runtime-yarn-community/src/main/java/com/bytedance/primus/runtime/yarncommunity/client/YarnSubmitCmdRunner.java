@@ -234,7 +234,7 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
       path = dst;
     }
 
-    HdfsUtil.addResource(path, linkname, yarnConf, cacheFiles);
+    HdfsUtil.addResource(dfs, path, linkname, cacheFiles);
   }
 
   // TODO: Make this function static

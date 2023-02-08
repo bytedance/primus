@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 Bytedance Inc.
+ * Copyright 2023 Bytedance Inc.
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -17,18 +17,11 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.common.collections;
+package com.bytedance.primus.common.util;
 
-import lombok.Data;
+public class FloatUtils {
 
-@Data
-public class Pair<K, V> {
-
-  private K key;
-  private V value;
-
-  public Pair(K key, V value) {
-    this.key = key;
-    this.value = value;
+  public static float ensurePositiveOrDefault(float v, float d) {
+    return v > 0 ? v : d;
   }
 }
