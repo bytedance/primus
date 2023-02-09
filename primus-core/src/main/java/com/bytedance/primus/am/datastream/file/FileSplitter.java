@@ -21,8 +21,6 @@ package com.bytedance.primus.am.datastream.file;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.am.ApplicationMasterEvent;
-import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.metrics.PrimusMetrics.TimerMetric;
 import com.bytedance.primus.io.datasource.file.FileDataSource;
@@ -71,7 +69,7 @@ public class FileSplitter extends Thread {
 
     this.LOG = LoggerFactory.getLogger(getLoggerName(builder));
     this.context = context;
-    this.fileSystem = context.getHadoopFileSystem();
+    this.fileSystem = context.getApplicationMeta().getHadoopFileSystem();
 
     this.builder = builder;
     this.scanner = builder.getFileScanner();
@@ -92,14 +90,7 @@ public class FileSplitter extends Thread {
 
   private void failApplication(String diag, int exitCode) {
     LOG.error(diag);
-    context.getDispatcher()
-        .getEventHandler()
-        .handle(new ApplicationMasterEvent(
-            context,
-            ApplicationMasterEventType.FAIL_APP,
-            diag,
-            exitCode
-        ));
+    context.emitFailApplicationEvent(diag, exitCode);
   }
 
   private List<BaseSplit> getFileSplits(FileSystem fileSystem, BaseInput input) {

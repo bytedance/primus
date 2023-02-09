@@ -22,9 +22,10 @@ package com.bytedance.primus.am;
 import com.bytedance.primus.common.service.AbstractService;
 import io.grpc.Server;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import org.apache.commons.configuration.Configuration;
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,33 +34,29 @@ public class ExecutorTrackerService extends AbstractService {
   private static final Logger LOG = LoggerFactory.getLogger(ExecutorTrackerService.class);
   private static final int MAX_MESSAGE_SIZE = 1024 * 1024 * 128; // TODO: Centralize constants
 
-  private final AMContext context;
-  private Server server;
+  @Getter
+  private final Server server;
+  @Getter
+  private final InetSocketAddress rpcAddress;
 
-  public ExecutorTrackerService(AMContext context) {
+  public ExecutorTrackerService(AMContext context, int executorTrackerPort) throws IOException {
     super(ExecutorTrackerService.class.getName());
-    this.context = context;
-  }
-
-  @Override
-  protected void serviceInit(Configuration conf) throws Exception {
-    LOG.info("ExecutorTrackerService is initializing");
-    server = NettyServerBuilder
-        .forAddress(new InetSocketAddress(context.getExecutorTrackPort()))
-        .maxMessageSize(MAX_MESSAGE_SIZE)
-        .addService(new ExecutorTrackerGrpcService(context))
-        .build();
 
     // NOTE: Since the port need to be acquired ASAP,
     // the GRPC server is spun up here instead of during serviceStart().
-    LOG.info("ExecutorTrackerService is starting");
-    server.start();
-    context.setRpcAddress(
-        new InetSocketAddress(
-            InetAddress.getLocalHost().getHostName(),
-            server.getPort()));
+    LOG.info("ExecutorTrackerService is initializing");
+    server = NettyServerBuilder
+        .forAddress(new InetSocketAddress(executorTrackerPort))
+        .maxMessageSize(MAX_MESSAGE_SIZE)
+        .addService(new ExecutorTrackerGrpcService(context))
+        .build()
+        .start();
 
-    LOG.info("ExecutorTrackerService is started, rpc address is:" + context.getRpcAddress());
+    rpcAddress = new InetSocketAddress(
+        InetAddress.getLocalHost().getHostName(),
+        server.getPort());
+
+    LOG.info("ExecutorTrackerService is started, rpc address is:" + rpcAddress);
   }
 
   @Override

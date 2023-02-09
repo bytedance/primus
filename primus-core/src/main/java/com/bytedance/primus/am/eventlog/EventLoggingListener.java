@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.am.eventlog;
 
-import com.bytedance.primus.am.AMContext;
+import com.bytedance.primus.am.PrimusApplicationMeta;
 import com.bytedance.primus.common.event.EventHandler;
 import com.bytedance.primus.common.service.AbstractService;
 import java.util.Queue;
@@ -39,7 +39,7 @@ public class EventLoggingListener extends AbstractService implements EventHandle
   private Thread dispatchThread;
   private EventSink eventSink;
 
-  public EventLoggingListener(AMContext context) {
+  public EventLoggingListener(PrimusApplicationMeta applicationMeta) {
     super(EventLoggingListener.class.getName());
     dispatchThread = new Thread(new Runnable() {
       @Override
@@ -49,7 +49,7 @@ public class EventLoggingListener extends AbstractService implements EventHandle
     });
     dispatchThread.setName("EventLoggingListenerDispatchThread");
     dispatchThread.setDaemon(true);
-    eventSink = new HdfsEventSink(context);
+    eventSink = new HdfsEventSink(applicationMeta);
   }
 
   @Override

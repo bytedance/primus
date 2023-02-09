@@ -13,19 +13,18 @@
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
+ * See the License for the applicationMetaific language governing permissions and
  * limitations under the License.
  */
 
 package com.bytedance.primus.runtime.kubernetesnative.runtime.monitor;
 
-import com.bytedance.primus.am.AMContext;
+import com.bytedance.primus.am.PrimusApplicationMeta;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutor;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.runtime.kubernetesnative.am.KubernetesAMContext;
+import com.bytedance.primus.runtime.kubernetesnative.common.utils.ResourceNameBuilder;
 import com.bytedance.primus.runtime.kubernetesnative.runtime.dictionary.Dictionary;
 import com.bytedance.primus.runtime.monitor.MonitorInfoProvider;
-import com.google.common.base.Preconditions;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
@@ -36,24 +35,29 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
 
   private static final Logger LOG = LoggerFactory.getLogger(MonitorInfoProviderImpl.class);
 
-  private final KubernetesAMContext context;
+  private final PrimusApplicationMeta applicationMeta;
+  private final String kubernetesNamespace;
+  private final String kubernetesDriverPodName;
 
-  public MonitorInfoProviderImpl(AMContext context) {
-    Preconditions.checkArgument(
-        context instanceof KubernetesAMContext,
-        "KubernetesAMContext is required for KubernetesNative::MonitorInfoProviderImpl");
-
-    this.context = (KubernetesAMContext) context;
+  public MonitorInfoProviderImpl(PrimusApplicationMeta applicationMeta) {
+    this.applicationMeta = applicationMeta;
+    this.kubernetesNamespace = applicationMeta
+        .getPrimusConf()
+        .getRuntimeConf()
+        .getKubernetesNativeConf()
+        .getNamespace();
+    this.kubernetesDriverPodName = ResourceNameBuilder
+        .buildDriverPodName(applicationMeta.getApplicationId());
   }
 
   @Override
   public String getApplicationId() {
-    return context.getAppId();
+    return applicationMeta.getApplicationId();
   }
 
   @Override
   public int getAttemptId() {
-    return 0; // Defaults to 0 as application attempt is not supported in Kubernetes runtime. 
+    return applicationMeta.getAttemptId();
   }
 
   @Override
@@ -66,14 +70,14 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
 
   @Override
   public String getHistorySnapshotSubdirectoryName() {
-    return context.getAppId();
+    return applicationMeta.getApplicationId();
   }
 
   @Override
   public String getHistorySnapshotFileName() {
     return String.format("%s_%d",
-        context.getApplicationId(),
-        context.getAttemptId()
+        applicationMeta.getApplicationId(),
+        applicationMeta.getAttemptId()
     );
   }
 
@@ -83,10 +87,10 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getAmTrackingUrl() {
     return getPreflightAmTrackingUrl(
-        context.getPrimusConf(),
-        context.getAppId(),
-        context.getKubernetesNamespace(),
-        context.getDriverPodName());
+        applicationMeta.getPrimusConf(),
+        applicationMeta.getApplicationId(),
+        kubernetesNamespace,
+        kubernetesDriverPodName);
   }
 
   public static String getPreflightAmTrackingUrl(
@@ -110,10 +114,10 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getHistoryTrackingUrl() {
     return getPreflightHistoryTrackingUrl(
-        context.getPrimusConf(),
-        context.getAppId(),
-        context.getKubernetesNamespace(),
-        context.getDriverPodName());
+        applicationMeta.getPrimusConf(),
+        applicationMeta.getApplicationId(),
+        kubernetesNamespace,
+        kubernetesDriverPodName);
   }
 
   public static String getPreflightHistoryTrackingUrl(
@@ -141,8 +145,8 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getAmLogUrl() {
     return Dictionary
-        .newDriverDictionary(context)
-        .translate(context
+        .newDriverDictionary(applicationMeta, kubernetesNamespace, kubernetesDriverPodName)
+        .translate(applicationMeta
             .getPrimusConf()
             .getRuntimeConf()
             .getKubernetesNativeConf()
@@ -154,8 +158,8 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getAmHistoryLogUrl() {
     return Dictionary
-        .newDriverDictionary(context)
-        .translate(context.getPrimusConf()
+        .newDriverDictionary(applicationMeta, kubernetesNamespace, kubernetesDriverPodName)
+        .translate(applicationMeta.getPrimusConf()
             .getRuntimeConf()
             .getKubernetesNativeConf()
             .getPrimusUiConf()
@@ -166,9 +170,9 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getExecutorLogUrl(SchedulerExecutor schedulerExecutor) {
     return Dictionary
-        .newExecutorDictionary(context, schedulerExecutor)
+        .newExecutorDictionary(applicationMeta, kubernetesNamespace, schedulerExecutor)
         .translate(
-            context.getPrimusConf()
+            applicationMeta.getPrimusConf()
                 .getRuntimeConf()
                 .getKubernetesNativeConf()
                 .getPrimusUiConf()
@@ -179,9 +183,9 @@ public class MonitorInfoProviderImpl implements MonitorInfoProvider {
   @Override
   public String getExecutorHistoryLogUrl(SchedulerExecutor schedulerExecutor) {
     return Dictionary
-        .newExecutorDictionary(context, schedulerExecutor)
+        .newExecutorDictionary(applicationMeta, kubernetesNamespace, schedulerExecutor)
         .translate(
-            context.getPrimusConf()
+            applicationMeta.getPrimusConf()
                 .getRuntimeConf()
                 .getKubernetesNativeConf()
                 .getPrimusUiConf()

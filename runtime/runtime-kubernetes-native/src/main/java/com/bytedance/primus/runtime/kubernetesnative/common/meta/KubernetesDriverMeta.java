@@ -17,26 +17,26 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.runtime.kubernetesnative.am;
+package com.bytedance.primus.runtime.kubernetesnative.common.meta;
 
 import com.bytedance.primus.am.PrimusApplicationMeta;
-import com.bytedance.primus.am.eventlog.PrimusEvent;
-import com.bytedance.primus.common.event.EventHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.bytedance.primus.runtime.kubernetesnative.common.utils.ResourceNameBuilder;
+import lombok.Getter;
 
-public class KubernetesEventLogging implements EventHandler<PrimusEvent> {
+@Getter
+public class KubernetesDriverMeta extends KubernetesBaseMeta {
 
-  private static final Logger LOG = LoggerFactory.getLogger(KubernetesEventLogging.class);
+  private final String driverPodUniqId;
+  private final String driverHostName;
+  private final String driverPodName;
 
-  private final PrimusApplicationMeta applicationMeta;
+  public KubernetesDriverMeta(PrimusApplicationMeta applicationMeta, String driverPodUniqId) {
+    super(applicationMeta.getPrimusConf());
 
-  public KubernetesEventLogging(PrimusApplicationMeta applicationMeta) {
-    this.applicationMeta = applicationMeta;
-  }
-
-  @Override
-  public void handle(PrimusEvent event) {
-    LOG.warn("Receive event " + event);
+    this.driverPodUniqId = driverPodUniqId;
+    this.driverHostName = ResourceNameBuilder
+        .buildDriverServiceName(applicationMeta.getApplicationId(), getKubernetesNamespace());
+    this.driverPodName = ResourceNameBuilder
+        .buildDriverPodName(applicationMeta.getApplicationId());
   }
 }

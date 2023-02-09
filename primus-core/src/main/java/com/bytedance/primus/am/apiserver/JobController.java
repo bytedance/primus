@@ -20,8 +20,6 @@
 package com.bytedance.primus.am.apiserver;
 
 import com.bytedance.primus.am.AMContext;
-import com.bytedance.primus.am.role.RoleInfoManagerEvent;
-import com.bytedance.primus.am.role.RoleInfoManagerEventType;
 import com.bytedance.primus.apiserver.client.apis.CoreApi;
 import com.bytedance.primus.apiserver.client.apis.watch.ResourceEventHandler;
 import com.bytedance.primus.apiserver.client.apis.watch.Watch;
@@ -91,11 +89,17 @@ public class JobController extends AbstractService {
     return job;
   }
 
-  private void updateRoleStatuses(Iterable<String> roleNames,
-      Map<String, RoleStatus> roleStatuses) {
+  private void updateRoleStatuses(
+      Iterable<String> roleNames,
+      Map<String, RoleStatus> roleStatuses
+  ) {
     for (String roleName : roleNames) {
+      int priority = context
+          .getRoleInfoManager()
+          .getRoleInfo(roleName)
+          .getPriority();
+
       RoleStatus roleStatus = new RoleStatusImpl();
-      int priority = context.getRoleInfoManager().getRoleNamePriorityMap().get(roleName);
       roleStatus.setActiveNum(context.getSchedulerExecutorManager().getRegisteredNum(priority));
       roleStatus.setSucceedNum(context.getSchedulerExecutorManager().getSucceedNum(priority));
       roleStatus.setFailedNum(context.getSchedulerExecutorManager().getFailedNum(priority));
@@ -161,17 +165,8 @@ public class JobController extends AbstractService {
     public void onAdd(Job job) {
       logger.info("Job added\n{}", job.toString());
       JobController.this.jobName = job.getMeta().getName();
-
-      context.getDispatcher().getEventHandler().handle(
-          new RoleInfoManagerEvent(
-              RoleInfoManagerEventType.ROLE_CREATED,
-              job.getSpec().getRoleSpecs()));
-
+      context.emitRoleInfoCreatedEvent(job.getSpec().getRoleSpecs());
       job.getStatus().setStartTime(System.currentTimeMillis());
-      /*
-      updateJobConditions(job.getStatus(), "JobCreated", "JobCreated",
-          "Job " + job.getMeta().getName() + " created");
-       */
       updateJobToApiServer(job);
     }
 
@@ -180,20 +175,12 @@ public class JobController extends AbstractService {
       logger.info("Job updated\n{}\n{}", oldJob, newJob);
       if (oldJob.getSpec().equals(newJob.getSpec())) {
         logger.info("Job spec not changed");
-      } else {
-        logger.info("Job spec changed");
-
-        context.getDispatcher().getEventHandler().handle(
-            new RoleInfoManagerEvent(
-                RoleInfoManagerEventType.ROLE_UPDATED,
-                newJob.getSpec().getRoleSpecs()));
-
-        /*
-        updateJobConditions(newJob.getStatus(), "JobUpdated", "JobUpdated",
-            "Job " + newJob.getMeta().getName() + " updated");
-         */
-        updateJobToApiServer(newJob);
+        return;
       }
+
+      logger.info("Job spec changed");
+      context.emitRoleInfoUpdatedEvent(newJob.getSpec().getRoleSpecs());
+      updateJobToApiServer(newJob);
     }
 
     @Override

@@ -21,8 +21,6 @@ package com.bytedance.primus.am.failover;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.am.ApplicationMasterEvent;
-import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutor;
 import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.apiserver.proto.UtilsProto.CommonFailoverPolicy;
@@ -73,14 +71,10 @@ public class CommonFailoverPolicyImpl implements FailoverPolicy {
       }
       switch (failoverPolicy.getMaxFailurePolicy()) {
         case FAIL_ATTEMPT:
-          context.getDispatcher().getEventHandler().handle(
-              new ApplicationMasterEvent(context, ApplicationMasterEventType.FAIL_ATTEMPT, diag,
-                  exitCode));
+          context.emitFailAttemptEvent(diag, exitCode);
           break;
         case FAIL_APP:
-          context.getDispatcher().getEventHandler().handle(
-              new ApplicationMasterEvent(context, ApplicationMasterEventType.FAIL_APP, diag,
-                  exitCode));
+          context.emitFailApplicationEvent(diag, exitCode);
           break;
         case NONE:
           // do nothing for app, and executor itself do not need failover

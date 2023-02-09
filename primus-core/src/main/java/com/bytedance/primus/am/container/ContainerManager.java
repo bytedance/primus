@@ -25,7 +25,8 @@ import com.bytedance.primus.common.service.AbstractService;
 /**
  * ContainerManager hides the underlying container orchestrator. TODO: Better comment
  */
-public abstract class ContainerManager extends AbstractService
+public abstract class ContainerManager
+    extends AbstractService
     implements EventHandler<ContainerManagerEvent> {
 
   /**

@@ -20,17 +20,12 @@
 package com.bytedance.primus.webapp;
 
 import com.bytedance.primus.am.AMContext;
-import com.bytedance.primus.am.ApplicationMasterSuspendAppEvent;
-import com.bytedance.primus.am.datastream.DataStreamManagerEvent;
-import com.bytedance.primus.am.datastream.DataStreamManagerEventType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import javax.servlet.ServletException;
+import java.io.IOException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SuccessDataStreamServlet extends HttpServlet {
 
@@ -42,8 +37,7 @@ public class SuccessDataStreamServlet extends HttpServlet {
   }
 
   @Override
-  protected void doGet(HttpServletRequest req, HttpServletResponse resp)
-      throws ServletException, IOException {
+  protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
     String diag = "DataStream succeed by someone through http request";
     Thread thread = new Thread(new Runnable() {
       @Override
@@ -54,12 +48,10 @@ public class SuccessDataStreamServlet extends HttpServlet {
         } catch (InterruptedException e) {
           // ignore
         }
-        LOG.warn("sending ApplicationMasterEvent.SUSPEND_APP");
-        context.getDispatcher().getEventHandler().handle(
-            new DataStreamManagerEvent(
-                DataStreamManagerEventType.DATA_STREAM_SUCCEED,
-                context.getDataStreamManager().getDataSpec(),
-                0L)); // Set version to 0, cause event handler do not need version number
+        LOG.warn("sending DataStreamManagerEventType.DATA_STREAM_SUCCEED");
+        context.emitSucceedDataStreamEvent(
+            context.getDataStreamManager().getDataSpec()
+        );
       }
     });
     thread.setName("SucceedDataStreamHTTPRespondThread");

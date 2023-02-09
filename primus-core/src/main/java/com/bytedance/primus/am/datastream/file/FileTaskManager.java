@@ -25,15 +25,11 @@ import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_TASK_ST
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.am.ApplicationMasterEvent;
-import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.bytedance.primus.am.controller.SuspendStatusEnum;
 import com.bytedance.primus.am.datastream.TaskManager;
 import com.bytedance.primus.am.datastream.TaskManagerState;
 import com.bytedance.primus.am.datastream.TaskWrapper;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutor;
-import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerEvent;
-import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerEventType;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorState;
 import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.api.records.FileTask;
@@ -122,7 +118,7 @@ public class FileTaskManager implements TaskManager {
     this.taskStore = new FileTaskStore(context, name, savepointDir, readWriteLock);
     this.taskBuilder = new FileTaskBuilder(context, name, dataStreamSpec, taskStore);
 
-    InputManager inputManager = context.getPrimusConf().getInputManager();
+    InputManager inputManager = context.getApplicationMeta().getPrimusConf().getInputManager();
     maxTaskNumPerWorker = inputManager.getMaxTaskNumPerWorker();
     if (maxTaskNumPerWorker <= 0) {
       maxTaskNumPerWorker = PrimusConstants.DEFAULT_MAX_TASK_NUM_PER_WORKER;
@@ -152,18 +148,7 @@ public class FileTaskManager implements TaskManager {
     return null;
   }
 
-  private boolean isBlacklisted(AMContext context, ExecutorId executorId) {
-    if (context.getExecutorNodeMap() != null && context.getBlacklistTrackerOpt() != null) {
-      String node = context.getExecutorNodeMap().get(executorId.toUniqString());
-      return context.getBlacklistTrackerOpt()
-          .map(b -> b.isContainerBlacklisted(executorId.toUniqString()) ||
-              b.isNodeBlacklisted(node)
-          ).orElse(false);
-    }
-    return false;
-  }
-
-  private boolean isKilling(AMContext context, ExecutorId executorId) {
+  private boolean isKilling(ExecutorId executorId) {
     if (context.getSchedulerExecutorManager() == null) {
       return false;
     }
@@ -171,12 +156,16 @@ public class FileTaskManager implements TaskManager {
         .get(executorId).getExecutorState() == SchedulerExecutorState.KILLING);
   }
 
-  private boolean isEvaluationRole(AMContext context, ExecutorId executorId) {
+  private boolean isEvaluationRole(ExecutorId executorId) {
     if (context.getRoleInfoManager() == null) {
       return false;
     }
-    return context.getRoleInfoManager().getRoleNameRoleInfoMap().get(executorId.getRoleName())
-        .getRoleSpec().getExecutorSpecTemplate().getIsEvaluation();
+    return context
+        .getRoleInfoManager()
+        .getRoleInfo(executorId.getRoleName())
+        .getRoleSpec()
+        .getExecutorSpecTemplate()
+        .getIsEvaluation();
   }
 
   private boolean isZombie(ExecutorId executorId) {
@@ -209,17 +198,6 @@ public class FileTaskManager implements TaskManager {
       taskStatus.setAssignedNodeUrl(context
           .getMonitorInfoProvider()
           .getExecutorLogUrl(schedulerExecutor));
-    }
-  }
-
-  private void addTaskFailureBlacklist(AMContext context, long taskId, ExecutorId executorId) {
-    if (context.getExecutorNodeMap() != null && context.getBlacklistTrackerOpt() != null) {
-      String node = context.getExecutorNodeMap().get(executorId.toUniqString());
-      context.getBlacklistTrackerOpt().ifPresent(b -> b.addTaskFailure(
-          Long.toString(taskId),
-          executorId.toUniqString(),
-          node,
-          System.currentTimeMillis()));
     }
   }
 
@@ -271,15 +249,17 @@ public class FileTaskManager implements TaskManager {
       return taskCommands;
     }
 
-    boolean isBlacklisted = isBlacklisted(context, executorId);
-    boolean isExecutorKilling = isKilling(context, executorId);
+    boolean isBlacklisted = context
+        .getSchedulerExecutorManager()
+        .isBlacklisted(executorId);
+    boolean isExecutorKilling = isKilling(executorId);
     if (isBlacklisted) {
       LOG.info("executorId[" + executorId + "] is in blacklist. Cannot assign new task");
     } else if (isExecutorKilling) {
       LOG.info("executorId[" + executorId + "] is in killing. Cannot assign new task");
     }
     isExecutorKilling = isBlacklisted || isExecutorKilling;
-    boolean isEvaluation = isEvaluationRole(context, executorId);
+    boolean isEvaluation = isEvaluationRole(executorId);
     boolean isZombieExecutor = isZombie(executorId);
 
     Map<Long, TaskWrapper> taskMapInAm = taskStore.getRunningTasks(executorId);
@@ -343,10 +323,12 @@ public class FileTaskManager implements TaskManager {
 
           // recycle failed task in executor
           if (taskStatus.getTaskState() == TaskState.FAILED) {
-            context.getTimelineLogger()
-                .logEvent(PRIMUS_TASK_STATE_FAILED_ATTEMPT_EVENT.name(),
-                    taskWrapper.getTask().toString());
-            addTaskFailureBlacklist(context, taskStatus.getTaskId(), executorId);
+            context.logTimelineEvent(
+                PRIMUS_TASK_STATE_FAILED_ATTEMPT_EVENT.name(),
+                taskWrapper.getTask().toString());
+            context
+                .getSchedulerExecutorManager()
+                .addTaskFailureBlacklist(taskStatus.getTaskId(), executorId);
             if (taskWrapper.getTask().getNumAttempt() >= maxTaskAttempts) {
               LOG.info("Task failure times reaches to maxTaskAttempts " + maxTaskAttempts
                   + ", remove task[" + entry.getKey() + "] on executor[" + executorId + "]");
@@ -362,8 +344,9 @@ public class FileTaskManager implements TaskManager {
 
           // remove succeeded task in executor
           if (taskStatus.getTaskState() == TaskState.SUCCEEDED) {
-            context.getTimelineLogger()
-                .logEvent(PRIMUS_TASK_STATE_SUCCESS_EVENT.name(), taskWrapper.getTask().toString());
+            context.logTimelineEvent(
+                PRIMUS_TASK_STATE_SUCCESS_EVENT.name(),
+                taskWrapper.getTask().toString());
             LOG.info("Task succeed, remove task[" + entry.getKey() + "] on executor[" + executorId
                 + "] and add to finished tasks");
             taskStatus.setFinishTime(new Date().getTime());
@@ -445,17 +428,18 @@ public class FileTaskManager implements TaskManager {
             }
             break;
           case SUCCEEDED:
-            context.getTimelineLogger()
-                .logEvent(PRIMUS_TASK_STATE_SUCCESS_EVENT.name(), taskWrapper.getTask().toString());
+            context.logTimelineEvent(
+                PRIMUS_TASK_STATE_SUCCESS_EVENT.name(),
+                taskWrapper.getTask().toString());
             LOG.info("[Unregister]Task succeed, remove task[" + taskWrapper.getTask().getTaskId()
                 + "] on executor[" + executorId + "] and add to finished tasks");
             taskWrapper.getTaskStatus().setFinishTime(new Date().getTime());
             taskStore.addSuccessTask(taskWrapper);
             break;
           case FAILED:
-            context.getTimelineLogger()
-                .logEvent(PRIMUS_TASK_STATE_FAILED_ATTEMPT_EVENT.name(),
-                    taskWrapper.getTask().toString());
+            context.logTimelineEvent(
+                PRIMUS_TASK_STATE_FAILED_ATTEMPT_EVENT.name(),
+                taskWrapper.getTask().toString());
             if (taskWrapper.getTask().getNumAttempt() >= maxTaskAttempts) {
               LOG.info("[Unregister]Task failure times reaches to maxTaskAttempts "
                   + maxTaskAttempts + ", remove task[" + taskWrapper.getTask().getTaskId()
@@ -485,8 +469,9 @@ public class FileTaskManager implements TaskManager {
   }
 
   private void failTask(TaskWrapper taskWrapper) {
-    context.getTimelineLogger()
-        .logEvent(PRIMUS_TASK_STATE_FAILED_EVENT.name(), taskWrapper.getTask().toString());
+    context.logTimelineEvent(
+        PRIMUS_TASK_STATE_FAILED_EVENT.name(),
+        taskWrapper.getTask().toString());
     taskWrapper.getTaskStatus().setTaskState(TaskState.FAILED);
     taskWrapper.getTaskStatus().setFinishTime(new Date().getTime());
     taskStore.addFailureTask(taskWrapper);
@@ -645,12 +630,14 @@ public class FileTaskManager implements TaskManager {
   }
 
   private TaskWrapper pollPendingTask(ExecutorId executorId) {
-    float sampleRate = context.getPrimusConf().getInputManager().getFileConfig().getSampleRate();
+    float sampleRate = context.getApplicationMeta().getPrimusConf().getInputManager()
+        .getFileConfig()
+        .getSampleRate();
     TaskWrapper taskWrapper = sampleRate <= 0
         ? taskStore.pollPendingTask()
         : pollPendingTaskWithSample(sampleRate);
 
-    if (context.getPrimusConf().getInputManager().getGracefulShutdown()) {
+    if (context.getApplicationMeta().getPrimusConf().getInputManager().getGracefulShutdown()) {
       boolean noPendingTasks =
           taskBuilder.isFinished() && taskStore.getPendingTaskNum() <= 0 && taskWrapper == null;
       int runningTaskCount = taskStore.getRunningTasks(executorId).size();
@@ -766,9 +753,7 @@ public class FileTaskManager implements TaskManager {
   }
 
   private void gracefulShutdown(ExecutorId executorId, boolean checkTimeout) {
-    context.getDispatcher().getEventHandler().handle(
-        new SchedulerExecutorManagerEvent(SchedulerExecutorManagerEventType.EXECUTOR_KILL,
-            executorId));
+    context.emitExecutorKillEvent(executorId);
     if (checkTimeout) {
       startTimeoutCheck();
     }
@@ -779,8 +764,9 @@ public class FileTaskManager implements TaskManager {
       Thread thread = new Thread(
           () -> {
             long startTime = System.currentTimeMillis();
-            int timeoutMillis = IntegerUtils.selectIfPositiveOrDefault(
-                context.getPrimusConf().getInputManager().getGracefulShutdownTimeWaitSec(),
+            int timeoutMillis = IntegerUtils.ensurePositiveOrDefault(
+                context.getApplicationMeta().getPrimusConf().getInputManager()
+                    .getGracefulShutdownTimeWaitSec(),
                 DEFAULT_GRACEFUL_SHUTDOWN_TIME_WAIT_SEC
             );
 
@@ -803,9 +789,7 @@ public class FileTaskManager implements TaskManager {
 
   private void failApp(String diag, int exitCode) {
     LOG.error(diag);
-    context.getDispatcher().getEventHandler().handle(
-        new ApplicationMasterEvent(context, ApplicationMasterEventType.FAIL_APP, diag,
-            exitCode));
+    context.emitFailApplicationEvent(diag, exitCode);
   }
 
   @Override

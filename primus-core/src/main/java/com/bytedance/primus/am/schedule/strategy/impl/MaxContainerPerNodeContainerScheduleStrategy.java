@@ -19,7 +19,6 @@
 
 package com.bytedance.primus.am.schedule.strategy.impl;
 
-import com.bytedance.primus.am.role.RoleInfo;
 import com.bytedance.primus.am.role.RoleInfoManager;
 import com.bytedance.primus.am.schedule.strategy.ContainerScheduleAction;
 import com.bytedance.primus.am.schedule.strategy.ContainerScheduleContext;
@@ -51,15 +50,15 @@ public class MaxContainerPerNodeContainerScheduleStrategy implements ContainerSc
   }
 
   private MaxContainerPerNodeLimiter getLimiter(int priority) {
-    MaxContainerPerNodeLimiter nodeLimiter = perNodeLimiterHashMap.computeIfAbsent(priority, t -> {
-      RoleInfo roleInfo = roleInfoManager.getPriorityRoleInfoMap().get(priority);
-      int maxReplicasPerNode = roleInfo.getRoleSpec().getScheduleStrategy()
+    return perNodeLimiterHashMap.computeIfAbsent(priority, t -> {
+      int maxReplicasPerNode = roleInfoManager
+          .getRoleInfo(priority)
+          .getRoleSpec()
+          .getScheduleStrategy()
           .getMaxReplicasPerNode();
       return new MaxContainerPerNodeLimiter(maxReplicasPerNode);
     });
-    return nodeLimiter;
   }
-
 
   @Override
   public void postProcess(ContainerScheduleAction currentAction,

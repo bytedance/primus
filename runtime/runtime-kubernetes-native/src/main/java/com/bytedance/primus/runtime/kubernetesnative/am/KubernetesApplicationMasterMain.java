@@ -19,17 +19,16 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.am;
 
-import static com.bytedance.primus.am.ApplicationExitCode.KUBERNETES_ENV_MISSING;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_ID_ENV_KEY;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_DRIVER_POD_UNIQ_ID_ENV_KEY;
 
 import com.bytedance.primus.am.AMCommandParser;
 import com.bytedance.primus.am.ApplicationExitCode;
+import com.bytedance.primus.am.ApplicationMaster;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.utils.ConfigurationUtils;
-import java.util.HashSet;
-import org.apache.commons.cli.CommandLine;
+import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,46 +36,61 @@ public class KubernetesApplicationMasterMain {
 
   private static final Logger LOG = LoggerFactory.getLogger(KubernetesApplicationMasterMain.class);
 
-  public static void main(String[] args) throws Exception {
-    CommandLine cmd = AMCommandParser.getCmd(args);
-    String configPath = cmd.getOptionValue(AMCommandParser.CONFIGURATION_PATH);
-    PrimusConf primusConf = ConfigurationUtils.load(configPath);
+  public static void main(String[] args) {
+    try {
+      // Obtain PrimusConf
+      PrimusConf primusConf = ConfigurationUtils.load(
+          AMCommandParser
+              .getCmd(args)
+              .getOptionValue(AMCommandParser.CONFIGURATION_PATH)
+      );
 
-    for (String key : new HashSet<String>() {{
-      add(PRIMUS_APP_ID_ENV_KEY);
-      add(PRIMUS_DRIVER_POD_UNIQ_ID_ENV_KEY);
-    }}) {
-      if (!System.getenv().containsKey(key)) {
-        LOG.error("Missing Environment Key: " + key);
-        System.exit(KUBERNETES_ENV_MISSING.getValue());
-        throw new RuntimeException("placeholder to suppress compiler error");
-      }
-    }
+      // Obtain ApplicationId
+      String applicationId = getSystemEnv(PRIMUS_APP_ID_ENV_KEY);
+      String driverPodUniqId = getSystemEnv(PRIMUS_DRIVER_POD_UNIQ_ID_ENV_KEY);
 
-    run(primusConf,
-        System.getenv().get(PRIMUS_APP_ID_ENV_KEY),
-        System.getenv().get(PRIMUS_DRIVER_POD_UNIQ_ID_ENV_KEY)
-    );
-  }
+      // Init metrics
+      PrimusMetrics.init(primusConf.getRuntimeConf(), applicationId);
 
-  public static void run(PrimusConf primusConf, String appId, String driverPodUniqId) {
-    try (KubernetesApplicationMaster am = new KubernetesApplicationMaster(appId, driverPodUniqId)) {
-      LOG.info("Metrics init ...");
-      PrimusMetrics.init(primusConf.getRuntimeConf(), appId);
-
-      LOG.info("Application master init...");
-      am.init(primusConf);
-
-      LOG.info("Application master start...");
-      am.start();
-
-      int exitCode = am.waitForStop();
-      LOG.info("Application master exit code: {}.", exitCode);
-      System.exit(exitCode);
+      // Start running
+      run(primusConf, applicationId, driverPodUniqId);
 
     } catch (Throwable e) {
       LOG.error("Runtime error", e);
       System.exit(ApplicationExitCode.RUNTIME_ERROR.getValue());
     }
+  }
+
+  public static void run(
+      PrimusConf primusConf,
+      String applicationId,
+      String driverPodUniqId
+  ) throws Exception {
+    try (ApplicationMaster am = new KubernetesApplicationMaster(
+        primusConf,
+        applicationId,
+        driverPodUniqId)
+    ) {
+      LOG.info("Initializing Application Master...");
+      am.init();
+
+      LOG.info("Starting Application Master...");
+      am.start();
+
+      int exitCode = am.waitForStop();
+      LOG.info("Application master exit code: {}.", exitCode);
+      System.exit(exitCode);
+    }
+  }
+
+  private static String getSystemEnv(String key) {
+    if (!System.getenv().containsKey(key)) {
+      throw new RuntimeException("Missing environment variable: " + key);
+    }
+    String value = System.getenv().get(key);
+    if (Strings.isNullOrEmpty(value)) {
+      throw new RuntimeException("Invalid environment variable: " + key + " of value: " + value);
+    }
+    return value;
   }
 }

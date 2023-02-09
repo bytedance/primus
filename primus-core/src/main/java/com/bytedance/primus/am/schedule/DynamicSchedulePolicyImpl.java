@@ -23,7 +23,6 @@ import com.bytedance.primus.am.role.RoleInfo;
 import com.bytedance.primus.am.role.RoleInfoManager;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManager;
 import com.bytedance.primus.api.records.ExecutorId;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,9 +42,9 @@ public class DynamicSchedulePolicyImpl implements SchedulePolicy {
 
   @Override
   public boolean canSchedule(ExecutorId executorId) {
-    RoleInfo roleInfo = roleInfoManager.getRoleNameRoleInfoMap().get(executorId.getRoleName());
+    RoleInfo roleInfo = roleInfoManager.getRoleInfo(executorId);
     if (roleInfo.getRoleSpec().getMinReplicas() > 0) {
-      int priority = roleInfoManager.getRoleNamePriorityMap().get(executorId.getRoleName());
+      int priority = roleInfoManager.getRolePriority(executorId);
       int registeredNum = schedulerExecutorManager.getRegisteredNum(priority);
       int completedNum = schedulerExecutorManager.getCompletedNum(priority);
       if (roleInfo.getRoleSpec().getMinReplicas() > completedNum + registeredNum) {

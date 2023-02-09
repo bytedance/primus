@@ -54,7 +54,7 @@ public class SchedulerExecutorManagerTest {
             .setYarnScheduler(YarnScheduler.getDefaultInstance())
             .build())
         .build();
-    when(context.getPrimusConf()).thenReturn(primusConf);
+    when(context.getApplicationMeta().getPrimusConf()).thenReturn(primusConf);
   }
 
   @Test

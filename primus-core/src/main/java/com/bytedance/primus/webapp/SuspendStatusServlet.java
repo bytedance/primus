@@ -44,5 +44,4 @@ public class SuspendStatusServlet extends HttpServlet {
     SuspendStatusEnum suspendStatusEnum = context.getSuspendManager().suspendStatus();
     resp.getOutputStream().print(suspendStatusEnum.toString());
   }
-
 }

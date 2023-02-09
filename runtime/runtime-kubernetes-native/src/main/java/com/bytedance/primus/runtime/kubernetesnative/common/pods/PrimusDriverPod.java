@@ -135,8 +135,8 @@ public class PrimusDriverPod extends PrimusBasePod {
       List<V1VolumeMount> mainContainerMounts
   ) throws ApiException {
     // Preprocess
-    String driverPodName = ResourceNameBuilder.buildDriverPodName(context.getAppId());
-    LOG.info("AppId:" + context.getAppId() + ", DriverName:" + driverPodName);
+    String driverPodName = ResourceNameBuilder.buildDriverPodName(context.getApplicationId());
+    LOG.info("AppId:" + context.getApplicationId() + ", DriverName:" + driverPodName);
 
     // Generate containers
     Preconditions.checkArgument(context.getRuntimeConf().hasKubernetesNativeConf());
@@ -144,7 +144,7 @@ public class PrimusDriverPod extends PrimusBasePod {
 
     V1Container initContainer =
         new PrimusInitContainer(
-            context.getAppId(),
+            context.getApplicationId(),
             context.getHdfsStagingDir().toString(),
             kubernetesNativeConf.getDriverPodConf().getInitContainerConf(),
             context.getDriverEnvironMap(),
@@ -153,7 +153,7 @@ public class PrimusDriverPod extends PrimusBasePod {
 
     V1Container driverContainer =
         new PrimusDriverContainer(
-            context.getAppId(),
+            context.getApplicationId(),
             context.getResourceLimitMap(),
             kubernetesNativeConf.getDriverPodConf().getMainContainerConf(),
             context.getDriverEnvironMap(),
@@ -162,16 +162,16 @@ public class PrimusDriverPod extends PrimusBasePod {
 
     // Assemble pod
     Dictionary dictionary = Dictionary.newDictionary(
-        context.getAppId(),
+        context.getApplicationId(),
         context.getAppName(),
-        context.getKubernetesSchedulerConfig().getNamespace(),
+        context.getBaseMeta().getKubernetesNamespace(),
         driverPodName
     );
 
     V1Pod raw = new V1Pod()
         .metadata(new V1ObjectMeta()
             .name(driverPodName)
-            .namespace(context.getKubernetesSchedulerConfig().getNamespace())
+            .namespace(context.getBaseMeta().getKubernetesNamespace())
             .labels(dictionary.translate(
                 loadBaseLabelMap(context, driverPodName),
                 kubernetesNativeConf.getDriverPodConf().getLabelsMap()
@@ -181,8 +181,8 @@ public class PrimusDriverPod extends PrimusBasePod {
             ))
         )
         .spec(new V1PodSpec()
-            .serviceAccountName(context.getKubernetesSchedulerConfig().getServiceAccountName())
-            .schedulerName(context.getKubernetesSchedulerConfig().getSchedulerName())
+            .serviceAccountName(context.getBaseMeta().getKubernetesServiceAccountName())
+            .schedulerName(context.getBaseMeta().getKubernetesSchedulerName())
             .restartPolicy("Never")
             .volumes(sharedVolumes)
             .initContainers(Collections.singletonList(initContainer))
@@ -190,7 +190,7 @@ public class PrimusDriverPod extends PrimusBasePod {
 
     LOG.info("Driver Pod to create: {}", raw);
     return api.createNamespacedPod(
-        context.getKubernetesSchedulerConfig().getNamespace(),
+        context.getBaseMeta().getKubernetesNamespace(),
         raw, "true" /* pretty */, null /* dryRun*/, null /* fieldManager */);
   }
 
@@ -200,14 +200,14 @@ public class PrimusDriverPod extends PrimusBasePod {
   ) throws ApiException {
     V1ConfigMap raw = new V1ConfigMap()
         .metadata(new V1ObjectMeta()
-            .name(ResourceNameBuilder.buildConfigMapName(context.getAppId()))
-            .namespace(context.getKubernetesSchedulerConfig().getNamespace())
+            .name(ResourceNameBuilder.buildConfigMapName(context.getApplicationId()))
+            .namespace(context.getBaseMeta().getKubernetesNamespace())
             .addOwnerReferencesItem(ownerReference))
         .data(loadConfigMapEnvs(context, ownerReference));
 
     LOG.info("ConfigMap to create: {}", raw);
     return api.createNamespacedConfigMap(
-        context.getKubernetesSchedulerConfig().getNamespace(),
+        context.getBaseMeta().getKubernetesNamespace(),
         raw, "true" /* pretty */, null /* dryRun*/, null /* fieldManager */);
   }
 
@@ -218,11 +218,11 @@ public class PrimusDriverPod extends PrimusBasePod {
   ) throws ApiException {
     V1Service raw = new V1Service()
         .metadata(new V1ObjectMeta()
-            .name(ResourceNameBuilder.buildDriverShortServiceName(context.getAppId()))
+            .name(ResourceNameBuilder.buildDriverShortServiceName(context.getApplicationId()))
             .addOwnerReferencesItem(ownerReference))
         .spec(new V1ServiceSpec()
             .clusterIP("None")
-            .putSelectorItem(PRIMUS_APP_ID_LABEL_NAME, context.getAppId())
+            .putSelectorItem(PRIMUS_APP_ID_LABEL_NAME, context.getApplicationId())
             .putSelectorItem(PRIMUS_ROLE_SELECTOR_LABEL_NAME, PRIMUS_ROLE_DRIVER)
             .ports(Arrays.asList(
                 new V1ServicePort()
@@ -238,7 +238,7 @@ public class PrimusDriverPod extends PrimusBasePod {
 
     LOG.info("Service to create: {}", raw);
     return api.createNamespacedService(
-        context.getKubernetesSchedulerConfig().getNamespace(), raw,
+        context.getBaseMeta().getKubernetesNamespace(), raw,
         "true" /* pretty */, null /* dryRun*/, null /* fieldManager */);
   }
 
@@ -248,7 +248,7 @@ public class PrimusDriverPod extends PrimusBasePod {
   ) {
     // Primus envs
     Map<String, String> primusEnvs = new HashMap<String, String>() {{
-      put(PRIMUS_APP_ID_ENV_KEY, context.getAppId());
+      put(PRIMUS_APP_ID_ENV_KEY, context.getApplicationId());
       put(PRIMUS_APP_NAME_ENV_KEY, context.getAppName());
 
       put(PRIMUS_DRIVER_POD_UNIQ_ID_ENV_KEY, ownerReference.getUid());
@@ -276,7 +276,7 @@ public class PrimusDriverPod extends PrimusBasePod {
   ) {
     return new HashMap<String, String>() {{
       // Pod common
-      put(PRIMUS_APP_ID_LABEL_NAME, context.getAppId());
+      put(PRIMUS_APP_ID_LABEL_NAME, context.getApplicationId());
       put(PRIMUS_APP_NAME_LABEL_NAME, context.getAppName());
       put(KUBERNETES_POD_META_LABEL_OWNER, context.getUser());
       // Driver specific
@@ -287,10 +287,14 @@ public class PrimusDriverPod extends PrimusBasePod {
   public String getAMPodStatus() {
     try {
       CoreV1Api api = new CoreV1Api();
-      String driverPodName = ResourceNameBuilder.buildDriverPodName(context.getAppId());
-      V1Pod driverPod = api
-          .readNamespacedPod(driverPodName, context.getKubernetesSchedulerConfig().getNamespace(),
-              "true" /* pretty */, false /* exact */, false /* export */);
+      String driverPodName = ResourceNameBuilder.buildDriverPodName(context.getApplicationId());
+      V1Pod driverPod = api.readNamespacedPod(
+          driverPodName,
+          context.getBaseMeta().getKubernetesNamespace(),
+          "true" /* pretty */,
+          false /* exact */,
+          false /* export */
+      );
       return Objects.requireNonNull(driverPod.getStatus()).getPhase();
 
     } catch (Exception ex) {

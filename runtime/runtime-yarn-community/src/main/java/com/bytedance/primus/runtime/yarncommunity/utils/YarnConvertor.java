@@ -32,9 +32,11 @@ import com.bytedance.primus.common.model.records.Resource;
 import com.bytedance.primus.common.model.records.ResourceInformation;
 import com.bytedance.primus.common.model.records.Token;
 import com.bytedance.primus.common.model.records.impl.pb.ResourcePBImpl;
+import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.ExecutionType;
 
@@ -249,5 +251,17 @@ public abstract class YarnConvertor {
     return new HashMap<String, String>() {{
       // TODO: Fulfill these
     }};
+  }
+
+  public static Configuration loadYarnConfiguration(PrimusConf primusConf) {
+    if (!primusConf.getRuntimeConf().hasYarnCommunityConf()) {
+      return new Configuration();
+    }
+    Configuration base = new Configuration();
+    primusConf.getRuntimeConf()
+        .getHdfsConf()
+        .getHadoopConfMap()
+        .forEach(base::set);
+    return base;
   }
 }

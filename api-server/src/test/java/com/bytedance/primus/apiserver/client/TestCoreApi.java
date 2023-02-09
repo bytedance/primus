@@ -19,6 +19,8 @@
 
 package com.bytedance.primus.apiserver.client;
 
+import static org.junit.Assert.assertEquals;
+
 import com.bytedance.primus.apiserver.client.apis.CoreApi;
 import com.bytedance.primus.apiserver.client.apis.watch.ResourceEventHandler;
 import com.bytedance.primus.apiserver.client.apis.watch.Watch;
@@ -29,14 +31,12 @@ import com.bytedance.primus.apiserver.records.impl.MetaImpl;
 import com.bytedance.primus.apiserver.service.ApiServer;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
-
-import static org.junit.Assert.assertEquals;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @FixMethodOrder()
 public class TestCoreApi {
@@ -50,7 +50,7 @@ public class TestCoreApi {
 
   @BeforeClass
   public static void setup() throws Exception {
-    apiServer = new ApiServer();
+    apiServer = new ApiServer(null, 0);
     apiServer.start();
     addTimes = new AtomicInteger();
     updateTimes = new AtomicInteger();
@@ -63,7 +63,7 @@ public class TestCoreApi {
     updateTimes.set(0);
     deleteTimes.set(0);
 
-    Client client = new DefaultClient(apiServer.getHostName(), apiServer.getPort());
+    Client client = new DefaultClient(apiServer.getHostname(), apiServer.getPort());
     CoreApi coreApi = new CoreApi(client);
     Meta meta = new MetaImpl();
     meta.setName("chief_0");
@@ -114,7 +114,7 @@ public class TestCoreApi {
     updateTimes.set(0);
     deleteTimes.set(0);
 
-    Client client = new DefaultClient(apiServer.getHostName(), apiServer.getPort());
+    Client client = new DefaultClient(apiServer.getHostname(), apiServer.getPort());
     CoreApi coreApi = new CoreApi(client);
     Meta meta = new MetaImpl();
     meta.setName("chief_1");

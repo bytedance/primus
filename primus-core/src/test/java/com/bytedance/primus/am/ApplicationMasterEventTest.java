@@ -40,7 +40,7 @@ public class ApplicationMasterEventTest {
     PrimusConf primusConf = PrimusConf.newBuilder()
         .setGracefulShutdownTimeoutMin(10)
         .build();
-    when(context.getPrimusConf()).thenReturn(primusConf);
+    when(context.getApplicationMeta().getPrimusConf()).thenReturn(primusConf);
   }
 
   @Test

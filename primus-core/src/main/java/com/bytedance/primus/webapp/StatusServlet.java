@@ -44,7 +44,8 @@ public class StatusServlet extends HttpServlet {
 
   public static void setContext(AMContext context) {
     StatusServlet.context = context;
-    StatusServlet.primusConfJsonString = ProtoJsonConverter.getJsonString(context.getPrimusConf());
+    StatusServlet.primusConfJsonString = ProtoJsonConverter
+        .getJsonString(context.getApplicationMeta().getPrimusConf());
   }
 
   public static StatusBundle makeStatusBundle() {

@@ -22,13 +22,7 @@ package com.bytedance.primus.am.schedulerexecutor;
 import com.bytedance.blacklist.BlacklistTracker;
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.datastream.TaskManager;
-import com.bytedance.primus.am.eventlog.ExecutorCompleteEvent;
-import com.bytedance.primus.am.eventlog.ExecutorEvent;
-import com.bytedance.primus.am.eventlog.ExecutorStartEvent;
-import com.bytedance.primus.am.failover.FailoverPolicyManager;
 import com.bytedance.primus.am.role.RoleInfo;
-import com.bytedance.primus.am.role.RoleInfoManager;
-import com.bytedance.primus.am.schedule.SchedulePolicyManager;
 import com.bytedance.primus.api.protocolrecords.RegisterRequest;
 import com.bytedance.primus.api.protocolrecords.RegisterResponse;
 import com.bytedance.primus.api.protocolrecords.impl.pb.RegisterResponsePBImpl;
@@ -52,7 +46,6 @@ import com.bytedance.primus.common.model.records.Priority;
 import com.bytedance.primus.common.model.records.impl.pb.ContainerPBImpl;
 import com.bytedance.primus.common.network.NetworkConfig;
 import com.bytedance.primus.common.service.AbstractService;
-import com.bytedance.primus.common.util.AbstractLivelinessMonitor;
 import com.bytedance.primus.executor.ExecutorExitCode;
 import com.bytedance.primus.proto.PrimusConfOuterClass.NetworkConfig.NetworkType;
 import java.util.ArrayList;
@@ -78,50 +71,30 @@ public class SchedulerExecutorManager extends AbstractService
 
   private static final Logger LOG = LoggerFactory.getLogger(SchedulerExecutorManager.class);
 
-  private AMContext context;
-  private RoleInfoManager roleInfoManager;
-  private SchedulePolicyManager schedulePolicyManager;
-  private FailoverPolicyManager failoverPolicyManager;
-  private AbstractLivelinessMonitor executorMonitor;
+  private final AMContext context;
+  private final NetworkConfig networkConfig;
+  private final Map<String, String> executorNodeMap = new ConcurrentHashMap<>();
+  private final Map<String, ExecutorSpec[]> clusterSpec = new ConcurrentHashMap<>();
 
-  private Map<String, ExecutorSpec[]> clusterSpec;
+  private final Map<Integer, Integer> priorityRequestNumMap = new HashMap<>();
+  private final Map<Integer, Integer> priorityFinishNumMap = new HashMap<>();
+  private final Map<Integer, BitSet> priorityExecutorIndexesMap = new HashMap<>();
 
-  private Map<Integer, Integer> priorityRequestNumMap;
-  private Map<Integer, Integer> priorityFinishNumMap;
+  private final Map<Integer, Integer> priorityCompletedNumMap = new ConcurrentHashMap<>();
+  private final Map<Integer, Integer> prioritySuccessNumMap = new ConcurrentHashMap<>();
+  private final Map<String, ExecutorId> containerExecutorMap = new ConcurrentHashMap<>();
+  private final Map<ExecutorId, SchedulerExecutor> runningExecutorMap = new ConcurrentHashMap<>();
+  private final Map<ExecutorId, String> registeredExecutorUniqIdMap = new ConcurrentHashMap<>();
+  private final List<SchedulerExecutor> completedExecutors = new ArrayList<>();
 
-  private Map<Integer, BitSet> priorityExecutorIndexesMap;
-  private Map<Integer, Integer> priorityCompletedNumMap;
-  private Map<Integer, Integer> prioritySuccessNumMap;
-  private Map<String, ExecutorId> containerExecutorMap;
-  private Map<ExecutorId, SchedulerExecutor> runningExecutorMap;
-  private Map<ExecutorId, String> registeredExecutorUniqIdMap;
-  private List<SchedulerExecutor> completedExecutors;
   private final ReadLock readLock;
   private final WriteLock writeLock;
-  private AtomicLong uniqId = new AtomicLong(0);
-
-  private NetworkConfig networkConfig;
+  private final AtomicLong uniqId = new AtomicLong(0);
 
   public SchedulerExecutorManager(AMContext context) {
     super(SchedulerExecutorManager.class.getName());
     this.context = context;
-    roleInfoManager = context.getRoleInfoManager();
-    failoverPolicyManager = context.getFailoverPolicyManager();
-    schedulePolicyManager = context.getSchedulePolicyManager();
-    executorMonitor = context.getMonitor();
-    clusterSpec = new ConcurrentHashMap<>();
-    priorityRequestNumMap = new HashMap<>();
-    priorityFinishNumMap = new HashMap<>();
-    priorityExecutorIndexesMap = new HashMap<>();
-    priorityCompletedNumMap = new ConcurrentHashMap<>();
-    prioritySuccessNumMap = new ConcurrentHashMap<>();
-    containerExecutorMap = new ConcurrentHashMap<>();
-    runningExecutorMap = new ConcurrentHashMap<>();
-    registeredExecutorUniqIdMap = new ConcurrentHashMap<>();
-
-    networkConfig = new NetworkConfig(context.getPrimusConf());
-
-    completedExecutors = new ArrayList<>();
+    networkConfig = new NetworkConfig(context.getApplicationMeta().getPrimusConf());
 
     ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
     readLock = lock.readLock();
@@ -271,8 +244,7 @@ public class SchedulerExecutorManager extends AbstractService
       }
       bitSet.set(executorIndex);
       ExecutorId executorId = new ExecutorIdPBImpl();
-      String roleName = roleInfoManager.getPriorityRoleInfoMap().get(priority).getRoleName();
-      executorId.setRoleName(roleName);
+      executorId.setRoleName(getRoleName(priority));
       executorId.setIndex(executorIndex);
       long uniqId = this.uniqId.incrementAndGet();
       executorId.setUniqId(uniqId);
@@ -287,23 +259,22 @@ public class SchedulerExecutorManager extends AbstractService
       containerExecutorMap.put(container.getId().toString(), executorId);
       LOG.info("runningExecutorMap put [{}], containerExecutorMap put [{}]", executorId,
           container.getId());
-      ExecutorEvent executorEvent = new ExecutorStartEvent(Integer.toString(executorIndex),
-          executorId);
-      context.getDispatcher().getEventHandler().handle(executorEvent);
+
+      context.emitExecutorStartStatusEvent(Integer.toString(executorIndex), executorId);
       PrimusMetrics.emitStoreWithAppIdTag(
           "am.executor_num",
           new HashMap<String, String>() {{
-            put("role", roleName);
+            put("role", executorId.getRoleName());
           }},
           bitSet.cardinality());
       return executorId;
+
     } catch (Exception e) {
       LOG.warn("Failed to create executor", e);
       return null;
     } finally {
       writeLock.unlock();
     }
-
   }
 
   public ExecutorId createExecutor(Container container) {
@@ -316,8 +287,9 @@ public class SchedulerExecutorManager extends AbstractService
         return null;
       }
 
-      if (context.getBlacklistTrackerOpt().isPresent() && isContainerHostInBlacklist(container,
-          context.getBlacklistTrackerOpt().get())) {
+      if (context.getBlacklistTracker().isPresent() &&
+          isContainerHostInBlacklist(context.getBlacklistTracker().get(), container)
+      ) {
         LOG.info("Current container's Host is in Blacklist, Id:{}, Host:{}",
             container.getId().toString(), container.getNodeId().getHost());
         return null;
@@ -325,22 +297,19 @@ public class SchedulerExecutorManager extends AbstractService
 
       bitSet.set(executorIndex);
       ExecutorId executorId = new ExecutorIdPBImpl();
-      String roleName = roleInfoManager.getPriorityRoleInfoMap().get(priority).getRoleName();
-      executorId.setRoleName(roleName);
+      executorId.setRoleName(getRoleName(priority));
       executorId.setIndex(executorIndex);
       executorId.setUniqId(uniqId.incrementAndGet());
       runningExecutorMap.put(executorId, new SchedulerExecutorImpl(context, executorId, container));
       LOG.info("runningExecutorMap put [" + executorId + "]");
       containerExecutorMap.put(container.getId().toString(), executorId);
       LOG.info("containerExecutorMap put [" + container.getId() + "]");
-      context.getExecutorNodeMap()
-          .put(executorId.toUniqString(), container.getNodeId().getHost());
-      ExecutorEvent executorEvent =
-          new ExecutorStartEvent(container.getId().toString(), executorId);
-      context.getDispatcher().getEventHandler().handle(executorEvent);
+      executorNodeMap.put(executorId.toUniqString(), container.getNodeId().getHost());
+      context
+          .emitExecutorStartStatusEvent(container.getId().toString(), executorId);
       PrimusMetrics.emitStoreWithAppIdTag("am.executor_num",
           new HashMap<String, String>() {{
-            put("role", roleName);
+            put("role", executorId.getRoleName());
           }},
           bitSet.cardinality());
       return executorId;
@@ -352,8 +321,10 @@ public class SchedulerExecutorManager extends AbstractService
     }
   }
 
-  private boolean isContainerHostInBlacklist(Container container,
-      BlacklistTracker blacklistTrackerOpt) {
+  private boolean isContainerHostInBlacklist(
+      BlacklistTracker blacklistTrackerOpt,
+      Container container
+  ) {
     try {
       writeLock.lock();
       Set<String> latestNodeBlackList = blacklistTrackerOpt.getNodeBlacklist().keySet();
@@ -387,22 +358,23 @@ public class SchedulerExecutorManager extends AbstractService
         schedulerExecutor.setSpec(request.getExecutorSpec());
         updateClusterSpec(request.getExecutorSpec());
         schedulerExecutor.handle(new SchedulerExecutorEvent(SchedulerExecutorEventType.REGISTERED));
-        executorMonitor.register(executorId);
+        context.getExecutorMonitor().register(executorId);
       } else {
-        executorMonitor.receivedPing(executorId);
+        context.getExecutorMonitor().receivedPing(executorId);
       }
 
       if (schedulerExecutor.getExecutorState() != SchedulerExecutorState.KILLING) {
-        if (!schedulePolicyManager.canSchedule(executorId)) {
-          LOG.warn("Cannot schedule executor[" + executorId +
-              "], not all needed executor registered");
+        if (!context.getSchedulePolicyManager().canSchedule(executorId)) {
+          LOG.warn("Cannot schedule executor[{}], not all needed executor registered", executorId);
           return response;
         }
       }
 
       response.setClusterSpec(getClusterSpec());
-      response.setCommand(
-          roleInfoManager.getRoleNameRoleInfoMap().get(executorId.getRoleName()).getCommand());
+      response.setCommand(context
+          .getRoleInfoManager()
+          .getRoleInfo(executorId)
+          .getCommand());
       return response;
     } finally {
       readLock.unlock();
@@ -441,7 +413,7 @@ public class SchedulerExecutorManager extends AbstractService
   }
 
   public ExecutorCommandType heartbeat(ExecutorId executorId, ExecutorState executorState) {
-    executorMonitor.receivedPing(executorId);
+    context.getExecutorMonitor().receivedPing(executorId);
     readLock.lock();
     try {
       ExecutorCommandType executorCommandType = ExecutorCommandType.NONE;
@@ -451,10 +423,11 @@ public class SchedulerExecutorManager extends AbstractService
         return executorCommandType;
       }
 
-      String node = context.getExecutorNodeMap().get(executorId.toUniqString());
-      boolean isBlacklisted = context.getBlacklistTrackerOpt().map(
-              b -> b.isContainerBlacklisted(executorId.toUniqString()) ||
-                  b.isNodeBlacklisted(node))
+      String node = executorNodeMap.get(executorId.toUniqString());
+      boolean isBlacklisted = context
+          .getBlacklistTracker()
+          .map(b -> b.isContainerBlacklisted(executorId.toUniqString()) ||
+              b.isNodeBlacklisted(node))
           .orElse(false);
       boolean isExecutorKilling =
           schedulerExecutor.getExecutorState() == SchedulerExecutorState.KILLING;
@@ -491,7 +464,7 @@ public class SchedulerExecutorManager extends AbstractService
         return;
       }
       registeredExecutorUniqIdMap.remove(executorId);
-      executorMonitor.unregister(executorId);
+      context.getExecutorMonitor().unregister(executorId);
       SchedulerExecutor schedulerExecutor = runningExecutorMap.get(executorId);
       if (schedulerExecutor == null) {
         LOG.warn("Can not find executor [" + executorId + "] in unregister, " +
@@ -517,7 +490,10 @@ public class SchedulerExecutorManager extends AbstractService
     // Put executor spec into cluster spec according to role name and role index
     String roleName = executorSpec.getExecutorId().getRoleName();
     int roleIndex = executorSpec.getExecutorId().getIndex();
-    int replicas = roleInfoManager.getRoleNameRoleInfoMap().get(roleName).getRoleSpec()
+    int replicas = context
+        .getRoleInfoManager()
+        .getRoleInfo(executorSpec.getExecutorId())
+        .getRoleSpec()
         .getReplicas();
     synchronized (clusterSpec) {
       ExecutorSpec[] executorSpecArray = clusterSpec.get(roleName);
@@ -564,9 +540,13 @@ public class SchedulerExecutorManager extends AbstractService
             LOG.info("Container({}) is completed with {}", containerId, e.getType().toString());
 
             ExecutorId executorId = containerExecutorMap.remove(containerId);
-            executorMonitor.unregister(executorId);
-            TaskManager taskManager = context.getDataStreamManager()
-                .getTaskManager(roleInfoManager.getTaskManagerName(executorId));
+            context.getExecutorMonitor().unregister(executorId);
+            TaskManager taskManager = context
+                .getDataStreamManager()
+                .getTaskManager(context
+                    .getRoleInfoManager()
+                    .getTaskManagerName(executorId)
+                );
             if (taskManager != null) {
               taskManager.unregister(executorId);
             } else {
@@ -589,8 +569,8 @@ public class SchedulerExecutorManager extends AbstractService
             } else {
               LOG.info("Container({}) requires failover handling", containerId);
 
-              failoverPolicyManager.increaseFailoverTimes(schedulerExecutor);
-              if (failoverPolicyManager.needFailover(schedulerExecutor)) {
+              context.getFailoverPolicyManager().increaseFailoverTimes(schedulerExecutor);
+              if (context.getFailoverPolicyManager().needFailover(schedulerExecutor)) {
                 LOG.info("Container({}) requires failover handling", containerId);
 
                 priorityExecutorIndexesMap.get(priority)
@@ -608,16 +588,15 @@ public class SchedulerExecutorManager extends AbstractService
             }
             if (!schedulerExecutor.isSuccess()) {
               LOG.info("Container({}) didn't complete successfully.", containerId);
-              String node = context.getExecutorNodeMap().get(executorId.toUniqString());
-              context.getBlacklistTrackerOpt().ifPresent(b -> b.addContainerFailure(
+              String node = executorNodeMap.get(executorId.toUniqString());
+              context.getBlacklistTracker().ifPresent(b -> b.addContainerFailure(
                   executorId.toUniqString(),
                   node,
                   System.currentTimeMillis()
               ));
             }
-            context.getExecutorNodeMap().remove(executorId.toUniqString());
-            ExecutorEvent executorEvent = new ExecutorCompleteEvent(context, schedulerExecutor);
-            context.getDispatcher().getEventHandler().handle(executorEvent);
+            executorNodeMap.remove(executorId.toUniqString());
+            context.emitExecutorCompleteStatusEvent(schedulerExecutor);
           }
           PrimusMetrics.emitCounterWithAppIdTag(
               "am.scheduler_manager.container_released",
@@ -627,7 +606,7 @@ public class SchedulerExecutorManager extends AbstractService
         }
         case EXECUTOR_EXPIRED: {
           ExecutorId executorId = e.getExecutorId();
-          executorMonitor.unregister(executorId);
+          context.getExecutorMonitor().unregister(executorId);
           SchedulerExecutor schedulerExecutor = runningExecutorMap.get(executorId);
           if (schedulerExecutor == null) {
             LOG.warn("can not find expired executor " + executorId);
@@ -642,7 +621,7 @@ public class SchedulerExecutorManager extends AbstractService
           break;
         }
         case EXECUTOR_REQUEST_CREATED: {
-          for (RoleInfo roleInfo : roleInfoManager.getPriorityRoleInfoMap().values()) {
+          for (RoleInfo roleInfo : context.getRoleInfoManager().getRoleInfos()) {
             int priority = roleInfo.getPriority();
             int roleNum = roleInfo.getRoleSpec().getReplicas();
             priorityRequestNumMap.putIfAbsent(priority, roleNum);
@@ -655,7 +634,7 @@ public class SchedulerExecutorManager extends AbstractService
           break;
         }
         case EXECUTOR_REQUEST_UPDATED: {
-          for (RoleInfo roleInfo : roleInfoManager.getPriorityRoleInfoMap().values()) {
+          for (RoleInfo roleInfo : context.getRoleInfoManager().getRoleInfos()) {
             int priority = roleInfo.getPriority();
             int roleNum = roleInfo.getRoleSpec().getReplicas();
             int oldRequestNum = priorityRequestNumMap.getOrDefault(priority, 0);
@@ -686,7 +665,10 @@ public class SchedulerExecutorManager extends AbstractService
   private void killExecutors(int priority, int startIndex, int endIndex, boolean force) {
     for (; startIndex < endIndex; startIndex++) {
       ExecutorId executorId = new ExecutorIdPBImpl();
-      String roleName = roleInfoManager.getPriorityRoleInfoMap().get(priority).getRoleName();
+      String roleName = context
+          .getRoleInfoManager()
+          .getRoleInfo(priority)
+          .getRoleName();
       executorId.setRoleName(roleName);
       executorId.setIndex(startIndex);
       killExecutor(executorId, force);
@@ -703,9 +685,44 @@ public class SchedulerExecutorManager extends AbstractService
     }
   }
 
+  private String getRoleName(int priority) {
+    return context
+        .getRoleInfoManager()
+        .getRoleInfo(priority)
+        .getRoleName();
+  }
+
   public boolean isZombie(ExecutorId executorId) {
     String expectedRegisteredExecutorUniqId =
         registeredExecutorUniqIdMap.getOrDefault(executorId, executorId.toUniqString());
     return !expectedRegisteredExecutorUniqId.equals(executorId.toUniqString());
+  }
+
+
+  public boolean isBlacklisted(ExecutorId executorId) {
+    if (context.getBlacklistTracker().isPresent()) {
+      String node = executorNodeMap.get(executorId.toUniqString());
+      return context.getBlacklistTracker()
+          .map(b -> b.isContainerBlacklisted(executorId.toUniqString()) ||
+              b.isNodeBlacklisted(node))
+          .orElse(false);
+    }
+    return false;
+  }
+
+  public void addTaskFailureBlacklist(long taskId, ExecutorId executorId) {
+    if (executorNodeMap != null &&
+        context.getBlacklistTracker().isPresent()
+    ) {
+      String node = executorNodeMap.get(executorId.toUniqString());
+      context
+          .getBlacklistTracker()
+          .ifPresent(b -> b.addTaskFailure(
+              Long.toString(taskId),
+              executorId.toUniqString(),
+              node,
+              System.currentTimeMillis())
+          );
+    }
   }
 }

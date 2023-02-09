@@ -21,14 +21,10 @@ package com.bytedance.primus.am.datastream;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.am.ApplicationMasterEvent;
-import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.bytedance.primus.am.datastream.env.EnvTaskManager;
 import com.bytedance.primus.am.datastream.file.FileTaskManager;
 import com.bytedance.primus.am.datastream.kafka.KafkaTaskManager;
 import com.bytedance.primus.am.exception.PrimusAMException;
-import com.bytedance.primus.am.psonyarn.PonyEvent;
-import com.bytedance.primus.am.psonyarn.PonyEventType;
 import com.bytedance.primus.apiserver.proto.DataProto.DataSourceSpec;
 import com.bytedance.primus.apiserver.records.DataSpec;
 import com.bytedance.primus.apiserver.records.DataStreamSpec;
@@ -172,14 +168,12 @@ public class DataStreamManager extends AbstractService implements
 
     // Let's deprecate the existing TaskManager and create a new one!
     if (Strings.isNullOrEmpty(savepointDir)) {
-      context.getDispatcher().getEventHandler().handle(
-          new ApplicationMasterEvent(
-              context,
-              ApplicationMasterEventType.FAIL_APP,
+      context
+          .emitFailApplicationEvent(
               String.format(
                   "Invalid dataStreamSpec change and non-empty savepoint for taskManager[%s]",
                   dataStreamName),
-              ApplicationExitCode.DATA_INCOMPATIBLE.getValue()));
+              ApplicationExitCode.DATA_INCOMPATIBLE.getValue());
       return;
     }
 
@@ -242,11 +236,15 @@ public class DataStreamManager extends AbstractService implements
       }
     } catch (Exception e) {
       LOG.error("Failed to create taskManager for dataStream:[" + name + "]", e);
-      String diag = "Failed to create taskManager for dataStream: " + dataStreamSpec.getProto()
-          + ", exception: " + e;
-      context.getDispatcher().getEventHandler().handle(
-          new ApplicationMasterEvent(context, ApplicationMasterEventType.FAIL_APP, diag,
-              ApplicationExitCode.DATA_STREAM_FAILED.getValue()));
+      String diag = "Failed to create taskManager for dataStream: "
+          + dataStreamSpec.getProto()
+          + ", exception: "
+          + e;
+      context
+          .emitFailApplicationEvent(
+              diag,
+              ApplicationExitCode.DATA_STREAM_FAILED.getValue());
+
     } finally {
       if (taskManager != null) {
         taskManagerMap.put(name, taskManager);
@@ -292,18 +290,23 @@ public class DataStreamManager extends AbstractService implements
         try {
           Thread.sleep(20 * 1000);
           if (isFailure()) {
-            failApp("TaskManager exceeds task failure percent, fail app",
+            context.emitFailApplicationEvent(
+                "TaskManager exceeds task failure percent, fail app",
                 ApplicationExitCode.EXCEED_TASK_FAIL_PERCENT.getValue());
             return;
           }
           if (isSuccess()) {
             LOG.info("All task managers are successful");
-            if (context.getPrimusConf().getInputManager().getGracefulShutdown()) {
+            if (context.getApplicationMeta().getPrimusConf().getInputManager()
+                .getGracefulShutdown()) {
               LOG.info("TaskManager's gracefulShutdown is true so not succeed app");
               continue;
             }
             LOG.info("All task managers are successful and succeed app");
-            succeedApp();
+            context.emitApplicationSuccessEvent(
+                "datastreamManager success app",
+                ApplicationExitCode.TASK_SUCCEED.getValue()
+            );
           }
         } catch (Exception e) {
           LOG.warn("Ignore exception", e);
@@ -336,23 +339,6 @@ public class DataStreamManager extends AbstractService implements
       success = false;
     }
     return success;
-  }
-
-  private void failApp(String diag, int exitCode) {
-    context.getDispatcher().getEventHandler().handle(
-        new ApplicationMasterEvent(context, ApplicationMasterEventType.FAIL_APP, diag, exitCode));
-  }
-
-  private void succeedApp() {
-    if (context.getPonyManager() == null) {
-      context.getDispatcher().getEventHandler().handle(
-          new ApplicationMasterEvent(context, ApplicationMasterEventType.SUCCESS,
-              "datastreamManager success app",
-              ApplicationExitCode.TASK_SUCCEED.getValue()));
-    } else {
-      context.getDispatcher().getEventHandler().handle(
-          new PonyEvent(PonyEventType.PONY_ALL_TASK_COMPLETE));
-    }
   }
 
   /**

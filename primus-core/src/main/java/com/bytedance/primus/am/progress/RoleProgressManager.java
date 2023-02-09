@@ -20,12 +20,11 @@
 package com.bytedance.primus.am.progress;
 
 import com.bytedance.primus.am.AMContext;
-
 import java.util.Map;
 
 public class RoleProgressManager extends ProgressManager {
 
-  private AMContext context;
+  private final AMContext context;
 
   public RoleProgressManager(String name, AMContext context) {
     super(name);
@@ -46,9 +45,9 @@ public class RoleProgressManager extends ProgressManager {
           context.getSchedulerExecutorManager().getPriorityFinishNumMap();
       for (Map.Entry<Integer, Integer> entry :
           context.getSchedulerExecutorManager().getPrioritySuccessNumMap().entrySet()) {
-        int priotity = entry.getKey();
-        if (entry.getValue() > priorityFinishNumMap.get(priotity)) {
-          successNum += priorityFinishNumMap.get(priotity);
+        int priority = entry.getKey();
+        if (entry.getValue() > priorityFinishNumMap.get(priority)) {
+          successNum += priorityFinishNumMap.get(priority);
         } else {
           successNum += entry.getValue();
         }

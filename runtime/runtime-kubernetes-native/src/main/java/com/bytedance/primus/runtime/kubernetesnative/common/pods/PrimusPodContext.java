@@ -35,7 +35,7 @@ import com.bytedance.primus.proto.PrimusConfOuterClass.Scheduler;
 import com.bytedance.primus.proto.PrimusRuntime.PrimusUiConf;
 import com.bytedance.primus.proto.PrimusRuntime.RuntimeConf;
 import com.bytedance.primus.runtime.kubernetesnative.am.KubernetesResourceLimitConverter;
-import com.bytedance.primus.runtime.kubernetesnative.common.KubernetesSchedulerConfig;
+import com.bytedance.primus.runtime.kubernetesnative.common.meta.KubernetesBaseMeta;
 import com.google.common.base.Strings;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -44,37 +44,27 @@ import java.util.Map;
 import lombok.Getter;
 import org.apache.hadoop.fs.Path;
 
+@Getter
 public class PrimusPodContext {
 
-  @Getter
-  private final String appId;
-  @Getter
+  private final String applicationId;
   private final String appName;
-  @Getter
   private final String user;
-  @Getter
   private final Path hdfsStagingDir;
-  @Getter
   private final Map<String, String> driverEnvironMap;
-  @Getter
   private final Map<String, String> jobEnvironMap;  // use for config map
-  @Getter
   private final int sleepSecondsBeforePodExit;
-  @Getter
   private final RuntimeConf runtimeConf;
-  @Getter
   protected final PrimusUiConf primusUiConf; // A pointer to PrimusUiConf in primusConf
-  @Getter
-  private final KubernetesSchedulerConfig kubernetesSchedulerConfig;
-  @Getter
+  private final KubernetesBaseMeta baseMeta;
   private final Map<String, String> resourceLimitMap;
 
   public PrimusPodContext(
-      String appId,
+      String applicationId,
       Path stagingDir,
       PrimusConf primusConf
   ) {
-    this.appId = appId;
+    this.applicationId = applicationId;
     this.appName = primusConf.getName();
     this.hdfsStagingDir = stagingDir;
     this.user = StringUtils.ensure(
@@ -84,7 +74,7 @@ public class PrimusPodContext {
         .getRuntimeConf()
         .getKubernetesNativeConf()
         .getSleepSecondsBeforePodExit();
-    this.kubernetesSchedulerConfig = new KubernetesSchedulerConfig(primusConf);
+    this.baseMeta = new KubernetesBaseMeta(primusConf);
     this.jobEnvironMap = primusConf.getEnvMap();
     this.driverEnvironMap = getDriverStartEnvironment(primusConf);
     this.runtimeConf = primusConf.getRuntimeConf();

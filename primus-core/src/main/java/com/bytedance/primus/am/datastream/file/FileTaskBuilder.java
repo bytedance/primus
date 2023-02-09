@@ -25,8 +25,6 @@ import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_TASK_IN
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
-import com.bytedance.primus.am.ApplicationMasterEvent;
-import com.bytedance.primus.am.ApplicationMasterEventType;
 import com.bytedance.primus.api.records.FileTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.impl.pb.FileTaskPBImpl;
@@ -90,7 +88,7 @@ public class FileTaskBuilder {
 
     int numBuildTaskThreads = Math.max(
         MIN_NUM_BUILD_TASK_THREADS,
-        context.getPrimusConf().getInputManager().getNumBuildTaskThreads()
+        context.getApplicationMeta().getPrimusConf().getInputManager().getNumBuildTaskThreads()
     );
     if (numBuildTaskThreads > MAX_NUM_BUILD_TASK_THREADS) {
       LOG.warn(
@@ -125,14 +123,7 @@ public class FileTaskBuilder {
 
   private void failApplication(String diag, int exitCode) {
     LOG.error(diag);
-    context.getDispatcher()
-        .getEventHandler()
-        .handle(new ApplicationMasterEvent(
-            context,
-            ApplicationMasterEventType.FAIL_APP,
-            diag,
-            exitCode
-        ));
+    context.emitFailApplicationEvent(diag, exitCode);
   }
 
   class BuilderThread extends Thread {
@@ -191,7 +182,7 @@ public class FileTaskBuilder {
           isFinished = true;
 
           LOG.info("Finished building all tasks, total tasks: " + taskStore.getTotalTaskNum());
-          context.getTimelineLogger().logEvent(
+          context.logTimelineEvent(
               PRIMUS_TASKS_TOTAL_COUNT.name(),
               Long.toString(taskStore.getTotalTaskNum())
           );
@@ -257,11 +248,13 @@ public class FileTaskBuilder {
 
     private void logTaskTimelineEvent(List<Task> tasks) {
       for (Task task : tasks) {
-        context.getTimelineLogger().logEvent(PRIMUS_TASK_INFO_DETAILED.name(), task.toString());
+        context.logTimelineEvent(
+            PRIMUS_TASK_INFO_DETAILED.name(),
+            task.toString());
         if (task.getFileTask() != null && task.getFileTask().getLength() > 0) {
-          context.getTimelineLogger()
-              .logEvent(PRIMUS_TASK_INFO_FILE_SIZE.name(),
-                  Long.toString(task.getFileTask().getLength()));
+          context.logTimelineEvent(
+              PRIMUS_TASK_INFO_FILE_SIZE.name(),
+              Long.toString(task.getFileTask().getLength()));
         }
       }
     }

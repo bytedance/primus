@@ -19,432 +19,726 @@
 
 package com.bytedance.primus.am;
 
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_VERSION_ENV_KEY;
-
 import com.bytedance.blacklist.BlacklistTracker;
+import com.bytedance.blacklist.BlacklistTrackerImpl;
 import com.bytedance.primus.am.apiserver.DataController;
+import com.bytedance.primus.am.apiserver.DataSavepointController;
 import com.bytedance.primus.am.apiserver.JobController;
 import com.bytedance.primus.am.apiserver.NodeAttributeController;
+import com.bytedance.primus.am.container.ContainerLauncher;
+import com.bytedance.primus.am.container.ContainerLauncherEvent;
+import com.bytedance.primus.am.container.ContainerLauncherEventType;
+import com.bytedance.primus.am.container.ContainerManager;
+import com.bytedance.primus.am.container.ContainerManagerEvent;
+import com.bytedance.primus.am.container.ContainerManagerEventType;
 import com.bytedance.primus.am.controller.SuspendManager;
 import com.bytedance.primus.am.datastream.DataStreamManager;
+import com.bytedance.primus.am.datastream.DataStreamManagerEvent;
+import com.bytedance.primus.am.datastream.DataStreamManagerEventType;
+import com.bytedance.primus.am.eventlog.ApiServerExecutorStateUpdateListener;
+import com.bytedance.primus.am.eventlog.EventLoggingListener;
+import com.bytedance.primus.am.eventlog.ExecutorCompleteEvent;
+import com.bytedance.primus.am.eventlog.ExecutorEventType;
+import com.bytedance.primus.am.eventlog.ExecutorStartEvent;
 import com.bytedance.primus.am.eventlog.StatusEventLoggingListener;
+import com.bytedance.primus.am.eventlog.StatusEventType;
 import com.bytedance.primus.am.eventlog.StatusEventWrapper;
 import com.bytedance.primus.am.failover.FailoverPolicyManager;
+import com.bytedance.primus.am.failover.FailoverPolicyManagerEvent;
+import com.bytedance.primus.am.failover.FailoverPolicyManagerEventType;
 import com.bytedance.primus.am.master.Master;
+import com.bytedance.primus.am.master.MasterContext;
 import com.bytedance.primus.am.progress.ProgressManager;
-import com.bytedance.primus.am.psonyarn.PonyManager;
+import com.bytedance.primus.am.progress.ProgressManagerFactory;
 import com.bytedance.primus.am.role.RoleInfoManager;
+import com.bytedance.primus.am.role.RoleInfoManagerEvent;
+import com.bytedance.primus.am.role.RoleInfoManagerEventType;
 import com.bytedance.primus.am.schedule.SchedulePolicyManager;
+import com.bytedance.primus.am.schedule.SchedulePolicyManagerEvent;
+import com.bytedance.primus.am.schedule.SchedulePolicyManagerEventType;
+import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutor;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManager;
+import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerContainerCompletedEvent;
+import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerEvent;
+import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManagerEventType;
+import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorStateChangeEvent;
+import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorStateChangeEventType;
+import com.bytedance.primus.api.records.ExecutorId;
+import com.bytedance.primus.apiserver.client.DefaultClient;
 import com.bytedance.primus.apiserver.client.apis.CoreApi;
-import com.bytedance.primus.common.event.Dispatcher;
+import com.bytedance.primus.apiserver.client.models.Data;
+import com.bytedance.primus.apiserver.records.DataSpec;
+import com.bytedance.primus.apiserver.records.RoleSpec;
+import com.bytedance.primus.apiserver.service.ApiServer;
+import com.bytedance.primus.common.child.ChildLauncher;
+import com.bytedance.primus.common.child.ChildLauncherEvent;
+import com.bytedance.primus.common.child.ChildLauncherEventType;
+import com.bytedance.primus.common.event.AsyncDispatcher;
 import com.bytedance.primus.common.event.Event;
-import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
-import com.bytedance.primus.common.exceptions.PrimusUnsupportedException;
-import com.bytedance.primus.common.model.ApplicationConstants.Environment;
 import com.bytedance.primus.common.model.records.Container;
 import com.bytedance.primus.common.model.records.FinalApplicationStatus;
-import com.bytedance.primus.common.util.AbstractLivelinessMonitor;
-import com.bytedance.primus.common.util.RuntimeUtils;
+import com.bytedance.primus.common.service.Service;
+import com.bytedance.primus.common.util.IntegerUtils;
+import com.bytedance.primus.proto.PrimusConfOuterClass.BlacklistConfig;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.proto.PrimusRuntime.PrimusUiConf;
 import com.bytedance.primus.runtime.monitor.MonitorInfoProvider;
+import com.bytedance.primus.utils.ResourceUtils;
+import com.bytedance.primus.utils.timeline.NoopTimelineLogger;
 import com.bytedance.primus.utils.timeline.TimelineLogger;
+import com.bytedance.primus.webapp.CompleteApplicationServlet;
 import com.bytedance.primus.webapp.HdfsStore;
+import com.bytedance.primus.webapp.StatusServlet;
+import com.bytedance.primus.webapp.SuccessDataStreamServlet;
+import com.bytedance.primus.webapp.SuspendServlet;
+import com.bytedance.primus.webapp.SuspendStatusServlet;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
+import javax.servlet.http.HttpServlet;
 import lombok.Getter;
-import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.http.HttpServer2;
-import org.apache.hadoop.net.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Being an abstract base class, there are multiple components in AMContext not being able to be
- * initialized during the constructor. Hence, init() is created to finalize the construction.
+ * Hosting both the states and the internal core components, AMContext serves as the top-level
+ * component representing primus-core on application master. Notably, since AMContext also hosts
+ * components provided by runtime, completing the construction of an AMContext requires manually
+ * invoking `finalize()` after constructors.
  */
-public abstract class AMContext {
+public class AMContext {
 
   private static final Logger LOG = LoggerFactory.getLogger(AMContext.class);
 
-  protected Map<String, String> envs;
   @Getter
-  protected final PrimusConf primusConf;
+  private final PrimusApplicationMeta applicationMeta;
+
+  // Application status
   @Getter
-  protected final PrimusUiConf primusUiConf; // A pointer to PrimusUiConf in primusConf
-
-  protected Dispatcher dispatcher;
-  protected Dispatcher statusDispatcher;
-
-  // Runtime Environment
+  private final Date startTime = new Date();
   @Getter
-  protected final FileSystem hadoopFileSystem; // TODO: Create Primus FileSystem interface and abstract direct dependencies on HDFS.
-
-  // Common Components
-  protected RoleInfoManager roleInfoManager;
-  protected FailoverPolicyManager failoverPolicyManager;
-  protected SchedulePolicyManager schedulePolicyManager;
-  protected SchedulerExecutorManager schedulerExecutorManager;
-  protected AbstractLivelinessMonitor monitor;
-  protected String nodeId;
-  protected String username;
-  protected ProgressManager progressManager;
-  protected DataStreamManager dataStreamManager;
-  protected Optional<BlacklistTracker> blacklistTrackerOpt;
-  protected Map<String, String> executorNodeMap;
-
-  private InetSocketAddress rpcAddress;
-  private Date startTime = new Date();
   private Date finishTime;
+  @Getter
   private FinalApplicationStatus finalStatus;
-  private HttpServer2 httpServer;
-  private InetSocketAddress httpAddress;
-  private HdfsStore hdfsStore;
-  private PonyManager ponyManager;
-  private AMService amService;
-  private TimelineLogger timelineLogger;
-  private Map<Long, Map<String, String>> gangSchedulerQueue;
-  private CoreApi coreApi;
-  private JobController jobController;
-  private DataController dataController;
-  private NodeAttributeController nodeAttributeController;
-  private Master master;
-
-  private SuspendManager suspendManager;
-
-  private String version;
+  @Getter
   private String diagnostic;
+  @Getter
   private int exitCode;
-  private StatusEventWrapper statusEventWrapper;
-  private StatusEventLoggingListener statusLoggingListener;
 
-  // Runtime Components
+  // Primus core components
+  // TODO: Streamline primus-core components to signify their relationship
+  private final AsyncDispatcher dispatcher = new AsyncDispatcher();
+  private final AsyncDispatcher statusDispatcher = new AsyncDispatcher("statusDispatcher");
+
+  @Getter
+  private final AMService amService;
+  @Getter
+  private final HdfsStore hdfsStore;
+
+  @Getter
+  private final ChildLauncher masterLauncher;
+
+  @Getter
+  private final SchedulerExecutorManager schedulerExecutorManager;
+  @Getter
+  private final ExecutorMonitor executorMonitor;
+  private final ExecutorTrackerService trackerService;
+  private final BlacklistTracker blacklistTracker;
+
+  @Getter
+  private final DataStreamManager dataStreamManager;
+  @Getter
+  private final SuspendManager suspendManager;
+  @Getter
+  private final ProgressManager progressManager;
+
+  @Getter
+  private final SchedulePolicyManager schedulePolicyManager;
+  @Getter
+  private final FailoverPolicyManager failoverPolicyManager;
+
+  private final ApiServer apiServer;
+  @Getter
+  private final CoreApi coreApi;
+  @Getter
+  private final JobController jobController;
+  @Getter
+  private final DataController dataController;
+  private final NodeAttributeController nodeAttributeController;
+  private final DataSavepointController dataSavepointController;
+  private final ApiServerExecutorStateUpdateListener apiServerExecutorStateUpdateListener;
+
+  @Getter
+  private final HttpServer2 webAppServer;
+
+  private final TimelineLogger timelineLogger;
+  private final EventLoggingListener eventLoggingListener;
+  private final StatusEventLoggingListener statusLoggingListener;
+  @Getter
+  private final StatusEventWrapper statusEventWrapper;
+
+  // Runtime components (Provided by runtime implementation)
+  // TODO: Streamline runtime components, where
+  //  1. RoleInfoManager could be runtime agnostic
+  //  2. Some of them can be combined
+  @Getter
+  private RoleInfoManager roleInfoManager;
+  private ContainerManager containerManager;
   @Getter
   private MonitorInfoProvider monitorInfoProvider;
 
-  public AMContext(PrimusConf primusConf, PrimusUiConf primusUiConf) throws IOException {
-    envs = new HashMap<>(System.getenv());
-    executorNodeMap = new ConcurrentHashMap<>();
-    timelineLogger = null;
-    gangSchedulerQueue = new HashMap<>();
+  public AMContext(
+      PrimusApplicationMeta applicationMeta,
+      int executorTrackerPort
+  ) throws Exception {
+    this.applicationMeta = applicationMeta;
 
-    this.primusConf = primusConf;
-    this.primusUiConf = primusUiConf;
+    amService = new AMService(this);
+    hdfsStore = new HdfsStore(this);
 
-    this.version = envs.get(PRIMUS_VERSION_ENV_KEY);
-    LOG.info("PRIMUS Version: " + version);
+    LOG.info("Registering MasterLauncher");
+    masterLauncher = new ChildLauncher(applicationMeta.getPrimusConf().getRuntimeConf());
+    dispatcher.register(ChildLauncherEventType.class, masterLauncher);
 
-    // Setting up runtime components
-    this.hadoopFileSystem = RuntimeUtils.loadHadoopFileSystem(primusConf);
+    LOG.info("Registering SchedulerExecutorManager");
+    schedulerExecutorManager = new SchedulerExecutorManager(this);
+    dispatcher.register(SchedulerExecutorManagerEventType.class, schedulerExecutorManager);
+
+    executorMonitor = new ExecutorMonitor(this);
+    trackerService = new ExecutorTrackerService(this, executorTrackerPort);
+    blacklistTracker = createBlacklistTracker(applicationMeta.getPrimusConf());
+
+    LOG.info("Registering DataStreamManager");
+    dataStreamManager = new DataStreamManager(this);
+    dispatcher.register(DataStreamManagerEventType.class, dataStreamManager);
+
+    suspendManager = new SuspendManager(dataStreamManager);
+    progressManager = ProgressManagerFactory.getProgressManager(this);
+
+    LOG.info("Registering SchedulePolicyManager");
+    schedulePolicyManager = new SchedulePolicyManager(this);
+    dispatcher.register(
+        SchedulePolicyManagerEventType.class,
+        schedulePolicyManager
+    );
+
+    LOG.info("Registering FailoverPolicyManager");
+    failoverPolicyManager = new FailoverPolicyManager(this);
+    dispatcher.register(
+        FailoverPolicyManagerEventType.class,
+        failoverPolicyManager
+    );
+
+    LOG.info("Starting Primus API Server");
+    apiServer = startApiServer(applicationMeta);
+    coreApi = new CoreApi(
+        new DefaultClient(
+            apiServer.getHostname(),
+            apiServer.getPort()
+        )
+    );
+
+    jobController = new JobController(this);
+    dataController = new DataController(this);
+    nodeAttributeController = new NodeAttributeController(this);
+    dataSavepointController = new DataSavepointController(coreApi, dataStreamManager);
+
+    apiServerExecutorStateUpdateListener = new ApiServerExecutorStateUpdateListener(this);
+    dispatcher.register(
+        SchedulerExecutorStateChangeEventType.class,
+        apiServerExecutorStateUpdateListener
+    );
+
+    LOG.info("Starting Primus WebApp Server");
+    webAppServer = startWebAppHttpServer(applicationMeta, this);
+
+    LOG.info("Registering loggers");
+    timelineLogger = new NoopTimelineLogger();
+    dispatcher.register(ExecutorEventType.class, timelineLogger);
+
+    eventLoggingListener = new EventLoggingListener(applicationMeta);
+    dispatcher.register(ExecutorEventType.class, eventLoggingListener);
+    dispatcher.register(ApplicationMasterEventType.class, eventLoggingListener);
+
+    statusLoggingListener = new StatusEventLoggingListener(this);
+    statusEventWrapper = new StatusEventWrapper(this, statusLoggingListener.canLogEvent());
+    statusDispatcher.register(StatusEventType.class, this.statusLoggingListener);
   }
 
-  // TODO: Scan Primus components in AMContext and make them final.
-  protected AMContext init(MonitorInfoProvider monitorInfoProvider) {
-    this.monitorInfoProvider = monitorInfoProvider;
-    return this;
+  public void finalize(
+      ApplicationMaster applicationMaster,
+      MonitorInfoProvider monitorInfoProvider,
+      RoleInfoManager roleInfoManager,
+      ContainerManager containerManager
+  ) {
+    finalize(
+        applicationMaster,
+        monitorInfoProvider,
+        roleInfoManager,
+        containerManager,
+        null // containerLauncher
+    );
   }
 
-  public Map<String, String> getEnvs() {
-    return envs;
-  }
+  public void finalize(
+      ApplicationMaster applicationMaster,
+      MonitorInfoProvider monitorInfoProvider,
+      RoleInfoManager roleInfoManager,
+      ContainerManager containerManager,
+      ContainerLauncher containerLauncher // Optional
+  ) {
+    this.dispatcher.register(
+        ApplicationMasterEventType.class,
+        applicationMaster
+    );
 
-  public void setDispatcher(Dispatcher dispatcher) {
-    this.dispatcher = dispatcher;
-  }
-
-  public Dispatcher getDispatcher() {
-    return dispatcher;
-  }
-
-  public Dispatcher getStatusDispatcher() {
-    return statusDispatcher;
-  }
-
-  public void setStatusDispatcher(Dispatcher statusDispatcher) {
-    this.statusDispatcher = statusDispatcher;
-  }
-
-  public void setRoleInfoManager(RoleInfoManager roleInfoManager) {
     this.roleInfoManager = roleInfoManager;
-  }
+    this.dispatcher.register(
+        RoleInfoManagerEventType.class,
+        roleInfoManager
+    );
 
-  public RoleInfoManager getRoleInfoManager() {
-    return roleInfoManager;
-  }
+    this.containerManager = containerManager;
+    this.dispatcher.register(
+        ContainerManagerEventType.class,
+        containerManager
+    );
 
-  public FailoverPolicyManager getFailoverPolicyManager() {
-    return failoverPolicyManager;
-  }
-
-  public void setFailoverPolicyManager(
-      FailoverPolicyManager failoverPolicyManager) {
-    this.failoverPolicyManager = failoverPolicyManager;
-  }
-
-  public SchedulePolicyManager getSchedulePolicyManager() {
-    return schedulePolicyManager;
-  }
-
-  public void setSchedulePolicyManager(
-      SchedulePolicyManager schedulePolicyManager) {
-    this.schedulePolicyManager = schedulePolicyManager;
-  }
-
-  public void setSchedulerExecutorManager(SchedulerExecutorManager schedulerExecutorManager) {
-    this.schedulerExecutorManager = schedulerExecutorManager;
-  }
-
-  public SchedulerExecutorManager getSchedulerExecutorManager() {
-    return schedulerExecutorManager;
-  }
-
-  public AbstractLivelinessMonitor getMonitor() {
-    return monitor;
-  }
-
-  public void setMonitor(AbstractLivelinessMonitor monitor) {
-    this.monitor = monitor;
-  }
-
-  public String getUsername() {
-    if (username == null) {
-      username = envs.get(Environment.USER.name());
+    if (containerLauncher != null) {
+      this.containerManager = containerManager;
+      this.dispatcher.register(
+          ContainerLauncherEventType.class,
+          containerLauncher
+      );
     }
-    return username;
+
+    this.monitorInfoProvider = monitorInfoProvider;
   }
 
-  public ProgressManager getProgressManager() {
-    return progressManager;
+  public void stop() throws Exception {
+    apiServer.stop();
+    timelineLogger.shutdown();
   }
 
-  public void setProgressManager(ProgressManager progressManager) {
-    this.progressManager = progressManager;
+  public List<Service> getCorePrimusServices() {
+    return new ArrayList<Service>() {{
+      // main dispatcher
+      add(dispatcher);
+
+      add(executorMonitor);
+      add(schedulerExecutorManager);
+      add(trackerService);
+      add(amService);
+      add(dataStreamManager);
+      add(suspendManager);
+      add(progressManager);
+      add(hdfsStore);
+      add(eventLoggingListener);
+      add(apiServerExecutorStateUpdateListener);
+      add(masterLauncher);
+      add(jobController);
+      add(dataController);
+      add(nodeAttributeController);
+      add(dataSavepointController);
+      add(containerManager);
+
+      // status dispatcher
+      add(statusDispatcher);
+      add(statusLoggingListener);
+    }};
   }
 
-  public DataStreamManager getDataStreamManager() {
-    return dataStreamManager;
+  public void setApplicationFinalStatus(
+      FinalApplicationStatus finalApplicationStatus,
+      int exitCode,
+      String diagnostic
+  ) {
+    this.finalStatus = finalApplicationStatus;
+    this.exitCode = exitCode;
+    this.diagnostic = diagnostic;
+    this.finishTime = new Date();
   }
 
-  public void setDataStreamManager(DataStreamManager dataStreamManager) {
-    this.dataStreamManager = dataStreamManager;
+  private static ApiServer startApiServer(PrimusApplicationMeta meta) throws Exception {
+    ApiServer apiServer = new ApiServer(
+        ResourceUtils.buildApiServerConf(meta.getPrimusConf().getApiServerConf()),
+        meta.getExecutorTrackerPort()
+    );
+    apiServer.start();
+    return apiServer;
   }
 
-  public void setRpcAddress(InetSocketAddress rpcAddress) {
-    this.rpcAddress = rpcAddress;
-  }
+  private static HttpServer2 startWebAppHttpServer(
+      PrimusApplicationMeta meta,
+      AMContext context
+  ) throws URISyntaxException, IOException {
+    StatusServlet.setContext(context);
+    CompleteApplicationServlet.setContext(context);
+    SuspendServlet.setContext(context);
+    SuspendStatusServlet.setContext(context);
+    SuccessDataStreamServlet.setContext(context);
 
-  public InetSocketAddress getRpcAddress() {
-    return rpcAddress;
-  }
+    HttpServer2 httpServer = new HttpServer2.Builder()
+        .setFindPort(true)
+        .setName("primus")
+        .addEndpoint(new URI("http://0.0.0.0:" + meta.getPrimusUiConf().getWebUiPort()))
+        .build();
 
-  public Date getStartTime() {
-    return startTime;
-  }
+    new HashMap<String, Class<? extends HttpServlet>>() {{
+      put("/webapps/primus/status.json", StatusServlet.class);
+      put("/webapps/primus/kill", CompleteApplicationServlet.class);
+      put("/webapps/primus/fail", CompleteApplicationServlet.class);
+      put("/webapps/primus/success", CompleteApplicationServlet.class);
+      put("/webapps/primus/suspend", SuspendServlet.class);
+      put("/webapps/primus/success_datastream", SuccessDataStreamServlet.class);
+      put("/webapps/primus/suspend/status", SuspendStatusServlet.class);
+    }}.forEach((path, clazz) ->
+        httpServer.addInternalServlet(
+            null, // name
+            path,
+            clazz,
+            false // requireAuth
+        ));
 
-  public Date getFinishTime() {
-    return finishTime;
-  }
-
-  public void setFinishTime(Date finishTime) {
-    this.finishTime = finishTime;
-  }
-
-  public FinalApplicationStatus getFinalStatus() {
-    return finalStatus;
-  }
-
-  public void setFinalStatus(FinalApplicationStatus finalStatus) {
-    this.finalStatus = finalStatus;
-  }
-
-  public void setHttpServer(HttpServer2 httpServer) {
-    this.httpServer = httpServer;
-    this.httpAddress = NetUtils.getConnectAddress(httpServer.getConnectorAddress(0));
-  }
-
-  public HttpServer2 getHttpServer() {
+    httpServer.start();
     return httpServer;
   }
 
-  public InetSocketAddress getHttpAddress() {
-    return httpAddress;
+  private BlacklistTracker createBlacklistTracker(PrimusConf primusConf) {
+    BlacklistConfig config = primusConf.getBlacklistConfig();
+    if (!config.getEnabled()) {
+      LOG.info("Blacklist is not enabled");
+      return null;
+    }
+
+    LOG.info("Blacklist is enabled");
+    int maxFailedTaskPerContainer = IntegerUtils
+        .ensurePositiveOrDefault(config.getMaxFailedTaskPerContainer(), 3);
+    int maxFailedContainerPerNode = IntegerUtils
+        .ensurePositiveOrDefault(config.getMaxFailedContainerPerNode(), 2);
+    long blacklistTimeoutMillis = IntegerUtils
+        .ensurePositiveOrDefault(config.getBlacklistTimeoutMillis(), 3600000);
+    int maxBlacklistContainer = IntegerUtils
+        .ensurePositiveOrDefault(config.getMaxBlacklistContainer(), 50);
+    int maxBlacklistNode = IntegerUtils
+        .ensurePositiveOrDefault(config.getMaxBlacklistNode(), 20);
+
+    return new BlacklistTrackerImpl(
+        maxFailedTaskPerContainer,
+        maxFailedContainerPerNode,
+        blacklistTimeoutMillis,
+        maxBlacklistContainer,
+        maxBlacklistNode,
+        config.getEnabled()
+    );
   }
 
-  public HdfsStore getHdfsStore() {
-    return hdfsStore;
+  public String getApiServerHostAddress() {
+    return apiServer.getHostname();
   }
 
-  public void setHdfsStore(HdfsStore hdfsStore) {
-    this.hdfsStore = hdfsStore;
+  public int getApiServerPort() {
+    return apiServer.getPort();
   }
 
-  public void setBlacklistTrackerOpt(Optional<BlacklistTracker> blacklistTrackerOpt) {
-    this.blacklistTrackerOpt = blacklistTrackerOpt;
+  public String getWebAppServerHostAddress() {
+    return webAppServer.getConnectorAddress(0).getAddress().getHostAddress();
   }
 
-  public Optional<BlacklistTracker> getBlacklistTrackerOpt() {
-    return blacklistTrackerOpt;
+  public int getWebAppServerPort() {
+    return webAppServer.getConnectorAddress(0).getPort();
   }
 
-  public Map<String, String> getExecutorNodeMap() {
-    return executorNodeMap;
+  public InetSocketAddress getRpcAddress() {
+    return trackerService.getRpcAddress();
   }
 
-  public PonyManager getPonyManager() {
-    return ponyManager;
+  public Optional<BlacklistTracker> getBlacklistTracker() {
+    return blacklistTracker != null
+        ? Optional.of(blacklistTracker)
+        : Optional.empty();
   }
 
-  public void setPonyManager(PonyManager ponyManager) {
-    this.ponyManager = ponyManager;
-  }
+  // Loggers =======================================================================================
+  // ===============================================================================================
 
-  public AMService getAmService() {
-    return amService;
-  }
-
-  public void setAmService(AMService amService) {
-    this.amService = amService;
-  }
-
-  public String getNodeId() {
-    return nodeId;
-  }
-
-  public void setNodeId(String nodeId) {
-    this.nodeId = nodeId;
-  }
-
-  public void setTimelineLogger(TimelineLogger timelineLogger) {
-    this.timelineLogger = timelineLogger;
-  }
-
-  public TimelineLogger getTimelineLogger() {
-    return timelineLogger;
-  }
-
-  public Map<Long, Map<String, String>> getGangSchedulerQueue() {
-    return gangSchedulerQueue;
-  }
-
-  public String getVersion() {
-    return version;
-  }
-
-  public int getExecutorTrackPort() {
-    return 0;
-  }
-
-  public CoreApi getCoreApi() {
-    return coreApi;
-  }
-
-  public void setCoreApi(CoreApi coreApi) {
-    this.coreApi = coreApi;
-  }
-
-  public JobController getJobController() {
-    return jobController;
-  }
-
-  public void setJobController(JobController jobController) {
-    this.jobController = jobController;
-  }
-
-  public DataController getDataController() {
-    return dataController;
-  }
-
-  public void setDataController(DataController dataController) {
-    this.dataController = dataController;
-  }
-
-  public NodeAttributeController getNodeAttributeController() {
-    return nodeAttributeController;
-  }
-
-  public void setNodeAttributeController(NodeAttributeController nodeAttributeController) {
-    this.nodeAttributeController = nodeAttributeController;
-  }
-
-  public Master getMaster() {
-    return master;
-  }
-
-  public void setMaster(Master master) {
-    this.master = master;
-  }
-
-  public SuspendManager getSuspendManager() {
-    return suspendManager;
-  }
-
-  public void setSuspendManager(SuspendManager suspendManager) {
-    this.suspendManager = suspendManager;
-  }
-
-  public String getDiagnostic() {
-    return diagnostic;
-  }
-
-  public void setDiagnostic(String diagnostic) {
-    this.diagnostic = diagnostic;
-  }
-
-  public int getExitCode() {
-    return exitCode;
-  }
-
-  public void setExitCode(int exitCode) {
-    this.exitCode = exitCode;
-  }
-
-  public StatusEventWrapper getStatusEventWrapper() {
-    return statusEventWrapper;
-  }
-
-  public void setStatusEventWrapper(StatusEventWrapper statusEventWrapper) {
-    this.statusEventWrapper = statusEventWrapper;
-  }
-
-  public StatusEventLoggingListener getStatusLoggingListener() {
-    return statusLoggingListener;
-  }
-
-  public void setStatusLoggingListener(
-      StatusEventLoggingListener statusLoggingListener) {
-    this.statusLoggingListener = statusLoggingListener;
+  public void logTimelineEvent(String eventType, String eventInfo) {
+    timelineLogger.logEvent(eventType, eventInfo);
   }
 
   public <T extends Event> void logStatusEvent(T event) {
     try {
       if (statusLoggingListener != null && statusLoggingListener.canLogEvent()) {
-        getStatusDispatcher().getEventHandler().handle(event);
+        statusDispatcher.getEventHandler().handle(event);
       }
     } catch (Exception e) {
       LOG.warn("Failed to log event:", e);
     }
   }
 
-  // TODO: Make AMContext abstract, and force the implementation to explicitly setup this feature.
-  // TODO: After landing the new runtime model, maybe this feature can be bypassed via not
-  //  initializing an ExecutorMonitor.
-  // Toggles whether ExecutorMonitor periodically updates container status changes to API server.
-  public boolean needToUpdateExecutorToApiServer() {
-    return false;
+  // Primus core events ============================================================================
+  // ===============================================================================================
+
+  // ApplicationMaster events - for updating Primus application state
+  public void emitApplicationSuccessEvent(
+      String exitMsg,
+      int exitCode,
+      long gracefulShutdownTimeoutMs
+  ) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ApplicationMasterEvent(
+            this, ApplicationMasterEventType.SUCCESS,
+            exitMsg, exitCode, gracefulShutdownTimeoutMs
+        ));
   }
 
-  public Map<String, String> retrieveContainerMetric(Container container)
-      throws IOException, PrimusRuntimeException, PrimusUnsupportedException {
-    throw new PrimusUnsupportedException("retrieveContainerMetric is not implemented.");
+  public void emitApplicationSuccessEvent(
+      String exitMsg,
+      int exitCode
+  ) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ApplicationMasterEvent(
+            this, ApplicationMasterEventType.SUCCESS,
+            exitMsg, exitCode
+        ));
   }
 
-  public abstract String getApplicationId();
+  public void emitFailApplicationEvent(String msg, int exitCode) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ApplicationMasterEvent(
+            this, ApplicationMasterEventType.FAIL_APP,
+            msg, exitCode));
+  }
 
-  public abstract int getAttemptId();
+  public void emitFailAttemptEvent(String msg, int exitCode) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ApplicationMasterEvent(
+            this, ApplicationMasterEventType.FAIL_ATTEMPT,
+            msg, exitCode));
+  }
+
+  public void emitFailAttemptEvent(String msg, int exitCode, long gracefulShutdownTimeoutMs) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ApplicationMasterEvent(
+            this, ApplicationMasterEventType.FAIL_ATTEMPT,
+            msg, exitCode, gracefulShutdownTimeoutMs));
+  }
+
+  public void emitSuspendApplicationEvent(String msg) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ApplicationMasterSuspendAppEvent(this, msg));
+  }
+
+  public void emitSuspendApplicationEvent(String msg, int snapshotId) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ApplicationMasterSuspendAppEvent(this, msg, snapshotId));
+  }
+
+  public void emitResumeApplicationEvent(String msg) {
+    dispatcher
+        .getEventHandler()
+        .handle(
+            new ApplicationMasterEvent(
+                this, ApplicationMasterEventType.RESUME_APP,
+                msg, ApplicationExitCode.UNDEFINED.getValue()
+            ));
+  }
+
+  // RoleInfoManagerEvent - for managing training roles
+  // TODO: Streamline Primus core to simplify the logic for readability and atomicity.
+  public void emitRoleInfoCreatedEvent(Map<String, RoleSpec> roleSpecMap) {
+    dispatcher
+        .getEventHandler()
+        .handle(new RoleInfoManagerEvent(
+            RoleInfoManagerEventType.ROLE_CREATED,
+            roleSpecMap));
+  }
+
+  // TODO: Streamline Primus core to simplify the logic for readability and atomicity.
+  public void emitRoleCreatedSubsequentEvents(Map<String, RoleSpec> roleSpecMap) {
+    dispatcher
+        .getEventHandler()
+        .handle(new FailoverPolicyManagerEvent(
+            FailoverPolicyManagerEventType.POLICY_CREATED,
+            roleSpecMap));
+    dispatcher
+        .getEventHandler()
+        .handle(new SchedulePolicyManagerEvent(
+            SchedulePolicyManagerEventType.POLICY_CREATED,
+            roleSpecMap));
+    dispatcher
+        .getEventHandler()
+        .handle(new SchedulerExecutorManagerEvent(
+            SchedulerExecutorManagerEventType.EXECUTOR_REQUEST_CREATED));
+    dispatcher
+        .getEventHandler()
+        .handle(new ContainerManagerEvent(
+            ContainerManagerEventType.CONTAINER_REQUEST_CREATED));
+  }
+
+  // TODO: Streamline Primus core to simplify the logic for readability and atomicity.
+  public void emitRoleInfoUpdatedEvent(Map<String, RoleSpec> roleSpecMap) {
+    dispatcher
+        .getEventHandler()
+        .handle(new RoleInfoManagerEvent(
+            RoleInfoManagerEventType.ROLE_UPDATED,
+            roleSpecMap));
+  }
+
+  // TODO: Streamline Primus core to simplify the logic for readability and atomicity.
+  public void emitRoleUpdatedSubsequentEvents(Map<String, RoleSpec> roleSpecMap) {
+    dispatcher
+        .getEventHandler()
+        .handle(new FailoverPolicyManagerEvent(
+            FailoverPolicyManagerEventType.POLICY_CREATED,
+            roleSpecMap));
+    dispatcher
+        .getEventHandler()
+        .handle(new SchedulePolicyManagerEvent(
+            SchedulePolicyManagerEventType.POLICY_CREATED,
+            roleSpecMap));
+    dispatcher
+        .getEventHandler()
+        .handle(new SchedulerExecutorManagerEvent(
+            SchedulerExecutorManagerEventType.EXECUTOR_REQUEST_UPDATED));
+    dispatcher
+        .getEventHandler()
+        .handle(new ContainerManagerEvent(
+            ContainerManagerEventType.CONTAINER_REQUEST_UPDATED));
+  }
+
+  // SchedulerExecutorManagerEvent - for managing executor states
+  public void emitExecutorExpiredEvent(ExecutorId executorId) {
+    dispatcher
+        .getEventHandler()
+        .handle(new SchedulerExecutorManagerEvent(
+            SchedulerExecutorManagerEventType.EXECUTOR_EXPIRED, executorId
+        ));
+  }
+
+  public void emitExecutorKillEvent(ExecutorId executorId) {
+    dispatcher
+        .getEventHandler()
+        .handle(new SchedulerExecutorManagerEvent(
+            SchedulerExecutorManagerEventType.EXECUTOR_KILL,
+            executorId));
+  }
+
+  public void emitExecutorKillForciblyEvent(ExecutorId executorId) {
+    dispatcher
+        .getEventHandler()
+        .handle(new SchedulerExecutorManagerEvent(
+            SchedulerExecutorManagerEventType.EXECUTOR_KILL_FORCIBLY,
+            executorId));
+  }
+
+  public void emitExecutorKilledEvent(Container container, String exitMsg, int exitCode) {
+    dispatcher
+        .getEventHandler()
+        .handle(new SchedulerExecutorManagerContainerCompletedEvent(
+            SchedulerExecutorManagerEventType.CONTAINER_KILLED,
+            container, exitCode, exitMsg)
+        );
+  }
+
+  // ContainerManagerEvent - for managing containers with resource managers
+  public void emitShutdownPrimusApplicationEvent(boolean forcibly) {
+    dispatcher.getEventHandler().handle(forcibly
+        ? new ContainerManagerEvent(ContainerManagerEventType.FORCIBLY_SHUTDOWN)
+        : new ContainerManagerEvent(ContainerManagerEventType.GRACEFUL_SHUTDOWN));
+  }
+
+  public void emitContainerExpiredEvent(Container container) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ContainerManagerEvent(
+            ContainerManagerEventType.EXECUTOR_EXPIRED,
+            container
+        ));
+  }
+
+  public void emitContainerAllocatedEvent(Container container) {
+    dispatcher.getEventHandler().handle(
+        new ContainerLauncherEvent(container, ContainerLauncherEventType.CONTAINER_ALLOCATED));
+  }
+
+  public void emitContainerUpdatedEvent(Container container) {
+    dispatcher.getEventHandler().handle(
+        new ContainerLauncherEvent(container, ContainerLauncherEventType.CONTAINER_UPDATED));
+  }
+
+  // ExecutorStatus events - for monitoring and logging purposes
+  public void emitExecutorStateChangeEvent(SchedulerExecutor schedulerExecutor) {
+    SchedulerExecutorStateChangeEvent event = new SchedulerExecutorStateChangeEvent(
+        SchedulerExecutorStateChangeEventType.STATE_CHANGED,
+        schedulerExecutor
+    );
+    LOG.debug("Release STATE_CHANGED event:" + event);
+    dispatcher.getEventHandler().handle(event);
+  }
+
+  public void emitExecutorStartStatusEvent(String containerId, ExecutorId executorId) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ExecutorStartEvent(
+            containerId,
+            executorId
+        ));
+  }
+
+  public void emitExecutorCompleteStatusEvent(SchedulerExecutor executor) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ExecutorCompleteEvent(this, executor));
+  }
+
+  // DataStreamManagerEvents - for managing data input
+  public void emitDataInputCreatedEvent(Data data) {
+    dispatcher.getEventHandler().handle(
+        new DataStreamManagerEvent(
+            DataStreamManagerEventType.DATA_STREAM_CREATED,
+            data.getSpec(),
+            data.getMeta().getVersion()));
+  }
+
+  public void emitDataInputUpdatedEvent(Data data) {
+    dispatcher.getEventHandler().handle(
+        new DataStreamManagerEvent(
+            DataStreamManagerEventType.DATA_STREAM_UPDATE,
+            data.getSpec(),
+            data.getMeta().getVersion()));
+  }
+
+  public void emitSucceedDataStreamEvent(DataSpec dataSpec) {
+    dispatcher
+        .getEventHandler()
+        .handle(new DataStreamManagerEvent(
+            DataStreamManagerEventType.DATA_STREAM_SUCCEED,
+            dataSpec, 0L // Set version to 0, cause event handler do not need version number
+        ));
+  }
+
+  // Experimental
+  public void emitChiefTrainerStartEvent(MasterContext masterContext) {
+    dispatcher
+        .getEventHandler()
+        .handle(new ChildLauncherEvent(
+            ChildLauncherEventType.LAUNCH,
+            new Master(this, masterContext, dispatcher)
+        ));
+  }
 }

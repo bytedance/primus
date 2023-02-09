@@ -17,10 +17,10 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.runtime.yarncommunity.am.container.launcher;
+package com.bytedance.primus.am.container;
 
+import com.bytedance.primus.common.model.records.Container;
 import com.bytedance.primus.utils.timeline.PrimusTimelineEvent;
-import org.apache.hadoop.yarn.api.records.Container;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 

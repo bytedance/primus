@@ -165,7 +165,7 @@ public class FileTaskStore implements TaskStore {
     failureTasks = new ConcurrentLinkedQueue<>();
     executorTaskMap = new ConcurrentHashMap<>();
     compressionCodec = getCompressionCodec();
-    PrimusConf primusConf = context.getPrimusConf();
+    PrimusConf primusConf = context.getApplicationMeta().getPrimusConf();
     dumpIntervalSeconds = Math.max(5000,
         primusConf.getInputManager().getWorkPreserve().getDumpIntervalSec());
     copyThreadCnt =
@@ -180,7 +180,7 @@ public class FileTaskStore implements TaskStore {
     nextTaskIdToLoad = 1;
 
     taskIdFileIdMap = new TreeMap<>();
-    storeDir = getStoreDir(context.getApplicationId(), name, primusConf);
+    storeDir = getStoreDir(context.getApplicationMeta().getApplicationId(), name, primusConf);
     tasksMetaPath = new Path(storeDir, TASKS_META_FILENAME);
     tasksIndexPath = new Path(storeDir, TASKS_INDEX_FILENAME);
     tasksPath = new Path(storeDir, TASKS_FILENAME);
@@ -190,7 +190,7 @@ public class FileTaskStore implements TaskStore {
     taskFileLock = new ReentrantReadWriteLock();
     snapshotDir = new Path(storeDir, SNAPSHOT_FILENAME);
 
-    fs = context.getHadoopFileSystem();
+    fs = context.getApplicationMeta().getHadoopFileSystem();
     taskSaver = new TaskSaver();
     taskLoader = new TaskLoader();
     taskPreserver = new TaskPreserver();
@@ -366,7 +366,7 @@ public class FileTaskStore implements TaskStore {
   public Collection<TaskWrapper> getFailureTasks() {
     List<TaskWrapper> tasks =
         getFailureTasksFromFs(
-            context.getPrimusConf(),
+            context.getApplicationMeta().getPrimusConf(),
             -1);
     tasks.addAll(failureTasks);
     return tasks;
@@ -376,7 +376,7 @@ public class FileTaskStore implements TaskStore {
   public Collection<TaskWrapper> getFailureTasksWithLimit(int limit) {
     List<TaskWrapper> tasks =
         getFailureTasksFromFs(
-            context.getPrimusConf(),
+            context.getApplicationMeta().getPrimusConf(),
             limit
         );
     tasks.addAll(failureTasks);
@@ -425,7 +425,8 @@ public class FileTaskStore implements TaskStore {
 
   public List<TaskWrapper> getFailureTasksFromFs(PrimusConf primusConf, int limit) {
     try {
-      String storeDir = getStoreDir(context.getApplicationId(), name, primusConf);
+      String storeDir = getStoreDir(context.getApplicationMeta().getApplicationId(), name,
+          primusConf);
       Path taskStatusesPath = new Path(storeDir, FAILURE_TASK_STATUSES_FILENAME);
       LOG.info("Start getFinishedTasksFromFs limit: {}", limit);
       return getFinishedTasksFromFs(fs, storeDir, taskStatusesPath, limit);
@@ -637,9 +638,9 @@ public class FileTaskStore implements TaskStore {
     public void logTaskBuildFailed(String errmsg) {
       String eventType = "BUILD_TASK_FAILED";
       JsonObject buildTaskFailed = new JsonObject();
-      buildTaskFailed.addProperty("attemptId", context.getAttemptId());
+      buildTaskFailed.addProperty("attemptId", context.getApplicationMeta().getAttemptId());
       buildTaskFailed.addProperty("errmsg", errmsg);
-      context.getTimelineLogger().logEvent(eventType, buildTaskFailed.toString());
+      context.logTimelineEvent(eventType, buildTaskFailed.toString());
     }
 
     private void updateIndex(long taskId, int fileId) throws IOException {
@@ -1052,8 +1053,10 @@ public class FileTaskStore implements TaskStore {
     }
 
     public void recover() throws IOException {
-      int snapshotId = context.getPrimusConf().getInputManager().getWorkPreserve().getSnapshotId();
-      if (context.getAttemptId() == 1 && snapshotId > 0) {
+      int snapshotId = context.getApplicationMeta().getPrimusConf().getInputManager()
+          .getWorkPreserve()
+          .getSnapshotId();
+      if (context.getApplicationMeta().getAttemptId() == 1 && snapshotId > 0) {
         LOG.info("Start to recover snapshot, snapshot id " + snapshotId);
         recoverSnapshot(snapshotId);
       }

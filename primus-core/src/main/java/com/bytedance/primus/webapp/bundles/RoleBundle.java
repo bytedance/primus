@@ -39,27 +39,18 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PUBLIC)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true, access = AccessLevel.PRIVATE)
+@Getter
 public class RoleBundle {
 
-  @Getter
   private int id;
-  @Getter
   private String node;
-  @Getter
   private Date launchTime;
-  @Getter
   private Date releaseTime;
-  @Getter
   private int exitCode;
-  @Getter
   private String state;
-  @Getter
   private String diag;
-  @Getter
   private String logUrl;
-  @Getter
   private String historyLogUrl;
-  @Getter
   private String monitorUrl;
 
   private RoleBundle(
@@ -92,7 +83,9 @@ public class RoleBundle {
                 summaryBundle.getStartTime()
             ).values());
 
-    this.node = context.getMonitorInfoProvider().getExecutorNodeName(schedulerExecutor);
+    this.node = context
+        .getMonitorInfoProvider()
+        .getExecutorNodeName(schedulerExecutor);
   }
 
   private RoleBundle newHistoryBundle() {

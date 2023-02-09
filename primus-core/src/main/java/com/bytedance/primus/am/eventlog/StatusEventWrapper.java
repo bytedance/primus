@@ -46,42 +46,47 @@ import org.slf4j.LoggerFactory;
 
 public class StatusEventWrapper {
 
-  private static final Logger log = LoggerFactory.getLogger(StatusEventWrapper.class);
-  private AMContext context;
+  private final static Logger log = LoggerFactory.getLogger(StatusEventWrapper.class);
+  private final AMContext context;
+  private final boolean canLogEvent;
 
-  public StatusEventWrapper(AMContext context) {
+  public StatusEventWrapper(AMContext context, boolean canLogEvent) {
     this.context = context;
+    this.canLogEvent = canLogEvent;
   }
 
   public AMStatusEvent buildAMStartEvent() {
     PrimusEventMsg.Builder msg = PrimusEventMsg.newBuilder();
     try {
-      if (context.getStatusLoggingListener().canLogEvent()) {
-        msg.setYarnApplicationId(context.getApplicationId());
-        MsgDataPrimusJobStateChange.Builder builder = MsgDataPrimusJobStateChange.newBuilder();
-        builder.setName(context.getPrimusConf().getName());
-        builder.setTimeStamp(context.getStartTime().getTime());
-        builder.setProgress(context.getProgressManager().getProgress());
-        builder.setStateValue(AppState.NEW_VALUE);
-        builder.setPrimusConf(ProtoJsonConverter.getJsonString(context.getPrimusConf()));
-        msg.setJobStateData(builder.build());
+      if (canLogEvent) {
+        MsgDataPrimusJobStateChange jobStateChange = MsgDataPrimusJobStateChange.newBuilder()
+            .setName(context.getApplicationMeta().getPrimusConf().getName())
+            .setTimeStamp(context.getStartTime().getTime())
+            .setProgress(context.getProgressManager().getProgress())
+            .setStateValue(AppState.NEW_VALUE)
+            .setPrimusConf(
+                ProtoJsonConverter.getJsonString(context.getApplicationMeta().getPrimusConf()))
+            .build();
+
+        msg
+            .setYarnApplicationId(context.getApplicationMeta().getApplicationId())
+            .setJobStateData(jobStateChange);
       }
     } catch (Exception e) {
       log.error("Failed to build AmStartEvent", e);
     }
 
-    AMStatusEvent amStartEvent = new AMStatusEvent(msg.build());
-    return amStartEvent;
+    return new AMStatusEvent(msg.build());
   }
 
   public AMStatusEvent buildAMEndEvent(
       FinalApplicationStatus status, int exitCode, String diagnosis) {
     PrimusEventMsg.Builder msg = PrimusEventMsg.newBuilder();
     try {
-      if (context.getStatusLoggingListener().canLogEvent()) {
-        msg.setYarnApplicationId(context.getApplicationId());
+      if (canLogEvent) {
+        msg.setYarnApplicationId(context.getApplicationMeta().getApplicationId());
         MsgDataPrimusJobStateChange.Builder builder = MsgDataPrimusJobStateChange.newBuilder();
-        builder.setName(context.getPrimusConf().getName());
+        builder.setName(context.getApplicationMeta().getPrimusConf().getName());
         builder.setTimeStamp(System.currentTimeMillis());
         builder.setProgress(context.getProgressManager().getProgress());
         switch (status) {
@@ -111,9 +116,8 @@ public class StatusEventWrapper {
   public WorkerStatusEvent buildWorkerStatusEvent(SchedulerExecutorImpl schedulerExecutor) {
     PrimusEventMsg.Builder msg = PrimusEventMsg.newBuilder();
     try {
-      if (context.getStatusLoggingListener() != null &&
-          context.getStatusLoggingListener().canLogEvent()) {
-        msg.setYarnApplicationId(context.getApplicationId());
+      if (canLogEvent) {
+        msg.setYarnApplicationId(context.getApplicationMeta().getApplicationId());
         MsgDataWorkerStateChange.Builder builder = MsgDataWorkerStateChange.newBuilder();
         ExecutorId executorId = schedulerExecutor.getExecutorId();
         builder.setId(executorId.getIndex());
@@ -135,7 +139,7 @@ public class StatusEventWrapper {
   public List<TaskStatusEvent> buildAllTaskStatusEvent() {
     List<TaskStatusEvent> res = Lists.newArrayList();
     try {
-      if (context.getStatusLoggingListener().canLogEvent()) {
+      if (canLogEvent) {
         for (Entry<String, TaskManager> taskManagerEntry :
             context.getDataStreamManager().getTaskManagerMap().entrySet()) {
           TaskManager taskManager = taskManagerEntry.getValue();
@@ -144,7 +148,7 @@ public class StatusEventWrapper {
             List<TaskWrapper> tasks = fileTaskManager.getTasksForHistory();
             for (TaskWrapper taskWrapper : tasks) {
               PrimusEventMsg.Builder msg = PrimusEventMsg.newBuilder();
-              msg.setYarnApplicationId(context.getApplicationId());
+              msg.setYarnApplicationId(context.getApplicationMeta().getApplicationId());
               MsgDataTaskStateChange.Builder taskState = MsgDataTaskStateChange.newBuilder();
               Task task = taskWrapper.getTask();
               TaskStatus status = taskWrapper.getTaskStatus();
@@ -175,8 +179,8 @@ public class StatusEventWrapper {
   public TaskStatusEvent buildTaskStatusEvent(TaskWrapper taskWrapper) {
     PrimusEventMsg.Builder msg = PrimusEventMsg.newBuilder();
     try {
-      if (context.getStatusLoggingListener().canLogEvent()) {
-        msg.setYarnApplicationId(context.getApplicationId());
+      if (canLogEvent) {
+        msg.setYarnApplicationId(context.getApplicationMeta().getApplicationId());
         MsgDataTaskStateChange.Builder taskState = MsgDataTaskStateChange.newBuilder();
         Task task = taskWrapper.getTask();
         TaskStatus status = taskWrapper.getTaskStatus();
@@ -196,7 +200,6 @@ public class StatusEventWrapper {
     } catch (Exception e) {
       log.error("Failed to build taskStatusEvent", e);
     }
-    TaskStatusEvent taskStatusEvent = new TaskStatusEvent(msg.build());
-    return taskStatusEvent;
+    return new TaskStatusEvent(msg.build());
   }
 }

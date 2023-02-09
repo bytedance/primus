@@ -79,7 +79,7 @@ public class NodeAttributeController extends AbstractService {
         Long expiredTime = blackListMap.get(node);
         blackListMap.put(node, expiredTime + creationTime);
       }
-      context.getBlacklistTrackerOpt().ifPresent(b -> b.addNodeBlackList(blackListMap));
+      context.getBlacklistTracker().ifPresent(b -> b.addNodeBlackList(blackListMap));
     }
 
     @Override
@@ -114,8 +114,8 @@ public class NodeAttributeController extends AbstractService {
         Long expiredTime = newBlackList.get(node);
         newBlackList.put(node, expiredTime + creationTime);
       }
-      context.getBlacklistTrackerOpt().ifPresent(b -> b.addNodeBlackList(newBlackList));
-      context.getBlacklistTrackerOpt().ifPresent(b -> b.removeNodeBlackList(oldBlackList));
+      context.getBlacklistTracker().ifPresent(b -> b.addNodeBlackList(newBlackList));
+      context.getBlacklistTracker().ifPresent(b -> b.removeNodeBlackList(oldBlackList));
     }
 
     @Override
@@ -123,7 +123,7 @@ public class NodeAttributeController extends AbstractService {
       LOG.info("NodeAttribute deleted\n{}", nodeAttribute.toString());
       ResourceProto.NodeAttributeSpec spec = nodeAttribute.getSpec().getProto();
       context
-          .getBlacklistTrackerOpt()
+          .getBlacklistTracker()
           .ifPresent(b -> b.removeNodeBlackList(spec.getBlackListMap()));
     }
 

@@ -23,14 +23,14 @@ import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 
-import com.bytedance.primus.am.role.RoleInfo;
+import com.bytedance.primus.am.AMContext;
+import com.bytedance.primus.am.PrimusApplicationMeta;
 import com.bytedance.primus.am.role.RoleInfoManager;
 import com.bytedance.primus.am.schedulerexecutor.SchedulerExecutorManager;
 import com.bytedance.primus.apiserver.records.RoleSpec;
 import com.bytedance.primus.apiserver.records.impl.RoleSpecImpl;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusConfOuterClass.Scheduler;
-import com.bytedance.primus.runtime.yarncommunity.am.YarnAMContext;
 import com.google.common.collect.Lists;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,7 +51,10 @@ import org.mockito.runners.MockitoJUnitRunner;
 public class FairContainerManagerTest {
 
   @Mock
-  YarnAMContext context;
+  AMContext context;
+
+  @Mock
+  PrimusApplicationMeta primusApplicationMeta;
 
   @Mock
   RoleInfoManager roleInfoManager;
@@ -70,16 +73,18 @@ public class FairContainerManagerTest {
       containerRequestsHolder.add(request);
       return request;
     }).when(amClient).addContainerRequest(any());
-    Map<Integer, RoleInfo> roleInfoMap = new HashMap<>();
     RoleSpec roleSpec = new RoleSpecImpl();
     roleSpec.setMinReplicas(1);
     roleSpec.setReplicas(3);
     FairRoleInfo roleInfo = new FairRoleInfo(Lists.newArrayList("FairRole"), "FairRole", roleSpec,
         0);
-    roleInfoMap.putIfAbsent(roleInfo.getPriority(), roleInfo);
 
-    when(roleInfoManager.getPriorityRoleInfoMap()).thenReturn(roleInfoMap);
-    FairContainerManager fairContainerManager = new FairContainerManager(context);
+    when(roleInfoManager.getRoleInfo(roleInfo.getPriority())).thenReturn(roleInfo);
+    FairContainerManager fairContainerManager = new FairContainerManager(
+        context,
+        null, // AMRM Client
+        roleInfoManager
+    );
 
     Map<Integer, ConcurrentSkipListSet<ContainerId>> priorityContainerIdsMap = new HashMap<>();
     priorityContainerIdsMap.putIfAbsent(0, new ConcurrentSkipListSet<>());
@@ -89,8 +94,9 @@ public class FairContainerManagerTest {
     fairContainerManager.askForContainers();
 
     Assert.assertEquals(3, containerRequestsHolder.size());
-    Assert.assertEquals(3,
-        Integer.toUnsignedLong(fairContainerManager.getPriorityNeedRequestNumMap().get(0)));
+    Assert.assertEquals(3, Integer.toUnsignedLong(
+        fairContainerManager.getPriorityNeedRequestNumMap().get(0)
+    ));
   }
 
   @Before
@@ -101,8 +107,9 @@ public class FairContainerManagerTest {
     PrimusConf primusConf = PrimusConf.newBuilder()
         .setScheduler(scheduler)
         .build();
-    when(context.getPrimusConf()).thenReturn(primusConf);
+    when(context.getApplicationMeta()).thenReturn(primusApplicationMeta);
     when(context.getRoleInfoManager()).thenReturn(roleInfoManager);
     when(context.getSchedulerExecutorManager()).thenReturn(schedulerExecutorManager);
+    when(primusApplicationMeta.getPrimusConf()).thenReturn(primusConf);
   }
 }

@@ -94,6 +94,11 @@ public class ExecutorStatusUpdater extends AbstractService {
         .usePlaintext(true)
         .build();
     amBlockingStub = ExecutorTrackerServiceGrpc.newBlockingStub(amManagedChannel);
+
+    LOG.info("Setting up ExecutorTrackerService: {}:{}",
+        primusExecutorConf.getAmHost(),
+        primusExecutorConf.getAmPort()
+    );
   }
 
   @Override
