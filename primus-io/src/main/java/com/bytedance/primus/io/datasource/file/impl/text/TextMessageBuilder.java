@@ -20,32 +20,29 @@
 package com.bytedance.primus.io.datasource.file.impl.text;
 
 import com.bytedance.primus.io.messagebuilder.MessageBuilder;
-import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
 
 public class TextMessageBuilder extends MessageBuilder {
 
-  private static final byte[] FIELD_SEPERATOR = "\t".getBytes();
-  private static final byte[] LINE_SEPERATOR = "\n".getBytes();
+  private static final byte[] LINE_SEPARATOR = "\n".getBytes();
 
   public TextMessageBuilder(int bufferSize) {
     super(bufferSize);
   }
 
   @Override
-  protected void writeKey(Object key) throws IOException {
-    writeUTF8(key);
-    buffer.put(FIELD_SEPERATOR, 0, FIELD_SEPERATOR.length);
+  protected void writeKey(Object key) {
   }
 
   @Override
-  protected void writeValue(Object value) throws IOException {
+  protected void writeValue(Object value) {
     writeUTF8(value);
-    buffer.put(LINE_SEPERATOR, 0, LINE_SEPERATOR.length);
+    buffer.put(LINE_SEPARATOR, 0, LINE_SEPARATOR.length);
   }
 
-  private void writeUTF8(Object object) throws IOException {
+  private void writeUTF8(Object object) {
     byte[] bval;
     int valSize;
     if (object instanceof BytesWritable) {
@@ -58,7 +55,7 @@ public class TextMessageBuilder extends MessageBuilder {
       valSize = val.getLength();
     } else {
       String sval = object.toString();
-      bval = sval.getBytes("UTF-8");
+      bval = sval.getBytes(StandardCharsets.UTF_8);
       valSize = bval.length;
     }
     buffer.put(bval, 0, valSize);
