@@ -9,6 +9,8 @@ ${PRIMUS_HOME}  the path to the installed Primus
 ${HADOOP_HOME}  the path to the installed Hadoop
 ${KAFKA_HOME}   the path to the installed Kafka
 
+${PRIMUS_EXAMPLE_BASICS}  ${PRIMUS_HOME}/examples/basics
+
 ${KUBERNETES_APPLICATION_ID_EXTRACT_PATTERN}   Primus Application ID: ([a-zA-Z0-9-_]+)
 ${KUBERNETES_APPLICATION_URL_EXTRACT_PATTERN}  Tracking URL: (http://[a-zA-Z0-9-_/.:]+)
 
@@ -75,7 +77,7 @@ command result contains  [Arguments]  ${command}  ${content}
 *** Test Cases ***
 hello-primus
   # Submit Primus application and check Primus client logs
-  ${application_id} =  submit primus application  ${PRIMUS_HOME}/examples/hello/primus_config.json
+  ${application_id} =  submit primus application  ${PRIMUS_EXAMPLE_BASICS}/hello/primus_config.json
 
   # Check Primus application logs
   ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep -E ^Hello
@@ -88,7 +90,7 @@ hello-primus
 
 
 primus-ui
-   ${process}  ${application_id}  ${application_url} =  submit primus application async  ${PRIMUS_HOME}/examples/hello-extended/primus_config.json
+   ${process}  ${application_id}  ${application_url} =  submit primus application async  ${PRIMUS_EXAMPLE_BASICS}/hello-extended/primus_config.json
 
    # Primus AM UI
    # TODO: Test UI with Selenium
@@ -118,10 +120,10 @@ primus-ui
 
 input-file-customized
   # Prepare test data
-  prepare hdfs data  ${PRIMUS_HOME}/examples/input-file-customized/data  /primus/examples/input-file-customized/
+  prepare hdfs data  ${PRIMUS_EXAMPLE_BASICS}/input-file-customized/data  /primus/examples/input-file-customized/
 
   # Submit Primus application and check Primus client logs
-  ${application_id} =  Submit Primus Application  ${PRIMUS_HOME}/examples/input-file-customized/primus_config.json
+  ${application_id} =  Submit Primus Application  ${PRIMUS_EXAMPLE_BASICS}/input-file-customized/primus_config.json
 
   # Check Primus application logs
   ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep -a "Hello from input-file-customized"
@@ -148,10 +150,10 @@ input-file-customized
 
 input-file-text
   # Prepare test data
-  prepare hdfs data  ${PRIMUS_HOME}/examples/input-file-text/data  /primus/examples/input-file-text/
+  prepare hdfs data  ${PRIMUS_EXAMPLE_BASICS}/input-file-text/data  /primus/examples/input-file-text/
 
   # Submit Primus application and check Primus client logs
-  ${application_id} =  Submit Primus Application  ${PRIMUS_HOME}/examples/input-file-text/primus_config.json
+  ${application_id} =  Submit Primus Application  ${PRIMUS_EXAMPLE_BASICS}/input-file-text/primus_config.json
 
   # Check Primus application logs
   ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-file-text"
@@ -194,10 +196,10 @@ input-file-text
 
 input-file-text-timerange
   # Prepare test data
-  prepare hdfs data  ${PRIMUS_HOME}/examples/input-file-text-timerange/data  /primus/examples/input-file-text-timerange/
+  prepare hdfs data  ${PRIMUS_EXAMPLE_BASICS}/input-file-text-timerange/data  /primus/examples/input-file-text-timerange/
 
   # Submit Primus application and check Primus client logs
-  ${application_id} =  Submit Primus Application  ${PRIMUS_HOME}/examples/input-file-text-timerange/primus_config.json
+  ${application_id} =  Submit Primus Application  ${PRIMUS_EXAMPLE_BASICS}/input-file-text-timerange/primus_config.json
 
   # Check Primus application logs
   ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-file-text-timerange"
@@ -238,11 +240,11 @@ input-kafka-text
   Log  Preparing test data
   Run Process  ${KAFKA_HOME}/bin/kafka-topics.sh  --bootstrap-server  ${docker_host_ip.stdout}:9092  --delete  --topic  primus-example-input-kafka-text
   Run Process  ${KAFKA_HOME}/bin/kafka-topics.sh  --bootstrap-server  ${docker_host_ip.stdout}:9092  --create  --topic  primus-example-input-kafka-text
-  Run Process  bash  -c  cat ${PRIMUS_HOME}/examples/input-kafka-text/data/* | ${KAFKA_HOME}/bin/kafka-console-producer.sh --bootstrap-server ${docker_host_ip.stdout}:9092 --topic primus-example-input-kafka-text
+  Run Process  bash  -c  cat ${PRIMUS_EXAMPLE_BASICS}/input-kafka-text/data/* | ${KAFKA_HOME}/bin/kafka-console-producer.sh --bootstrap-server ${docker_host_ip.stdout}:9092 --topic primus-example-input-kafka-text
 
   # Submit Primus application and check Primus client logs
-  Run Process  bash  -c  sed 's/<kafka-broker-ip:port>/${docker_host_ip.stdout}:9092/' ${PRIMUS_HOME}/examples/input-kafka-text/primus_config.json > ${PRIMUS_HOME}/examples/input-kafka-text/primus_config.json.patched
-  ${application_id} =  Submit Primus Application  ${PRIMUS_HOME}/examples/input-kafka-text/primus_config.json.patched
+  Run Process  bash  -c  sed 's/<kafka-broker-ip:port>/${docker_host_ip.stdout}:9092/' ${PRIMUS_EXAMPLE_BASICS}/input-kafka-text/primus_config.json > ${PRIMUS_EXAMPLE_BASICS}/input-kafka-text/primus_config.json.patched
+  ${application_id} =  Submit Primus Application  ${PRIMUS_EXAMPLE_BASICS}/input-kafka-text/primus_config.json.patched
 
   # Check Primus application logs
   ${hello_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-kafka-text"
