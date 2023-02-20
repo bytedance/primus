@@ -764,13 +764,13 @@ public class FileTaskManager implements TaskManager {
       Thread thread = new Thread(
           () -> {
             long startTime = System.currentTimeMillis();
-            int timeoutMillis = IntegerUtils.ensurePositiveOrDefault(
+            long timeoutMillis = IntegerUtils.ensurePositiveOrDefault(
                 context.getApplicationMeta().getPrimusConf().getInputManager()
                     .getGracefulShutdownTimeWaitSec(),
                 DEFAULT_GRACEFUL_SHUTDOWN_TIME_WAIT_SEC
             );
 
-            while ((System.currentTimeMillis() - startTime) < timeoutMillis) {
+            while ((System.currentTimeMillis() - startTime) < timeoutMillis * 1000) {
               try {
                 Thread.sleep(DEFAULT_GRACEFUL_SHUTDOWN_TIME_CHECK_SEC);
               } catch (InterruptedException e) {
