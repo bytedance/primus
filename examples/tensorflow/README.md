@@ -59,3 +59,33 @@ $ python3 -m pip install 'tensorflow==2.8.0'
 $ python3 -m pip install 'tensorflow-io==0.24.0'
 $ python3 -m pip install 'protobuf==3.20.1'
 ```
+
+## TensorFlow Single
+
+TensorFlow single is an example derived from the [TensorFlow official tutorial](
+https://www.tensorflow.org/tutorials/quickstart/beginner) to demonstrate the workflow with Primus
+which covers the basic TensorFlow usages including reading from HDFS, scheduling data, training
+model and finally persisting the model onto HDFS.
+
+**To execute**
+
+```shell
+$ cd /usr/lib/primus-kubernetes/examples/tensorflow
+$ /usr/lib/primus-kubernetes/sbin/primus-submit --primus_conf tensorflow-single/primus_config.json
+...
+[2023-02-20 14:51:22:258] [INFO] - com.bytedance.primus.runtime.kubernetesnative.client.KubernetesSubmitCmdRunner.lambda$doWaitAppCompletion$0(KubernetesSubmitCmdRunner.java:151) current driver pod status: Succeeded
+[2023-02-20 14:51:22:258] [INFO] - com.bytedance.primus.runtime.kubernetesnative.client.Client.execute(Client.java:56) Shutting down LogManager
+...
+```
+
+**To evaluate**
+
+```shell
+$ cd /usr/lib/primus-kubernetes/examples/tensorflow
+$ bash resources/data/mnist/evaluate.sh resources/data/mnist/test hdfs:///primus/examples/mnist/models/tensorflow-single
+...
+313/313 - 0s - loss: 1.9948 - accuracy: 0.8274 - 394ms/epoch - 1ms/step
+Model accuracy: [1.9948195219039917, 0.8274000287055969]
+FIN
+
+```
