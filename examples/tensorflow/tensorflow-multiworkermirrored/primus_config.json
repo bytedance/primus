@@ -1,0 +1,59 @@
+{
+  "name": "primus-tensorflow-multiworkermirrored",
+  "files": [
+    "tensorflow-multiworkermirrored"
+  ],
+  "role": [
+    {
+      "roleName": "worker",
+      "num": 2,
+      "vcores": 1,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
+      "command": "env && bash tensorflow-multiworkermirrored/main.sh",
+      "successPercent": 100,
+      "failover": {
+        "commonFailoverPolicy": {
+          "commonFailover": {
+            "restartType": "ON_FAILURE",
+            "maxFailureTimes": 3,
+            "maxFailurePolicy": "FAIL_APP"
+          }
+        }
+      },
+      "inputPolicy": "STREAMING"
+    }
+  ],
+  "inputManager": {
+    "fileConfig": {
+      "inputs": [
+        {
+          "name": "data",
+          "spec": {
+            "pathPattern": "/primus/examples/mnist/train/",
+            "namePattern": "*",
+            "textInput": {}
+          }
+        }
+      ],
+      "stopPolicy": {
+        "taskSuccessPercent": 100
+      }
+    },
+    "workPreserve": {
+      "workPreserveType": "HDFS",
+      "dumpIntervalSecs": 5,
+      "rewindSkipNum": 15000
+    },
+    "gracefulShutdown": "true"
+  },
+  "runtimeConf": {
+    "kubernetesNativeConf": {
+      "executorPodConf": {
+        "mainContainerConf": {
+          "imageName": "primus-baseline-tensorflow:latest"
+        }
+      }
+    }
+  }
+}

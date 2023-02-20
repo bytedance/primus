@@ -89,3 +89,31 @@ Model accuracy: [1.9948195219039917, 0.8274000287055969]
 FIN
 
 ```
+
+## TensorFlow MultiWorkerMirrored
+
+This example is derived
+from [TensorFlow official tutorial]( https://www.tensorflow.org/tutorials/distribute/multi_worker_with_keras)
+to demonstrate how Primus applications integrate with `MultiWorkerMirroredStrategy`.
+
+**To execute**
+
+```shell
+$ cd /usr/lib/primus-kubernetes/examples/tensorflow
+$ /usr/lib/primus-kubernetes/sbin/primus-submit --primus_conf tensorflow-multiworkermirrored/primus_config.json
+...
+[2023-02-20 15:00:27:198] [INFO] - com.bytedance.primus.runtime.kubernetesnative.client.KubernetesSubmitCmdRunner.lambda$doWaitAppCompletion$0(KubernetesSubmitCmdRunner.java:151) current driver pod status: Succeeded
+[2023-02-20 15:00:27:198] [INFO] - com.bytedance.primus.runtime.kubernetesnative.client.Client.execute(Client.java:56) Shutting down LogManager
+```
+
+**To evaluate**
+
+```shell
+$ cd /usr/lib/primus-kubernetes/examples/tensorflow
+$ bash resources/data/mnist/evaluate.sh resources/data/mnist/test hdfs:///primus/examples/mnist/models/tensorflow-multiworkermirrored
+...
+313/313 - 0s - loss: 7.3492 - accuracy: 0.8261 - 398ms/epoch - 1ms/step
+Model accuracy: [7.349215507507324, 0.8260999917984009]
+FIN
+```
+
