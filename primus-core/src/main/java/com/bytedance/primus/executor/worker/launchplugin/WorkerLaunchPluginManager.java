@@ -44,18 +44,8 @@ public class WorkerLaunchPluginManager {
       WorkerContext workerContext) {
     ArrayList<ChildLaunchPlugin> pluginList = new ArrayList<>();
 
-    if (executorContext.getPrimusExecutorConf().getPrimusConf().getScheduler().getSchedulePolicy()
-        .hasPonyPolicy()) {
-      log.info("add PonyPlugin");
-      pluginList.add(new PonyPlugin(executorContext, workerContext));
-    }
     pluginList.add(new EnvPlugin(executorContext, workerContext));
 
-    switch (executorContext.getPrimusExecutorConf().getPrimusConf().getChannelConfigCase()) {
-      case FIFO_PIPE:
-        pluginList.add(new FifoPlugin(executorContext, workerContext));
-        break;
-    }
     pluginList.add(new SocketPlugin(executorContext, workerContext));
 
     if (executorContext.getPrimusExecutorConf().getInputManager().getGracefulShutdown()

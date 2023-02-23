@@ -19,13 +19,22 @@
 
 package com.bytedance.primus.am.progress;
 
+import static com.bytedance.primus.proto.PrimusConfOuterClass.ProgressManagerConf.Type.PM_ROLE;
+
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.exception.PrimusAMException;
+import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
+import com.bytedance.primus.proto.PrimusConfOuterClass.ProgressManagerConf.Type;
 
 public class ProgressManagerFactory {
 
   public static ProgressManager getProgressManager(AMContext context) throws PrimusAMException {
-    switch (context.getApplicationMeta().getPrimusConf().getProgressManagerType()) {
+    PrimusConf conf = context.getApplicationMeta().getPrimusConf();
+    Type type = conf.hasProgressManagerConf()
+        ? conf.getProgressManagerConf().getType()
+        : PM_ROLE;
+
+    switch (type) {
       case PM_ROLE:
         return new RoleProgressManager(RoleProgressManager.class.getName(), context);
       case PM_FILE:
@@ -33,8 +42,7 @@ public class ProgressManagerFactory {
       case PM_KAFKA:
         return new KafkaProgressManager(KafkaProgressManager.class.getName());
       default:
-        throw new PrimusAMException("Unsupported progress manager type:" +
-            context.getApplicationMeta().getPrimusConf().getProgressManagerType().name());
+        throw new PrimusAMException("Unsupported progress manager type:" + type.name());
     }
   }
 }

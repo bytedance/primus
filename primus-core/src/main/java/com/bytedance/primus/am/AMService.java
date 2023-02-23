@@ -19,8 +19,9 @@
 
 package com.bytedance.primus.am;
 
+import com.bytedance.primus.common.network.NetworkConfig;
+import com.bytedance.primus.common.network.NetworkEndpointTypeEnum;
 import com.bytedance.primus.common.service.AbstractService;
-import com.bytedance.primus.proto.PrimusCommon.RunningMode;
 import io.grpc.Server;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import java.io.IOException;
@@ -49,10 +50,10 @@ public class AMService extends AbstractService {
         .build()
         .start();
 
-    this.hostName =
-        context.getApplicationMeta().getPrimusConf().getRunningMode() == RunningMode.KUBERNETES
-            ? InetAddress.getLocalHost().getHostAddress()
-            : InetAddress.getLocalHost().getHostName();
+    NetworkConfig networkConfig = context.getApplicationMeta().getNetworkConfig();
+    this.hostName = NetworkEndpointTypeEnum.IPADDRESS == networkConfig.getNetworkEndpointType()
+        ? InetAddress.getLocalHost().getHostAddress()
+        : InetAddress.getLocalHost().getHostName();
 
     this.port = server.getPort();
     LOG.info("grpc server started on: {}:{}", hostName, port);

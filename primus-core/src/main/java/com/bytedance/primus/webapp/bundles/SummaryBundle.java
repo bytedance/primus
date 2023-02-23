@@ -33,47 +33,28 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PUBLIC)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true, access = AccessLevel.PRIVATE)
+@Getter
 public class SummaryBundle {
 
-  @Getter
   private String applicationId;
-  @Getter
   private String finalStatus;
-  @Getter
   private String name;
-  @Getter
   private String queue;
-  @Getter
   private String user;
-  @Getter
   private double progress;
-  @Getter
   private Date startTime;
-  @Getter
   private Date finishTime;
-  @Getter
   private String amLogUrl;
-  @Getter
   private String amHistoryLogUrl;
-  @Getter
   private String jobHistoryUrl;
-  @Getter
   private String amMonitorUrl;
-  @Getter
   private int attemptId;
-  @Getter
   private String jobMonitorUrl;
-  @Getter
   private boolean starving = false;
-  @Getter
   private String amWebshellUrl = "NA";
-  @Getter
   private String amNodeId;
-  @Getter
   private String version;
-  @Getter
   private String exitCode;
-  @Getter
   private String diagnostic;
 
   private SummaryBundle(AMContext context) {

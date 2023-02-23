@@ -25,7 +25,6 @@ import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.common.child.Child;
 import com.bytedance.primus.common.child.ChildContext;
 import com.bytedance.primus.common.child.ChildEvent;
-import com.bytedance.primus.common.child.ChildEventType;
 import com.bytedance.primus.common.child.ChildExitedEvent;
 import com.bytedance.primus.common.child.ChildLaunchPlugin;
 import com.bytedance.primus.common.child.ChildStartedEvent;
@@ -37,15 +36,10 @@ import com.bytedance.primus.executor.ExecutorEventType;
 import com.bytedance.primus.executor.ExecutorExitCode;
 import com.bytedance.primus.executor.ExecutorFailedEvent;
 import com.bytedance.primus.executor.task.WorkerStartEvent;
-import com.bytedance.primus.executor.worker.launchplugin.FifoPlugin;
 import com.bytedance.primus.executor.worker.launchplugin.WorkerLaunchPluginManager;
-import java.io.BufferedOutputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -89,36 +83,21 @@ public class Worker implements Child {
                 executorId));
         break;
       case CHILD_STARTED:
-        try {
-          switch (executorContext.getPrimusExecutorConf().getPrimusConf().getChannelConfigCase()) {
-            case FIFO_PIPE:
-              Map<String, String> env = workerContext.getEnvironment();
-              String fifoName = env.get(FifoPlugin.FIFO_ENV_KEY);
-              OutputStream output =
-                  new BufferedOutputStream(new FileOutputStream(fifoName), BUFFER_SIZE_BYTES);
-              dispatcher.getEventHandler().handle(new WorkerStartEvent(output));
-              break;
-            default:
-              OutputStream outputStream = ((ChildStartedEvent) event).getOutputStream();
-              dispatcher.getEventHandler().handle(new WorkerStartEvent(outputStream));
-              break;
-          }
-          dispatcher.getEventHandler()
-              .handle(new ExecutorEvent(ExecutorEventType.STARTED, executorId));
-          long submitTime = 0;
-          if (workerContext.getEnvironment().containsKey(PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY)) {
-            submitTime =
-                Long.valueOf(workerContext.getEnvironment().get(PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY));
-          }
-          PrimusMetrics.emitStoreWithAppIdTag(
-              "executor.worker_launch.submit_running.interval_ms",
-              new HashMap<String, String>() {{
+        OutputStream outputStream = ((ChildStartedEvent) event).getOutputStream();
+        dispatcher.getEventHandler().handle(new WorkerStartEvent(outputStream));
+        dispatcher.getEventHandler()
+            .handle(new ExecutorEvent(ExecutorEventType.STARTED, executorId));
+        long submitTime = 0;
+        if (workerContext.getEnvironment().containsKey(PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY)) {
+          submitTime =
+              Long.valueOf(workerContext.getEnvironment().get(PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY));
+        }
+        PrimusMetrics.emitStoreWithAppIdTag(
+            "executor.worker_launch.submit_running.interval_ms",
+            new HashMap<String, String>() {{
                 put("role", executorContext.getExecutorId().getRoleName());
               }},
               (int) (new Date().getTime() - submitTime));
-        } catch (FileNotFoundException e) {
-          handle(new ChildEvent(ChildEventType.LAUNCH_FAILED, e.getMessage()));
-        }
         break;
       case CHILD_INTERRUPTED:
         dispatcher.getEventHandler()

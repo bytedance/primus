@@ -37,21 +37,15 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor(access = AccessLevel.PUBLIC)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
 @Builder(toBuilder = true, access = AccessLevel.PRIVATE)
+@Getter
 public class StatusBundle {
 
-  @Getter
   private String primusConf;
-  @Getter
   private boolean isHistory;
-  @Getter
   private SummaryBundle summary;
-  @Getter
   private Map<String, List<RoleBundle>> roleMap;
-  @Getter
   private List<TaskBundle> tasks;
-  @Getter
   private String job;
-  @Getter
   private String data;
 
   public StatusBundle(

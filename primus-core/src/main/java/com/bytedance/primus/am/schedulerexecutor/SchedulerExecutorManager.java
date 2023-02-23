@@ -45,9 +45,9 @@ import com.bytedance.primus.common.model.records.NodeId;
 import com.bytedance.primus.common.model.records.Priority;
 import com.bytedance.primus.common.model.records.impl.pb.ContainerPBImpl;
 import com.bytedance.primus.common.network.NetworkConfig;
+import com.bytedance.primus.common.network.NetworkEndpointTypeEnum;
 import com.bytedance.primus.common.service.AbstractService;
 import com.bytedance.primus.executor.ExecutorExitCode;
-import com.bytedance.primus.proto.PrimusConfOuterClass.NetworkConfig.NetworkType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
@@ -391,8 +391,10 @@ public class SchedulerExecutorManager extends AbstractService
   }
 
   private boolean enableIpAndPortFailover() {
-    return NetworkType.OVERLAY == networkConfig.getNetworkType()
-        && networkConfig.isKeepIpAndPortUnderOverlay();
+    return NetworkEndpointTypeEnum.IPADDRESS == context
+        .getApplicationMeta()
+        .getNetworkConfig()
+        .getNetworkEndpointType();
   }
 
   private Optional<ExecutorSpec> findPreviousExecutorSpec(ExecutorId executorId) {
