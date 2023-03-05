@@ -172,11 +172,6 @@ public class KafkaTaskManager implements TaskManager {
   }
 
   @Override
-  public List<TaskWrapper> getTasksForTaskPreserverSnapshot() {
-    return new ArrayList<>();
-  }
-
-  @Override
   public List<TaskWrapper> getTasksForHistory() {
     return new ArrayList<>();
   }
@@ -233,7 +228,7 @@ public class KafkaTaskManager implements TaskManager {
   }
 
   @Override // TODO: Surface snapshot is not supported
-  public boolean makeSavepoint(String savepointDir) {
+  public boolean takeSnapshot(String savepointDir) {
     return true;
   }
 

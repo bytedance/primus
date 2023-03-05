@@ -106,7 +106,7 @@ public class DataSavepointController extends AbstractService {
       dataSavepoint.getStatus().setState(DataSavepointState.RUNNING);
       updateDataSavepointToApiServer(dataSavepoint);
       LOG.info("Savepoint running {}", dataSavepoint);
-      if (dataStreamManager.makeSavepoint(savepointDir)) {
+      if (dataStreamManager.takeSnapshot(savepointDir)) {
         dataSavepoint.getStatus().setState(DataSavepointState.SUCCEEDED);
         LOG.info("Savepoint succeed {}", dataSavepoint);
       } else {

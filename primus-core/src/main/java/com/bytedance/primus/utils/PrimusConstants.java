@@ -51,6 +51,7 @@ public class PrimusConstants {
   public static final int DEFAULT_MAX_TASK_NUM_PER_WORKER = 1;
   public static final int DEFAULT_MAX_TASK_ATTEMPTS = 2;
 
+  public static final int DEFAULT_SUCCESS_PERCENT = 100;
   public static final int DEFAULT_FAILED_PERCENT = 50;
 
   public static final int DEFAULT_MESSAGE_BUFFER_SIZE = 4 * 1024 * 1024;

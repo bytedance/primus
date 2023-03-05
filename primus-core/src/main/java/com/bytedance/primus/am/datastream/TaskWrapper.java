@@ -19,6 +19,7 @@
 
 package com.bytedance.primus.am.datastream;
 
+import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.TaskState;
 import com.bytedance.primus.api.records.TaskStatus;
@@ -63,6 +64,30 @@ public class TaskWrapper implements Comparable<TaskWrapper> {
 
   public void setTaskStatus(TaskStatus taskStatus) {
     this.taskStatus = taskStatus;
+  }
+
+  /**
+   * This method is specialized for updating TaskStatus reported from executor.
+   */
+  public TaskWrapper updateTaskStatus(ExecutorId executorId, TaskStatus taskStatusFromExecutor) {
+    TaskStatus oldTaskStatus = taskStatus;
+
+    this.taskStatus = taskStatusFromExecutor;
+    this.taskStatus.setWorkerName(executorId.toUniqString());
+    this.taskStatus.setAssignedNode(oldTaskStatus.getAssignedNode());
+    this.taskStatus.setAssignedNodeUrl(oldTaskStatus.getAssignedNodeUrl());
+
+    this.task.setCheckpoint(taskStatusFromExecutor.getCheckpoint());
+    this.task.setNumAttempt(taskStatusFromExecutor.getNumAttempt());
+
+    return this;
+  }
+
+  public TaskWrapper adjustNumAttempt(int offset) {
+    int updatedNumAttempt = task.getNumAttempt() + offset;
+    task.setNumAttempt(updatedNumAttempt);
+    taskStatus.setNumAttempt(updatedNumAttempt);
+    return this;
   }
 
   @Override

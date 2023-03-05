@@ -249,6 +249,7 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
         YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
       cpath.append(":").append(c.trim());
     }
+    env.put("HADOOP_USER_NAME", System.getenv("USER"));
     env.put("CLASSPATH", cpath.toString());
     env.put(STAGING_DIR_KEY, stagingDir.toString());
     env.putAll(primusConf.getEnvMap());

@@ -94,7 +94,6 @@ message StopPolicy {
 // TODO: Comment
 message WorkPreserve {
   // General configurations
-  int32 snapshot_id = 1;
   int32 dump_interval_sec = 2;
 
   // Storage specific configurations

@@ -82,9 +82,16 @@ public class FileTaskBuilder {
     this.context = context;
     this.name = dataStreamName;
     this.taskStore = taskStore;
-    this.lastSavedTask = taskStore.getLastSavedTask();
-
-    this.currentTaskId = (lastSavedTask != null ? lastSavedTask.getTaskId() : 0);
+    this.lastSavedTask = taskStore
+        .getLastSavedTask()
+        .map(task -> {
+          LOG.info("LastSavedTask: {}", task);
+          return task;
+        })
+        .orElse(null);
+    this.currentTaskId = this.lastSavedTask != null
+        ? lastSavedTask.getTaskId()
+        : -1; // TODO: Reuse constant defined in TaskFileIndexCache
     this.isFinished = false;
 
     int numBuildTaskThreads = Math.max(
@@ -182,10 +189,11 @@ public class FileTaskBuilder {
           taskStore.addNewTasks(bufferedTasks);
           isFinished = true;
 
-          LOG.info("Finished building all tasks, total tasks: " + taskStore.getTotalTaskNum());
+          long totalTaskNum = taskStore.getTaskStatistics().getTotalTaskNum();
+          LOG.info("Finished building all tasks, total tasks: {}", totalTaskNum);
           context.logTimelineEvent(
               PRIMUS_TASKS_TOTAL_COUNT.name(),
-              Long.toString(taskStore.getTotalTaskNum())
+              String.valueOf(totalTaskNum)
           );
 
           return;
