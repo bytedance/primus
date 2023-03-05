@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.am.datastream.file;
+package com.bytedance.primus.am.datastream.file.task.builder;
 
 import static com.bytedance.primus.utils.TimeUtils.newDate;
 import static com.bytedance.primus.utils.TimeUtils.newDateHour;

@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.am.datastream.file;
+package com.bytedance.primus.am.datastream.file.task.builder;
 
 import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_TASKS_TOTAL_COUNT;
 import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_TASK_INFO_DETAILED;
@@ -25,6 +25,7 @@ import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_TASK_IN
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
+import com.bytedance.primus.am.datastream.file.task.store.TaskStore;
 import com.bytedance.primus.api.records.FileTask;
 import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.api.records.impl.pb.FileTaskPBImpl;
