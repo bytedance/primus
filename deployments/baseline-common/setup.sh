@@ -34,7 +34,8 @@ apt-get install -y \
   wget \
   curl \
   net-tools \
-  openjdk-8-jdk \
+  openjdk-8-jre-headless \
+  openjdk-8-jdk-headless \
   maven
 
 # Docker - https://docs.docker.com/engine/install/ubuntu/
