@@ -1,0 +1,65 @@
+{
+  "name": "primus_tensorflow_parameterserver",
+  "files": [
+    "tensorflow-parameterserver"
+  ],
+  "role": [
+    {
+      "roleName": "chief",
+      "num": 1,
+      "vcores": 1,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
+      "command": "env && python3 tensorflow-parameterserver/chief.py",
+      "successPercent": 100,
+      "failover": {
+        "commonFailoverPolicy": {
+          "restartType": "ON_FAILURE",
+          "maxFailureTimes": 1,
+          "maxFailurePolicy": "FAIL_ATTEMPT"
+        }
+      }
+    },
+    {
+      "roleName": "ps",
+      "num": 1,
+      "vcores": 1,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
+      "command": "env && python3 tensorflow-parameterserver/ps.py",
+      "successPercent": 0,
+      "failover": {
+        "commonFailoverPolicy": {
+          "restartType": "ON_FAILURE",
+          "maxFailureTimes": 1,
+          "maxFailurePolicy": "FAIL_ATTEMPT"
+        }
+      }
+    },
+    {
+      "roleName": "worker",
+      "num": 1,
+      "vcores": 1,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
+      "command": "env && python3 tensorflow-parameterserver/worker.py",
+      "successPercent": 0,
+      "failover": {
+        "commonFailoverPolicy": {
+          "restartType": "ON_FAILURE",
+          "maxFailureTimes": 1,
+          "maxFailurePolicy": "FAIL_ATTEMPT"
+        }
+      }
+    }
+  ],
+  "runtimeConf": {
+    "kubernetesNativeConf": {
+      "executorPodConf": {
+        "mainContainerConf": {
+          "imageName": "primus-baseline-tensorflow:latest"
+        }
+      }
+    }
+  }
+}

@@ -117,3 +117,32 @@ Model accuracy: [7.349215507507324, 0.8260999917984009]
 FIN
 ```
 
+## TensorFlow ParameterServer
+
+This example is derived from
+the [parameter server](https://www.tensorflow.org/tutorials/distribute/parameter_server_training)
+to demonstrate how Primus applications integrate with `ParameterServerStrategy`. Notably, though
+distributed training applications with TensorFlow ParameterServerStrategy is supported by Primus,
+Primus data scheduling cannot be directly integrated with this strategy, please stay tuned for
+upcoming Primus features.
+
+**To execute**
+
+```shell
+$ cd /usr/lib/primus-kubernetes/examples/tensorflow
+$ /usr/lib/primus-kubernetes/sbin/primus-submit --primus_conf tensorflow-parameterserver/primus_config.json
+[2023-03-08 09:20:21:001] [INFO] - com.bytedance.primus.runtime.kubernetesnative.client.KubernetesSubmitCmdRunner.lambda$doWaitAppCompletion$0(KubernetesSubmitCmdRunner.java:151) current driver pod status: Succeeded
+[2023-03-08 09:20:21:002] [INFO] - com.bytedance.primus.runtime.kubernetesnative.client.Client.execute(Client.java:56) Shutting down LogManager
+```
+
+**To validate**
+
+```shell
+$ kubectl -n primus logs --tail=-1 -l primus.k8s.io/app-id-selector=primus-d579ac92e8d03fb5a0cdfb0e89bb0f7f | grep -E "Epoch"
+...
+Epoch 1/5
+Epoch 2/5
+Epoch 3/5
+Epoch 4/5
+Epoch 5/5
+```
