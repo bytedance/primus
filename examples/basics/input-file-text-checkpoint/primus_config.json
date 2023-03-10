@@ -1,0 +1,48 @@
+{
+  "name": "primus-input-file-text-checkpoint",
+  "maxAppAttempts": 1,
+  "role": [
+    {
+      "roleName": "worker",
+      "num": 1,
+      "vcores": 1,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
+      "command": "cat",
+      "successPercent": 100,
+      "failover": {
+        "commonFailoverPolicy": {
+          "restartType": "ON_FAILURE",
+          "maxFailureTimes": 3,
+          "maxFailurePolicy": "FAIL_APP"
+        }
+      },
+      "inputPolicy": "STREAMING"
+    }
+  ],
+  "progressManagerType": "PM_FILE",
+  "inputManager": {
+    "fileConfig": {
+      "inputs": [
+        {
+          "name": "data",
+          "spec": {
+            "pathPattern": "/primus/examples/input-file-text-checkpoint/data/",
+            "namePattern": "*",
+            "textInput": {}
+          }
+        }
+      ],
+      "stopPolicy": {
+        "taskSuccessPercent": 100
+      }
+    },
+    "workPreserve": {
+      "dumpIntervalSec": 1,
+      "hdfsConfig": {
+      	"stagingDir": "/primus/examples/input-file-text-checkpoint/savepoint"
+      }
+    },
+    "gracefulShutdown": "true"
+  }
+}

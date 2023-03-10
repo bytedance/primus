@@ -7,7 +7,7 @@ into trainers.
 The preparation of this example requires three actions
 
 - setup a Primus cluster, refer to [quickstart](../../docs/primus-quickstart.md).
-- modify `examples/input-kafka-text/primus_config` by updating `<kafka-broker-ip:port>`
+- modify `examples/basics/input-kafka-text/primus_config` by updating `<kafka-broker-ip:port>`
 - upload training data to Kafka
   ```bash
   # Create a new topic
@@ -26,7 +26,7 @@ in [quickstart](../../docs/primus-quickstart.md).
 
 ```bash
 # Submit
-$ primus-submit --primus_conf examples/input-file-text-timerange/primus_config.json
+$ primus-submit --primus_conf examples/basics/input-file-text-timerange/primus_config.json
 
 # Check the logs
 $ <retrieve-logs> | grep Hello
