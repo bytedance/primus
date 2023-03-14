@@ -1,0 +1,51 @@
+{
+  "name": "primus-hello-extended",
+  "maxAppAttempts": 1,
+  "role": [
+    {
+      "roleName": "chief",
+      "num": 1,
+      "vcores": 1,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
+      "command": "env && echo 'Hello from Chief' && sleep 900 && echo 'Goodbye from Chief'",
+      "successPercent": 100,
+      "failover": {
+        "commonFailoverPolicy": {
+          "maxFailureTimes": 1,
+          "maxFailurePolicy": "FAIL_ATTEMPT"
+        }
+      }
+    },
+    {
+      "roleName": "ps",
+      "num": 1,
+      "vcores": 1,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
+      "command": "env && echo 'Hello from PS' && sleep 900 && echo 'Goodbye from PS'",
+      "successPercent": 100,
+      "failover": {
+        "commonFailoverPolicy": {
+          "maxFailureTimes": 1,
+          "maxFailurePolicy": "FAIL_ATTEMPT"
+        }
+      }
+    },
+    {
+      "roleName": "worker",
+      "num": 1,
+      "vcores": 1,
+      "memoryMb": 512,
+      "jvmMemoryMb": 512,
+      "command": "env && echo 'Hello from Worker' && sleep 900 && echo 'Goodbye from Worker'",
+      "successPercent": 100,
+      "failover": {
+        "commonFailoverPolicy": {
+          "maxFailureTimes": 1,
+          "maxFailurePolicy": "FAIL_ATTEMPT"
+        }
+      }
+    }
+  ]
+}

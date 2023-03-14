@@ -1,0 +1,4 @@
+Hello from input-file-text-timerange(hourly): 2020-01-01-00 - 0
+Hello from input-file-text-timerange(hourly): 2020-01-01-00 - 1
+Hello from input-file-text-timerange(hourly): 2020-01-01-00 - 2
+Hello from input-file-text-timerange(hourly): 2020-01-01-00 - 3

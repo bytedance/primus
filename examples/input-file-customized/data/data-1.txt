@@ -1,4 +1,0 @@
-Hello from input-file-customized: 1-0
-Hello from input-file-customized: 1-1
-Hello from input-file-customized: 1-2
-Hello from input-file-customized: 1-3
