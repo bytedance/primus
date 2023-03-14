@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.am.datastream.file;
+package com.bytedance.primus.am.datastream.file.task.builder;
 
 import com.bytedance.primus.apiserver.proto.DataProto.DataSourceSpec;
 import com.bytedance.primus.apiserver.proto.DataProto.FileSourceSpec;

@@ -42,9 +42,9 @@ import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.yarncommunity.am.container.YarnRoleInfoFactory;
 import com.bytedance.primus.runtime.yarncommunity.am.container.launcher.YarnContainerLauncher;
 import com.bytedance.primus.runtime.yarncommunity.am.container.scheduler.fair.FairContainerManager;
+import com.bytedance.primus.runtime.yarncommunity.client.HdfsUtil;
 import com.bytedance.primus.runtime.yarncommunity.runtime.monitor.MonitorInfoProviderImpl;
 import com.bytedance.primus.runtime.yarncommunity.utils.YarnConvertor;
-import com.bytedance.primus.utils.FileSystemUtils;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -301,19 +301,19 @@ public final class YarnApplicationMaster extends ApplicationMaster {
       String targetDir,
       Map<String, LocalResource> localResources
   ) throws IOException, URISyntaxException {
-    URI localURI = FileSystemUtils.resolveURI(filename.trim());
-    if (!FileSystemUtils.addDistributedUri(localURI, distributedUris, distributedNames)) {
+    URI localURI = HdfsUtil.resolveURI(filename.trim());
+    if (!HdfsUtil.addDistributedUri(localURI, distributedUris, distributedNames)) {
       return;
     }
 
     FileSystem fs = applicationMeta.getHadoopFileSystem();
-    Path path = FileSystemUtils.getQualifiedLocalPath(localURI, fs.getConf());
-    String linkname = FileSystemUtils.buildLinkname(path, localURI, destName, targetDir);
+    Path path = HdfsUtil.getQualifiedLocalPath(localURI, fs.getConf());
+    String linkname = HdfsUtil.buildLinkname(path, localURI, destName, targetDir);
     if (!localURI.getScheme().equals(HDFS_SCHEME)) {
       path = new Path(
           fs.getUri().toString() + applicationMeta.getStagingDir() + "/" + linkname);
     }
 
-    FileSystemUtils.addResource(fs, path, linkname, localResources);
+    HdfsUtil.addResource(fs, path, linkname, localResources);
   }
 }

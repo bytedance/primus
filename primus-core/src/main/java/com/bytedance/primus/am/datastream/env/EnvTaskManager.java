@@ -45,11 +45,6 @@ public class EnvTaskManager implements TaskManager {
   }
 
   @Override
-  public List<TaskWrapper> getTasksForTaskPreserverSnapshot() {
-    return new ArrayList<>();
-  }
-
-  @Override
   public List<TaskWrapper> getTasksForHistory() {
     return new ArrayList<>();
   }
@@ -111,7 +106,7 @@ public class EnvTaskManager implements TaskManager {
   }
 
   @Override
-  public boolean makeSavepoint(String savepointDir) {
+  public boolean takeSnapshot(String savepointDir) {
     return true;
   }
 

@@ -22,8 +22,8 @@ package com.bytedance.primus.am;
 import static com.bytedance.primus.utils.PrimusConstants.KILLED_THROUGH_AM_DIAG;
 
 import com.bytedance.primus.am.controller.SuspendStatusEnum;
+import com.bytedance.primus.am.datastream.TaskWrapper;
 import com.bytedance.primus.am.datastream.file.FileTaskManager;
-import com.bytedance.primus.api.records.Task;
 import com.bytedance.primus.apiserver.client.models.DataSavepoint;
 import com.bytedance.primus.apiserver.proto.DataProto.DataSavepointStatus.DataSavepointState;
 import com.bytedance.primus.apiserver.records.Meta;
@@ -140,19 +140,15 @@ public class AMServiceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
   }
 
   @Override
-  public void getSnapshot(GetSnapshotRequest request,
-      StreamObserver<GetSnapshotResponse> responseObserver) {
-    // TODO: fixme, get the right task manager
-    FileTaskManager fileTaskManager = context
-        .getDataStreamManager()
-        .getDefaultFileTaskManager();
-    AmSerivce.GetSnapshotResponse.Builder builder = AmSerivce.GetSnapshotResponse.newBuilder();
-    boolean available = fileTaskManager.isSnapshotAvailable(request.getSnapshotId());
-    builder.setAvailable(available);
-    if (available) {
-      builder.setDir(fileTaskManager.getSnapshotDir(request.getSnapshotId()));
-    }
-    responseObserver.onNext(builder.setAvailable(available).build());
+  public void getSnapshot(
+      GetSnapshotRequest request,
+      StreamObserver<GetSnapshotResponse> responseObserver
+  ) {
+    // TODO: Implement PrimusAPI
+    responseObserver.onNext(AmSerivce
+        .GetSnapshotResponse.newBuilder()
+        .setAvailable(false)
+        .build());
     responseObserver.onCompleted();
   }
 
@@ -210,17 +206,22 @@ public class AMServiceServer extends AppMasterServiceGrpc.AppMasterServiceImplBa
     FileTaskManager fileTaskManager = context
         .getDataStreamManager()
         .getDefaultFileTaskManager();
-    Task task = fileTaskManager.getPendingTasks(1).get(0).getTask();
-    String timePoint = null;
-    if (task != null) {
-      switch (task.getTaskType()) {
-        case FILE_TASK:
-          timePoint = task.getFileTask().getBatchKey();
-          break;
-      }
-    }
-    responseObserver
-        .onNext(builder.setTimePoint(timePoint).build());
+
+    String batchKey = fileTaskManager
+        .getPendingTasks(1).stream()
+        .findFirst()
+        .map(TaskWrapper::getTask)
+        .map(task -> {
+          switch (task.getTaskType()) {
+            case FILE_TASK:
+              return task.getFileTask().getBatchKey();
+            default:
+              return null;
+          }
+        })
+        .orElse(null);
+
+    responseObserver.onNext(builder.setTimePoint(batchKey).build());
     responseObserver.onCompleted();
   }
 

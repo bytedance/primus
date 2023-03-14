@@ -473,6 +473,14 @@ public class AMContext {
     timelineLogger.logEvent(eventType, eventInfo);
   }
 
+  public void logTimelineEvent(
+      String eventType, String eventInfo,
+      String infoLogFormat, Object... vargs
+  ) {
+    LOG.info(infoLogFormat, vargs);
+    logTimelineEvent(eventType, eventInfo);
+  }
+
   public <T extends Event> void logStatusEvent(T event) {
     try {
       if (statusLoggingListener != null && statusLoggingListener.canLogEvent()) {

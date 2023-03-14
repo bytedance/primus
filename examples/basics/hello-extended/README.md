@@ -17,7 +17,7 @@ in [quickstart](../../docs/primus-quickstart.md).
 
 ```bash
 # Submit
-$ primus-submit --primus_conf examples/hello-extended/primus_config.json
+$ primus-submit --primus_conf examples/basics/hello-extended/primus_config.json
 
 # Check the logs
 $ <retrieve-logs> | grep Hello

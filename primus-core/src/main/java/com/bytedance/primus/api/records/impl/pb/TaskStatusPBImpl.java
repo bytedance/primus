@@ -26,14 +26,19 @@ import com.bytedance.primus.proto.PrimusTask.TaskStatusProtoOrBuilder;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import lombok.EqualsAndHashCode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@EqualsAndHashCode
 public class TaskStatusPBImpl implements TaskStatus {
 
   private static final Logger log = LoggerFactory.getLogger(TaskStatusPBImpl.class);
+  @EqualsAndHashCode.Exclude
   TaskStatusProto proto = TaskStatusProto.getDefaultInstance();
+  @EqualsAndHashCode.Exclude
   TaskStatusProto.Builder builder = null;
+  @EqualsAndHashCode.Exclude
   boolean viaProto = false;
 
   private String group = null;

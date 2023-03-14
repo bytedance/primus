@@ -15,11 +15,14 @@ ${YARN_APPLICATION_ID_EXTRACT_PATTERN}  INFO impl.YarnClientImpl: Submitted appl
 ${YARN_APPLICATION_URL_EXTRACT_PATTERN}  INFO client.YarnSubmitCmdRunner: Tracking URL: (http://[a-zA-Z0-9-_/.:]+)
 
 *** Keywords ***
+delete hdfs directory  [Arguments]  ${directory}
+                       Log  deleting HDFS directory: ${directory}
+                       Run Process  ${HADOOP_HOME}/bin/hdfs  dfs  -rm  -r  ${directory}
+
 prepare hdfs data  [Arguments]  ${src}  ${dst}
                    Log  preparing HDFS data: ${src} -> ${dst}
-                   Run Process  ${HADOOP_HOME}/bin/hdfs  dfs  -rm  -r  ${dst}
                    Run Process  ${HADOOP_HOME}/bin/hdfs  dfs  -mkdir  -p  ${dst}
-                   Run Process  ${HADOOP_HOME}/bin/hdfs  dfs  -put  ${src}  ${dst}
+                   Run Process  ${HADOOP_HOME}/bin/hdfs  dfs  -put  -f  ${src}  ${dst}
 
 submit primus application   [Arguments]  ${primus_conf}
                             Log  Submitting Primus Application: ${primus_conf}
@@ -194,6 +197,82 @@ input-file-text
   Append To List  ${hello_expected}  Hello from input-file-text: 3-7
 
   Lists Should Be Equal  ${hello_captured}  ${hello_expected}
+
+
+input-file-text-checkpoint
+  # Prepare test data
+  delete hdfs directory  /primus/examples/input-file-text-checkpoint/savepoint/
+  prepare hdfs data  ${PRIMUS_EXAMPLE_BASICS}/input-file-text-checkpoint/data  /primus/examples/input-file-text-checkpoint/
+
+  # First run - write checkpoints and task files
+  ${application_id} =  Submit Primus Application  ${PRIMUS_EXAMPLE_BASICS}/input-file-text-checkpoint/primus_config.json
+  ${first_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-file-text-checkpoint"
+  ${first_expected} =  Create List
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 0-0
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 0-1
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 0-2
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 0-3
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 0-4
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 0-5
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 0-6
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 0-7
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 1-0
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 1-1
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 1-2
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 1-3
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 1-4
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 1-5
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 1-6
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 1-7
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 2-0
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 2-1
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 2-2
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 2-3
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 2-4
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 2-5
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 2-6
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 2-7
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 3-0
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 3-1
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 3-2
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 3-3
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 3-4
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 3-5
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 3-6
+  Append To List  ${first_expected}  Hello from input-file-text-checkpoint: 3-7
+
+  Lists Should Be Equal  ${first_captured}  ${first_expected}
+
+  # Second run - continue from first run and thus no data is read by Primus
+  ${application_id} =  Submit Primus Application  ${PRIMUS_EXAMPLE_BASICS}/input-file-text-checkpoint/primus_config.json
+  ${second_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-file-text-checkpoint"
+  ${second_expected} =  Create List
+
+  Lists Should Be Equal  ${second_captured}  ${second_expected}
+
+  # Third run - inject a checkpoint to start from middle
+  prepare hdfs data  ${PRIMUS_EXAMPLE_BASICS}/input-file-text-checkpoint/savepoint  /primus/examples/input-file-text-checkpoint/
+  ${application_id} =  Submit Primus Application  ${PRIMUS_EXAMPLE_BASICS}/input-file-text-checkpoint/primus_config.json
+  ${third_captured} =  grep Primus Application Logs  ${application_id}  grep "Hello from input-file-text-checkpoint"
+  ${third_expected} =  Create List
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 2-0
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 2-1
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 2-2
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 2-3
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 2-4
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 2-5
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 2-6
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 2-7
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 3-0
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 3-1
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 3-2
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 3-3
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 3-4
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 3-5
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 3-6
+  Append To List  ${third_expected}  Hello from input-file-text-checkpoint: 3-7
+
+  Lists Should Be Equal  ${third_captured}  ${third_expected}
 
 
 input-file-text-timerange

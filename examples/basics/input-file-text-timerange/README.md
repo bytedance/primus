@@ -11,7 +11,7 @@ The preparation of this example only requires two actions
 - upload training data to HDFS
   ```
   $ hdfs dfs -mkdir -p /primus/examples/input-file-text-timerange 
-  $ hdfs dfs -put examples/input-file-text/data /primus/examples/input-file-text-timerange/
+  $ hdfs dfs -put examples/basics/input-file-text-timerange/data /primus/examples/input-file-text-timerange/
   ```
 
 ## Execution
@@ -22,7 +22,7 @@ in [quickstart](../../docs/primus-quickstart.md).
 
 ```bash
 # Submit
-$ primus-submit --primus_conf examples/input-file-text-timerange/primus_config.json
+$ primus-submit --primus_conf examples/basics/input-file-text-timerange/primus_config.json
 
 # Check the logs
 $ <retrieve-logs> | grep Hello

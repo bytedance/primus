@@ -30,6 +30,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
 import com.google.common.util.concurrent.AtomicDouble;
+import java.io.Closeable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.SortedMap;
@@ -119,6 +120,10 @@ public class PrimusMetrics {
     gauge.set(count);
   }
 
+  public static void emitStoreWithAppIdTag(String name, double count) {
+    emitStore(buildTaggedMetricNameWithAppId(name, new HashMap<>()), count);
+  }
+
   public static void emitStoreWithAppIdTag(String name, Map<String, String> tags, double count) {
     emitStore(buildTaggedMetricNameWithAppId(name, tags), count);
   }
@@ -144,6 +149,12 @@ public class PrimusMetrics {
     return getTimerContext(buildTaggedMetricNameWithAppId(name, tags));
   }
 
+  public static TimerMetric getTimerContextWithAppIdTag(String name, String key1, String value1) {
+    return getTimerContext(buildTaggedMetricNameWithAppId(name, new HashMap<String, String>() {{
+      put(key1, value1);
+    }}));
+  }
+
   private static TimerMetric getTimerContext(String name) {
     if (sink == null) {
       return emptyTimerMetric;
@@ -156,7 +167,7 @@ public class PrimusMetrics {
     return new TimerMetric(t.time());
   }
 
-  public static class TimerMetric {
+  public static class TimerMetric implements Closeable {
 
     private final Timer.Context context;
 
@@ -169,6 +180,11 @@ public class PrimusMetrics {
         return context.stop();
       }
       return 0;
+    }
+
+    @Override
+    public void close() {
+      this.stop();
     }
   }
 

@@ -34,8 +34,6 @@ public interface TaskManager {
 
   void unregister(ExecutorId executorId);
 
-  List<TaskWrapper> getTasksForTaskPreserverSnapshot();
-
   List<TaskWrapper> getTasksForHistory();
 
   TaskManagerState getState();
@@ -68,7 +66,7 @@ public interface TaskManager {
    * @param savepointDir
    * @return true if succeeded else false
    */
-  boolean makeSavepoint(String savepointDir);
+  boolean takeSnapshot(String savepointDir);
 
   DataStreamSpec getDataStreamSpec();
 

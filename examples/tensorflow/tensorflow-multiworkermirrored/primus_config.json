@@ -41,9 +41,8 @@
       }
     },
     "workPreserve": {
-      "workPreserveType": "HDFS",
-      "dumpIntervalSecs": 5,
-      "rewindSkipNum": 15000
+      "dumpIntervalSec": 5,
+      "hdfsConfig": {}
     },
     "gracefulShutdown": "true"
   },

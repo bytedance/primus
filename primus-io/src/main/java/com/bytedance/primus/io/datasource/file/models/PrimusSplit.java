@@ -25,12 +25,12 @@ import lombok.Getter;
 @Getter
 public class PrimusSplit implements BaseSplit {
 
-  private int sourceId;
+  private final int sourceId;
   private String source;
   private FileSourceSpec spec;
 
-  private String batchKey;
-  private String path; // path to the data file
+  private final String batchKey;
+  private final String path; // path to the data file
   private long start;
   private long length;
 
@@ -49,7 +49,7 @@ public class PrimusSplit implements BaseSplit {
   private PrimusSplit(String batchKey, int sourceId, String path) {
     this.batchKey = batchKey;
     this.sourceId = sourceId;
-    this.source = path;
+    this.path = path;
   }
 
   @Override

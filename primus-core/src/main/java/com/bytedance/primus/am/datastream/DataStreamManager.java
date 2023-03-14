@@ -341,23 +341,17 @@ public class DataStreamManager extends AbstractService implements
     return success;
   }
 
-  /**
-   * Make a savepoint of data stream manager's state to savepoint directory.
-   *
-   * @param savepointDir
-   * @return true if succeeded else false
-   */
-  public boolean makeSavepoint(String savepointDir) {
+  public boolean takeSnapshot(String directory) {
     int numTasks = taskManagerMap.size();
     ExecutorService pool = Executors.newFixedThreadPool(
         numTasks,
         new ThreadFactoryBuilder()
-            .setNameFormat("Savepoint-" + savepointDir + "-%d")
+            .setNameFormat("Savepoint-" + directory + "-%d")
             .setDaemon(true)
             .build());
     List<Future<Boolean>> statuses = new LinkedList<>();
     for (TaskManager taskManager : taskManagerMap.values()) {
-      statuses.add(pool.submit(() -> taskManager.makeSavepoint(savepointDir)));
+      statuses.add(pool.submit(() -> taskManager.takeSnapshot(directory)));
     }
     for (Future<Boolean> status : statuses) {
       try {
@@ -372,7 +366,7 @@ public class DataStreamManager extends AbstractService implements
     boolean result = true;
     try {
       FileSystem fs = FileSystem.get(new Configuration());
-      fs.create(new Path(savepointDir, "_SUCCESS"));
+      fs.create(new Path(directory, "_SUCCESS"));
     } catch (IOException e) {
       LOG.warn("makeSavepoint() failed", e);
       result = false;

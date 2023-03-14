@@ -20,15 +20,36 @@
 package com.bytedance.primus.common.utils;
 
 import com.bytedance.primus.common.util.StringUtils;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class StringUtilsTest {
+
+  @Test
+  public void testCompareTimeStampStrings() {
+    String[] timestamps = {
+        "0", "1", "11", "12", "111", "123",
+        "123", "111", "12", "11", "1", "0"
+    };
+    Assert.assertArrayEquals(
+        new String[]{"0", "0", "1", "1", "11", "11", "12", "12", "111", "111", "123", "123"},
+        Arrays.stream(timestamps)
+            .sorted(StringUtils::compareTimeStampStrings)
+            .toArray(String[]::new)
+    );
+    Assert.assertArrayEquals(
+        new String[]{"123", "123", "111", "111", "12", "12", "11", "11", "1", "1", "0", "0"},
+        Arrays.stream(timestamps)
+            .sorted((a, b) -> -1 * StringUtils.compareTimeStampStrings(a, b))
+            .toArray(String[]::new)
+    );
+  }
+
   @Test
   public void testFromTemplateAndDictionary() {
-
     String pattern = "/root/{{YYYY}}{{MM}}{{DD}}/{{HH}}/";
     Map<String, String> dict = new HashMap<String, String>() {{
       put("\\{\\{YYYY\\}\\}", "2020");
@@ -36,7 +57,6 @@ public class StringUtilsTest {
       put("\\{\\{DD\\}\\}", "01");
       put("\\{\\{HH\\}\\}", "00");
     }};
-
     Assert.assertEquals(
         "/root/20200101/00/",
         StringUtils.genFromTemplateAndDictionary(pattern, dict)
