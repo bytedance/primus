@@ -1,8 +1,11 @@
 # Primus - Overview
 
 Primus is a generic distributed scheduling framework for machine learning applications, which
-manages training lifecycles and data distribution for machine learning trainers such as
-TensorFlow to perform distributed training in massive scales.
+manages training lifecycles and data distribution for machine learning trainers such
+as [Monolith](https://github.com/bytedance/monolith)
+and [TensorFlow](https://github.com/tensorflow/tensorflow)
+to perform distributed training in massive
+scales.
 
 Given the intrinsic uncertainties in distributed environments, distributed trainings are inevitably
 complicated. Abstracting many of those complications, Primus provides a robust solution for data
