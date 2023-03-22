@@ -15,7 +15,7 @@ mvn -DskipTests clean package
 ```
 
 For general deployments, environment configurations are required, see the setups
-in [quickstart](../docs/primus-quickstart.md) for references.
+in [quickstart](docs/primus-quickstart.md) for references.
 
 ## Contribution
 
