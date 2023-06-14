@@ -104,6 +104,7 @@ import java.util.Optional;
 import javax.servlet.http.HttpServlet;
 import lombok.Getter;
 import org.apache.hadoop.http.HttpServer2;
+import org.apache.hadoop.net.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -177,6 +178,7 @@ public class AMContext {
 
   @Getter
   private final HttpServer2 webAppServer;
+  private final InetSocketAddress webAppAddress;
 
   private final TimelineLogger timelineLogger;
   private final EventLoggingListener eventLoggingListener;
@@ -258,6 +260,7 @@ public class AMContext {
 
     LOG.info("Starting Primus WebApp Server");
     webAppServer = startWebAppHttpServer(applicationMeta, this);
+    webAppAddress = NetUtils.getConnectAddress(webAppServer.getConnectorAddress(0));
 
     LOG.info("Registering loggers");
     timelineLogger = new NoopTimelineLogger();
@@ -449,11 +452,11 @@ public class AMContext {
   }
 
   public String getWebAppServerHostAddress() {
-    return webAppServer.getConnectorAddress(0).getAddress().getHostAddress();
+    return webAppAddress.getAddress().getHostAddress();
   }
 
   public int getWebAppServerPort() {
-    return webAppServer.getConnectorAddress(0).getPort();
+    return webAppAddress.getPort();
   }
 
   public InetSocketAddress getRpcAddress() {
