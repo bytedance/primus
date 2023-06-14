@@ -19,8 +19,8 @@
 
 package com.bytedance.primus.api.records.impl.pb;
 
-import com.bytedance.primus.api.records.Endpoint;
 import com.bytedance.primus.api.records.ExecutorId;
+import com.bytedance.primus.api.records.Endpoint;
 import com.bytedance.primus.api.records.ExecutorSpec;
 import com.bytedance.primus.proto.Primus;
 import com.google.protobuf.InvalidProtocolBufferException;

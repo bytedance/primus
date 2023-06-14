@@ -31,7 +31,8 @@ public class ProtoUtils {
   public static ExecutorState convertFromProtoFormat(HeartbeatRequestProto.ExecutorState e) {
     return ExecutorState.valueOf(e.name());
   }
-  public static Primus.HeartbeatResponseProto.ExecutorCommandType convertToProtoFormat(ExecutorCommandType t) {
+  public static Primus.HeartbeatResponseProto.ExecutorCommandType convertToProtoFormat(
+      ExecutorCommandType t) {
     return Primus.HeartbeatResponseProto.ExecutorCommandType.valueOf(t.name());
   }
   public static ExecutorCommandType convertFromProtoFormat(Primus.HeartbeatResponseProto.ExecutorCommandType t) {

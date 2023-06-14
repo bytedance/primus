@@ -19,12 +19,12 @@
 
 package com.bytedance.primus.api.protocolrecords.impl.pb;
 
-import com.bytedance.primus.api.protocolrecords.HeartbeatRequest;
 import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.api.records.ExecutorState;
 import com.bytedance.primus.api.records.TaskStatus;
 import com.bytedance.primus.api.records.impl.pb.ExecutorIdPBImpl;
 import com.bytedance.primus.api.records.impl.pb.TaskStatusPBImpl;
+import com.bytedance.primus.api.protocolrecords.HeartbeatRequest;
 import com.bytedance.primus.proto.Primus.ExecutorIdProto;
 import com.bytedance.primus.proto.Primus.HeartbeatRequestProto;
 import com.bytedance.primus.proto.Primus.HeartbeatRequestProtoOrBuilder;

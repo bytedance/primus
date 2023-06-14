@@ -19,31 +19,33 @@
 
 package com.bytedance.primus.api.protocolrecords.impl.pb;
 
-import com.bytedance.primus.api.protocolrecords.UnregisterRequest;
 import com.bytedance.primus.api.records.ExecutorId;
+import com.bytedance.primus.api.records.ExecutorSpec;
 import com.bytedance.primus.api.records.impl.pb.ExecutorIdPBImpl;
+import com.bytedance.primus.api.records.impl.pb.ExecutorSpecPBImpl;
+import com.bytedance.primus.api.protocolrecords.RegisterRequest;
 import com.bytedance.primus.proto.Primus;
-import com.bytedance.primus.proto.Primus.UnregisterRequestProto;
-import com.bytedance.primus.proto.Primus.UnregisterRequestProtoOrBuilder;
+import com.bytedance.primus.proto.Primus.RegisterRequestProto;
+import com.bytedance.primus.proto.Primus.RegisterRequestProtoOrBuilder;
 
-public class UnregisterRequestPBImpl implements UnregisterRequest {
+public class RegisterRequestPBImpl implements RegisterRequest {
 
-  UnregisterRequestProto proto =
-      UnregisterRequestProto.getDefaultInstance();
-  UnregisterRequestProto.Builder builder = null;
+  RegisterRequestProto proto =
+      RegisterRequestProto.getDefaultInstance();
+  RegisterRequestProto.Builder builder = null;
   boolean viaProto = false;
 
-  public UnregisterRequestPBImpl() {
-    builder = UnregisterRequestProto.newBuilder();
+  public RegisterRequestPBImpl() {
+    builder = RegisterRequestProto.newBuilder();
   }
 
-  public UnregisterRequestPBImpl(UnregisterRequestProto proto) {
+  public RegisterRequestPBImpl(RegisterRequestProto proto) {
     this.proto = proto;
     viaProto = true;
   }
 
   @Override
-  public UnregisterRequestProto getProto() {
+  public RegisterRequestProto getProto() {
     mergeLocalToProto();
     proto = viaProto ? proto : builder.build();
     viaProto = true;
@@ -60,47 +62,34 @@ public class UnregisterRequestPBImpl implements UnregisterRequest {
 
   private void maybeInitBuilder() {
     if (viaProto || builder == null) {
-      builder = UnregisterRequestProto.newBuilder(proto);
+      builder = RegisterRequestProto.newBuilder(proto);
     }
     viaProto = false;
   }
 
   @Override
   public ExecutorId getExecutorId() {
-    UnregisterRequestProtoOrBuilder p = viaProto ? proto : builder;
+    RegisterRequestProtoOrBuilder p = viaProto ? proto : builder;
     return (p.hasExecutorId()) ? convertFromProtoFormat(p.getExecutorId()) : null;
   }
 
   @Override
-  public UnregisterRequest setExecutorId(ExecutorId executorId) {
+  public RegisterRequest setExecutorId(ExecutorId executorId) {
     maybeInitBuilder();
     builder.setExecutorId(convertToProtoFormat(executorId));
     return this;
   }
 
   @Override
-  public int getExitCode() {
-    UnregisterRequestProtoOrBuilder p = viaProto ? proto : builder;
-    return p.getExitCode();
+  public ExecutorSpec getExecutorSpec() {
+    RegisterRequestProtoOrBuilder p = viaProto ? proto : builder;
+    return (p.hasExecutorSpec()) ? convertFromProtoFormat(p.getExecutorSpec()) : null;
   }
 
   @Override
-  public UnregisterRequest setExitCode(int exitCode) {
+  public RegisterRequest setExecutorSpec(ExecutorSpec executorSpec) {
     maybeInitBuilder();
-    builder.setExitCode(exitCode);
-    return this;
-  }
-
-  @Override
-  public String getFailMsg() {
-    UnregisterRequestProtoOrBuilder p = viaProto ? proto : builder;
-    return p.getFailMsg();
-  }
-
-  @Override
-  public UnregisterRequest setFailMsg(String failMsg) {
-    maybeInitBuilder();
-    builder.setFailMsg(failMsg);
+    builder.setExecutorSpec(convertToProtoFormat(executorSpec));
     return this;
   }
 
@@ -110,5 +99,13 @@ public class UnregisterRequestPBImpl implements UnregisterRequest {
 
   private Primus.ExecutorIdProto convertToProtoFormat(ExecutorId t) {
     return ((ExecutorIdPBImpl) t).getProto();
+  }
+
+  private ExecutorSpecPBImpl convertFromProtoFormat(Primus.ExecutorSpecProto p) {
+    return new ExecutorSpecPBImpl(p);
+  }
+
+  private Primus.ExecutorSpecProto convertToProtoFormat(ExecutorSpec t) {
+    return ((ExecutorSpecPBImpl) t).getProto();
   }
 }

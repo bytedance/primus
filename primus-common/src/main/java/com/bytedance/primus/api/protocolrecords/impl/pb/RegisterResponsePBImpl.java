@@ -19,11 +19,11 @@
 
 package com.bytedance.primus.api.protocolrecords.impl.pb;
 
-import com.bytedance.primus.api.protocolrecords.RegisterResponse;
 import com.bytedance.primus.api.records.ClusterSpec;
 import com.bytedance.primus.api.records.ExecutorCommand;
 import com.bytedance.primus.api.records.impl.pb.ClusterSpecPBImpl;
 import com.bytedance.primus.api.records.impl.pb.ExecutorCommandPBImpl;
+import com.bytedance.primus.api.protocolrecords.RegisterResponse;
 import com.bytedance.primus.proto.Primus;
 import com.bytedance.primus.proto.Primus.RegisterResponseProto;
 import com.bytedance.primus.proto.Primus.RegisterResponseProtoOrBuilder;

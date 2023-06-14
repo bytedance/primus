@@ -19,9 +19,9 @@
 
 package com.bytedance.primus.api.records.impl.pb;
 
+import com.bytedance.primus.api.records.KafkaTask;
 import com.bytedance.primus.api.records.KafkaMessageType;
 import com.bytedance.primus.api.records.KafkaStartUpMode;
-import com.bytedance.primus.api.records.KafkaTask;
 import com.bytedance.primus.proto.PrimusTask.KafkaTaskProto;
 import com.bytedance.primus.proto.PrimusTask.KafkaTaskProtoOrBuilder;
 import java.util.Map;

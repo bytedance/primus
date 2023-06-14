@@ -20,8 +20,8 @@
 package com.bytedance.primus.api.protocolrecords;
 
 import com.bytedance.primus.api.records.ExecutorId;
-import com.bytedance.primus.api.records.TaskStatus;
 import com.bytedance.primus.api.records.ExecutorState;
+import com.bytedance.primus.api.records.TaskStatus;
 
 import java.util.List;
 
