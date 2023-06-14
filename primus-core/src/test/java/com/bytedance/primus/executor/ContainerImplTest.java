@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.executor;
 
-import static com.bytedance.primus.utils.PrimusConstants.DEFAULT_SETUP_PORT_WITH_BATCH_OR_GANG_SCHEDULER_RETRY_MAX_TIMES;
+import static com.bytedance.primus.common.util.PrimusConstants.DEFAULT_SETUP_PORT_WITH_BATCH_OR_GANG_SCHEDULER_RETRY_MAX_TIMES;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 

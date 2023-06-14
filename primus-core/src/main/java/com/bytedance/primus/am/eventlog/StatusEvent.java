@@ -20,8 +20,8 @@
 package com.bytedance.primus.am.eventlog;
 
 import com.bytedance.primus.common.event.AbstractEvent;
+import com.bytedance.primus.common.util.ProtoJsonConverter;
 import com.bytedance.primus.proto.EventLog.PrimusEventMsg;
-import com.google.protobuf.util.JsonFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,7 +54,7 @@ public class StatusEvent<TYPE extends Enum<TYPE>> extends AbstractEvent<TYPE> {
   @Override
   public String toString() {
     try {
-      return JsonFormat.printer().print(msg);
+      return ProtoJsonConverter.getJsonString(msg);
     } catch (Exception e) {
       log.error("Failed to jsonfy msg: {}", msg);
     }

@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.am;
 
-import static com.bytedance.primus.utils.PrimusConstants.KILLED_THROUGH_AM_DIAG;
+import static com.bytedance.primus.common.util.PrimusConstants.KILLED_THROUGH_AM_DIAG;
 
 import com.bytedance.primus.am.controller.SuspendStatusEnum;
 import com.bytedance.primus.am.datastream.TaskWrapper;

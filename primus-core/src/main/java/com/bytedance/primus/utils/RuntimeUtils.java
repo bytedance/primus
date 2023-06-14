@@ -20,36 +20,21 @@
 package com.bytedance.primus.utils;
 
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.google.protobuf.Message;
-import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 
-public abstract class ConfigurationUtils {
+public class RuntimeUtils {
 
-  public static PrimusConf load(String configPath) throws IOException {
-    try {
-      return (PrimusConf) buildMessageFromJson(configPath, PrimusConf.newBuilder());
-    } catch (IOException e) {
-      throw new IOException("Config parse failed", e);
+  // TODO: Create Primus FileSystem interface and abstract direct dependencies on HDFS.
+  static public FileSystem loadHadoopFileSystem(PrimusConf primusConf) throws IOException {
+    Configuration base = new Configuration();
+    if (primusConf.getRuntimeConf().hasHdfsConf()) {
+      primusConf.getRuntimeConf()
+          .getHdfsConf()
+          .getHadoopConfMap()
+          .forEach(base::set);
     }
-  }
-
-  static private Message buildMessageFromJson(
-      String jsonPath,
-      Message.Builder builder
-  ) throws IOException {
-    try (InputStream in = Files.newInputStream(Paths.get(jsonPath))) {
-      Reader reader = new InputStreamReader(in);
-      JsonFormat.Parser parser = JsonFormat
-          .parser()
-          .ignoringUnknownFields();
-      parser.merge(reader, builder);
-      return builder.build();
-    }
+    return FileSystem.get(base);
   }
 }

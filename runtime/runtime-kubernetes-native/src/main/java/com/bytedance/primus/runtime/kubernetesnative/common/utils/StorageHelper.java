@@ -19,13 +19,13 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.common.utils;
 
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF_PATH;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_CONF;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_CONF_PATH;
 
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
+import com.bytedance.primus.common.util.ProtoJsonConverter;
 import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.utils.ProtoJsonConverter;
 import com.google.common.base.Strings;
 import java.io.IOException;
 import java.util.Arrays;

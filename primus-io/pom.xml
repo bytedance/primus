@@ -22,6 +22,7 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+
   <parent>
     <groupId>com.bytedance</groupId>
     <artifactId>primus</artifactId>
@@ -35,52 +36,38 @@
 
   <dependencies>
     <!-- Primus -->
+    <!-- TODO: Depends on primus-common directly after entirely purging Hadoop from primus-core. -->
     <dependency>
       <groupId>com.bytedance.primus</groupId>
-      <artifactId>primus-common</artifactId>
+      <artifactId>primus-api</artifactId>
       <version>1.0.0-SNAPSHOT</version>
     </dependency>
-
-    <!-- Testing -->
+    <!-- Hadoop -->
+    <!-- TODO: Purge hadoop dependencies -->
     <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>4.11</version>
-      <scope>test</scope>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-common</artifactId>
+      <version>${hadoop-version}</version>
+      <scope>${hadoop-dep-scope}</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.hadoop</groupId>
+      <artifactId>hadoop-mapreduce-client-core</artifactId>
+      <version>${hadoop-version}</version>
+      <scope>${hadoop-dep-scope}</scope>
+      <exclusions>
+        <exclusion>
+          <artifactId>avro</artifactId>
+          <groupId>org.apache.avro</groupId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <!-- Kafka -->
+    <dependency>
+      <groupId>org.apache.kafka</groupId>
+      <artifactId>kafka-clients</artifactId>
+      <version>${kafka-client-version}</version>
     </dependency>
   </dependencies>
 
-  <build>
-    <extensions>
-      <extension>
-        <groupId>kr.motd.maven</groupId>
-        <artifactId>os-maven-plugin</artifactId>
-        <version>1.5.0.Final</version>
-      </extension>
-    </extensions>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.hadoop</groupId>
-        <artifactId>hadoop-maven-plugins</artifactId>
-        <executions>
-          <execution>
-            <id>version-info</id>
-            <phase>generate-resources</phase>
-            <goals>
-              <goal>version-info</goal>
-            </goals>
-            <configuration>
-              <source>
-                <directory>${basedir}/src/main</directory>
-                <includes>
-                  <include>java/**/*.java</include>
-                  <include>proto/**/*.proto</include>
-                </includes>
-              </source>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-    </plugins>
-  </build>
 </project>

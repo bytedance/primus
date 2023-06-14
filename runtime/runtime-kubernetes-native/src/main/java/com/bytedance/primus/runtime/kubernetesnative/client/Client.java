@@ -21,8 +21,8 @@ package com.bytedance.primus.runtime.kubernetesnative.client;
 
 import com.bytedance.primus.client.ClientCmdParser;
 import com.bytedance.primus.client.ClientCmdRunner;
+import com.bytedance.primus.common.util.PrimusConfigurationUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.utils.ConfigurationUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.logging.log4j.LogManager;
 import org.slf4j.Logger;
@@ -41,7 +41,7 @@ public class Client {
     String command =
         commandLine.getOptionValue(ClientCmdParser.COMMAND);
 
-    PrimusConf userPrimusConf = ConfigurationUtils.load(
+    PrimusConf userPrimusConf = PrimusConfigurationUtils.load(
         commandLine.getOptionValue(ClientCmdParser.CONF));
 
     boolean waitAppCompletion = Boolean.parseBoolean(

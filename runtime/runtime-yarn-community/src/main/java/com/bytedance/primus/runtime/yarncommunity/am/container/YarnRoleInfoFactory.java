@@ -27,9 +27,9 @@ import com.bytedance.primus.am.role.RoleInfoFactory;
 import com.bytedance.primus.apiserver.proto.UtilsProto;
 import com.bytedance.primus.apiserver.proto.UtilsProto.YarnScheduler.Builder;
 import com.bytedance.primus.apiserver.records.RoleSpec;
+import com.bytedance.primus.apiserver.utils.ResourceUtils;
 import com.bytedance.primus.proto.PrimusRuntime.YarnScheduler;
 import com.bytedance.primus.runtime.yarncommunity.am.container.scheduler.fair.FairRoleInfo;
-import com.bytedance.primus.utils.ResourceUtils;
 
 public class YarnRoleInfoFactory implements RoleInfoFactory {
 

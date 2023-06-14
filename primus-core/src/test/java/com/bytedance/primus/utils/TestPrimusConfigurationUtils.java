@@ -19,6 +19,8 @@
 
 package com.bytedance.primus.utils;
 
+import com.bytedance.primus.apiserver.utils.ResourceUtils;
+import com.bytedance.primus.common.util.PrimusConfigurationUtils;
 import java.io.File;
 import java.io.IOException;
 import java.util.Arrays;
@@ -26,7 +28,7 @@ import java.util.Objects;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-public class TestConfigurationUtils {
+public class TestPrimusConfigurationUtils {
 
   @Test
   public void testLoadPrimusConf() {
@@ -36,7 +38,7 @@ public class TestConfigurationUtils {
         .map(file -> String.join("/", root, file, "primus_config.json"))
         .forEach(path -> {
           try {
-            ResourceUtils.buildJob(ConfigurationUtils.load(path));
+            ResourceUtils.buildJob(PrimusConfigurationUtils.load(path));
           } catch (IOException e) {
             Assertions.assertNull(e, "Caught an exception when processing: " + path);
           }

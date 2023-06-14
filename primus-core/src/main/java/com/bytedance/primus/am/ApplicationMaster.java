@@ -23,8 +23,8 @@ import static com.bytedance.primus.am.ApplicationExitCode.GANG_POLICY_FAILED;
 import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_APPLICATION_MASTER_EVENT;
 import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_APP_SHUTDOWN;
 import static com.bytedance.primus.common.event.TimelineEventType.PRIMUS_VERSION;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_AM_RPC_HOST;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_AM_RPC_PORT;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_AM_RPC_HOST;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_AM_RPC_PORT;
 
 import com.bytedance.primus.am.master.MasterContext;
 import com.bytedance.primus.apiserver.client.models.Data;
@@ -32,6 +32,7 @@ import com.bytedance.primus.apiserver.client.models.Job;
 import com.bytedance.primus.apiserver.records.RoleSpec;
 import com.bytedance.primus.apiserver.records.RoleStatus;
 import com.bytedance.primus.apiserver.utils.Constants;
+import com.bytedance.primus.apiserver.utils.ResourceUtils;
 import com.bytedance.primus.common.event.EventHandler;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
 import com.bytedance.primus.common.model.records.FinalApplicationStatus;
@@ -41,7 +42,6 @@ import com.bytedance.primus.proto.PrimusConfOuterClass.OrderSchedulePolicy.RoleP
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusInput.InputManager.ConfigCase;
 import com.bytedance.primus.utils.AMProcessExitCodeHelper;
-import com.bytedance.primus.utils.ResourceUtils;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;

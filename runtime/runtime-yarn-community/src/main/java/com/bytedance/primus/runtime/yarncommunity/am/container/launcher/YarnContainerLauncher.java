@@ -19,15 +19,15 @@
 
 package com.bytedance.primus.runtime.yarncommunity.am.container.launcher;
 
-import static com.bytedance.primus.utils.PrimusConstants.LOG4J_PROPERTIES;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_AM_RPC_HOST;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_AM_RPC_PORT;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF_PATH;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_EXECUTOR_UNIQUE_ID;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_JAR_PATH;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
-import static com.bytedance.primus.utils.PrimusConstants.STAGING_DIR_KEY;
+import static com.bytedance.primus.common.util.PrimusConstants.LOG4J_PROPERTIES;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_AM_RPC_HOST;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_AM_RPC_PORT;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_CONF;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_CONF_PATH;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_EXECUTOR_UNIQUE_ID;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_JAR_PATH;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
+import static com.bytedance.primus.common.util.PrimusConstants.STAGING_DIR_KEY;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.container.ContainerLauncher;

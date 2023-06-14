@@ -20,9 +20,9 @@
 package com.bytedance.primus.executor.worker.launchplugin;
 
 import com.bytedance.primus.common.child.ChildLaunchPlugin;
-import com.bytedance.primus.utils.PrimusConstants;
-import org.apache.commons.io.FileUtils;
+import com.bytedance.primus.common.util.PrimusConstants;
 import java.io.File;
+import org.apache.commons.io.FileUtils;
 
 public class PrimusConfCompatiblePlugin implements ChildLaunchPlugin {
 

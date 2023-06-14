@@ -19,11 +19,11 @@
 
 package com.bytedance.primus.am.schedulerexecutor;
 
+import static com.bytedance.primus.common.util.PrimusConstants.BLACKLISTED_EXIT_MSG;
+import static com.bytedance.primus.common.util.PrimusConstants.EXPIRED_EXIT_MSG;
 import static com.bytedance.primus.executor.ExecutorExitCode.BLACKLISTED;
 import static com.bytedance.primus.executor.ExecutorExitCode.EXPIRED;
 import static com.bytedance.primus.executor.ExecutorExitCode.KILLED;
-import static com.bytedance.primus.utils.PrimusConstants.BLACKLISTED_EXIT_MSG;
-import static com.bytedance.primus.utils.PrimusConstants.EXPIRED_EXIT_MSG;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.api.records.ExecutorId;

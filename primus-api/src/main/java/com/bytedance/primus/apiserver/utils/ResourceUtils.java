@@ -17,9 +17,7 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.utils;
-
-import static com.bytedance.primus.am.datastream.DataStreamManager.DEFAULT_DATA_STREAM;
+package com.bytedance.primus.apiserver.utils;
 
 import com.bytedance.primus.apiserver.client.models.Data;
 import com.bytedance.primus.apiserver.client.models.Job;
@@ -56,6 +54,7 @@ import com.bytedance.primus.apiserver.records.impl.DataSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.JobSpecImpl;
 import com.bytedance.primus.apiserver.records.impl.MetaImpl;
 import com.bytedance.primus.common.util.IntegerUtils;
+import com.bytedance.primus.common.util.PrimusConstants;
 import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.ApiServerConf;
@@ -411,7 +410,7 @@ public class ResourceUtils {
 
   public static StreamingInputPolicy buildStreamingInputPolicy(Role role) {
     StreamingInputPolicy.Builder builder = StreamingInputPolicy.newBuilder();
-    builder.setDataStream(DEFAULT_DATA_STREAM);
+    builder.setDataStream(PrimusConstants.DEFAULT_DATA_STREAM);
     return builder.build();
   }
 
@@ -433,7 +432,7 @@ public class ResourceUtils {
 
   public static Map<String, DataStreamSpec> buildDataStreamSpecs(InputManager inputManager) {
     Map<String, DataStreamSpec> dataStreamSpecs = new HashMap<>();
-    dataStreamSpecs.put(DEFAULT_DATA_STREAM, buildDataStreamSpec(inputManager));
+    dataStreamSpecs.put(PrimusConstants.DEFAULT_DATA_STREAM, buildDataStreamSpec(inputManager));
     return dataStreamSpecs;
   }
 

@@ -20,6 +20,7 @@
 package com.bytedance.primus.runtime.kubernetesnative.executor;
 
 import com.bytedance.primus.common.metrics.PrimusMetrics;
+import com.bytedance.primus.common.util.PrimusConfigurationUtils;
 import com.bytedance.primus.executor.ContainerImpl;
 import com.bytedance.primus.executor.ExecutorCommandParser;
 import com.bytedance.primus.executor.ExecutorExitCode;
@@ -27,7 +28,6 @@ import com.bytedance.primus.executor.PrimusExecutorConf;
 import com.bytedance.primus.executor.exception.PrimusExecutorException;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.utils.ConfigurationUtils;
 import org.apache.commons.cli.CommandLine;
 import org.apache.hadoop.util.ShutdownHookManager;
 import org.slf4j.Logger;
@@ -85,7 +85,7 @@ public class ContainerMain {
 
     PrimusConfOuterClass.PrimusConf primusConf;
     try {
-      primusConf = ConfigurationUtils.load(configPath);
+      primusConf = PrimusConfigurationUtils.load(configPath);
     } catch (Exception e) {
       throw new PrimusExecutorException(
           "Config parse failed", e, ExecutorExitCode.CONFIG_PARSE_ERROR.getValue());

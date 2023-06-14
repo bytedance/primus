@@ -17,16 +17,13 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.utils;
+package com.bytedance.primus.common.util;
 
-import com.google.protobuf.Descriptors;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
 import com.google.protobuf.MessageOrBuilder;
 import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,25 +48,6 @@ public class ProtoJsonConverter {
       printer = printer.includingDefaultValueFields();
     }
     parser = JsonFormat.parser();
-  }
-
-  public ProtoJsonConverter(List<Descriptors.Descriptor> anyFieldDescriptors) {
-    typeRegistryBuilder = JsonFormat.TypeRegistry.newBuilder();
-    addDescriptors(anyFieldDescriptors);
-  }
-
-  public void addDescriptor(Descriptors.Descriptor anyFieldDescriptor) {
-    addDescriptors(Arrays.asList(anyFieldDescriptor));
-  }
-
-  public void addDescriptors(List<Descriptors.Descriptor> anyFieldDescriptors) {
-    typeRegistryBuilder.add(anyFieldDescriptors);
-    JsonFormat.TypeRegistry typeRegistry = typeRegistryBuilder.build();
-    printer = JsonFormat.printer().usingTypeRegistry(typeRegistry);
-    if (includingDefaultValueFields) {
-      printer = printer.includingDefaultValueFields();
-    }
-    parser = JsonFormat.parser().usingTypeRegistry(typeRegistry);
   }
 
   public String toJson(Message sourceMessage) throws IOException {

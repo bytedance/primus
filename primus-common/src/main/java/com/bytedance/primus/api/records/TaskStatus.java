@@ -19,9 +19,11 @@
 
 package com.bytedance.primus.api.records;
 
-import org.apache.hadoop.io.Writable;
+import java.io.DataInput;
+import java.io.DataOutput;
+import java.io.IOException;
 
-public interface TaskStatus extends Writable {
+public interface TaskStatus {
 
   String getGroup();
 
@@ -76,4 +78,9 @@ public interface TaskStatus extends Writable {
   String getWorkerName();
 
   void setWorkerName(String workerName);
+
+  // Hadoop inspired Serialization/Deserialization
+  void write(DataOutput out) throws IOException;
+
+  void readFields(DataInput in) throws IOException;
 }

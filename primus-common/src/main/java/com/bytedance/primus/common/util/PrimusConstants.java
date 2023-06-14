@@ -17,7 +17,7 @@
  * limitations under the License.
  */
 
-package com.bytedance.primus.utils;
+package com.bytedance.primus.common.util;
 
 // TODO: Cleanup
 public class PrimusConstants {
@@ -70,4 +70,6 @@ public class PrimusConstants {
   // of mismatched versions, this threshold is increased.
   public static final int UPDATE_TO_API_SERVER_RETRY_TIMES = 10;
   public static final int UPDATE_TO_API_SERVER_RETRY_INTERVAL_MS = 2000;
+
+  public static final String DEFAULT_DATA_STREAM = "default";
 }
