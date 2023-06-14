@@ -28,7 +28,6 @@ public class Constants {
 
   public static final String API_SERVER_RPC_HOST_ENV = "API_SERVER_HOST";
   public static final String API_SERVER_RPC_PORT_ENV = "API_SERVER_PORT";
-  public static final String PRIMUS_EXECUTOR_UNIQID_ENV = "PRIMUS_EXECUTOR_UNIQID";
 
   public static final int MAX_MESSAGE_SIZE = 1024 * 1024 * 128;
 }

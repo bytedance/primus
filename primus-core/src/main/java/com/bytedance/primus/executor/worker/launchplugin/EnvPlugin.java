@@ -21,7 +21,6 @@ package com.bytedance.primus.executor.worker.launchplugin;
 
 import static com.bytedance.primus.apiserver.utils.Constants.API_SERVER_RPC_HOST_ENV;
 import static com.bytedance.primus.apiserver.utils.Constants.API_SERVER_RPC_PORT_ENV;
-import static com.bytedance.primus.apiserver.utils.Constants.PRIMUS_EXECUTOR_UNIQID_ENV;
 
 import com.bytedance.primus.common.child.ChildLaunchPlugin;
 import com.bytedance.primus.executor.ExecutorContext;
@@ -32,32 +31,43 @@ import org.apache.commons.lang.StringUtils;
 
 public class EnvPlugin implements ChildLaunchPlugin {
 
-  private static final String EXECUTOR_ID_ENV_KEY = "EXECUTOR_ID";
-  private static final String PORT_LIST_ENV_KEY = "PORT_LIST";
+  private static final String PRIMUS_EXECUTOR_ID_ENV_KEY = "PRIMUS_EXECUTOR_ID";
+  private static final String PRIMUS_EXECUTOR_ROLE_INDEX_ENV_KEY = "PRIMUS_EXECUTOR_ROLE_INDEX";
+  private static final String PRIMUS_EXECUTOR_RESERVED_PORTS_ENV_KEY = "PRIMUS_EXECUTOR_RESERVED_PORTS";
 
-  private ExecutorContext executorContext;
-  private WorkerContext workerContext;
-  private Map<String, String> envs;
+  private final WorkerContext workerContext;
+  private final Map<String, String> envs = new HashMap<>();
 
-  public EnvPlugin(ExecutorContext executorContext, WorkerContext workerContext) {
-    this.executorContext = executorContext;
+  public EnvPlugin(
+      ExecutorContext executorContext,
+      WorkerContext workerContext
+  ) {
     this.workerContext = workerContext;
-    this.envs = new HashMap<>();
-    envs.put(EXECUTOR_ID_ENV_KEY, String.valueOf(executorContext.getExecutorId().getIndex()));
-    if (executorContext.getPrimusExecutorConf().getPortList().size() != 0) {
-      envs.put(PORT_LIST_ENV_KEY,
-          StringUtils.join(executorContext.getPrimusExecutorConf().getPortList(), ","));
+
+    envs.put(
+        PRIMUS_EXECUTOR_ID_ENV_KEY,
+        String.valueOf(executorContext.getExecutorId().getUniqId())
+    );
+    envs.put(
+        PRIMUS_EXECUTOR_ROLE_INDEX_ENV_KEY,
+        String.valueOf(executorContext.getExecutorId().getIndex())
+    );
+
+    if (!executorContext.getPrimusExecutorConf().getPortList().isEmpty()) {
+      envs.put(
+          PRIMUS_EXECUTOR_RESERVED_PORTS_ENV_KEY,
+          StringUtils.join(executorContext.getPrimusExecutorConf().getPortList(), ",")
+      );
     }
 
-    // Trick and temporary solution to fix bug of coredump_handler.
-    // Overwrite NM_AUX_SERVICE_mapreduce_shuffle environment because its value contains
-    // a '\0' and causes coredump_handler can not parse CORE_DUMP_PROC_NAME environment.
-    envs.put("NM_AUX_SERVICE_mapreduce_shuffle", "USELESS_OVERWRITE");
-
-    envs.put(API_SERVER_RPC_HOST_ENV, executorContext.getPrimusExecutorConf().getApiServerHost());
-    envs.put(API_SERVER_RPC_PORT_ENV,
-        String.valueOf(executorContext.getPrimusExecutorConf().getApiServerPort()));
-    envs.put(PRIMUS_EXECUTOR_UNIQID_ENV, executorContext.getExecutorId().toUniqString());
+    envs.put(
+        API_SERVER_RPC_HOST_ENV,
+        executorContext.getPrimusExecutorConf().getApiServerHost()
+    );
+    envs.put(
+        API_SERVER_RPC_PORT_ENV,
+        String.valueOf(executorContext.getPrimusExecutorConf().getApiServerPort())
+    );
   }
 
   @Override
@@ -80,5 +90,4 @@ public class EnvPlugin implements ChildLaunchPlugin {
   @Override
   public void postStop() throws Exception {
   }
-
 }
