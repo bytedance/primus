@@ -22,7 +22,7 @@ submitted to the cluster via Primus client with a curated Primus Configuration a
 resources. After being successfully submitted, the Primus application will enter execution phase
 during which the trainer processes are launched and safeguarded by Primus.
 
-![](images/primus-application.jpg)
+![](images/primus-application.svg)
 
 ### Application Submission
 
@@ -47,7 +47,7 @@ trainer processes for the assigned training roles and keeps monitoring their hea
 Primus executor periodically updates heartbeat to Primus AM, and Primus AM reacts correspondingly to
 secure the entire Primus application.
 
-![](images/primus-application-lifecyle-management.jpg)
+![](images/primus-application-lifecycle-management.svg)
 
 ### Data Injection
 
@@ -59,7 +59,7 @@ status. As for task distribution, additional to update executor status, Primus e
 their task status and fetch new tasks when needed. By executing the tasked assigned by Primus AM,
 training data are injected to trainer process by Primus executors in a distributed manner.
 
-![](images/primus-application-data-injection.jpg)
+![](images/primus-application-data-injection.svg)
 
 ---
 

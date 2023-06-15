@@ -14,7 +14,7 @@ Baseline Virtual Machine(PBVM) is introduced. By ambitiously encompassing every 
 environmental dependencies, PBVM encloses the entire development cycle to local machines, which not
 only greatly improves developer experiences but also serves as the standard environments for Primus.
 
-![](images/pbvm-overview.jpg)
+![](images/pbvm-overview.svg)
 
 As illustrated in the diagram above, PBVM mainly contains three categories of environmental
 dependencies including storages, Kubernetes runtime and YARN runtime, where storages serve both
@@ -164,7 +164,7 @@ depicted in the diagram below. Remarkably, since Kubernetes clusters are highly 
 environment specific settings are required, and thus the settings demonstrated in this section also
 serve as the references for other environments.
 
-![](images/pbvm-kubernetes.jpg)
+![](images/pbvm-kubernetes.svg)
 
 ### Deployment
 
@@ -246,7 +246,7 @@ As its counterpart for Primus on Kubernetes, this section will be demonstrating 
 deploying Primus on YARN to PBVM with the architecture depicted in the diagram below, and wrapped up
 by submitting a Primus application.
 
-![](images/pbvm-yarn.jpg)
+![](images/pbvm-yarn.svg)
 
 ### Deployment
 
