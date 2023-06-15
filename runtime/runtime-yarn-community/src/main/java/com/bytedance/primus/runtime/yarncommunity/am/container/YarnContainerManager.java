@@ -114,10 +114,8 @@ public abstract class YarnContainerManager extends ContainerManager {
 
   @Override
   protected void serviceStart() throws Exception {
-    // XXX: Meta redirect doesn't work well with YARN community,
-    // so we don't have the API path here in the Tracking URL.
     String trackingUrl = String.format(
-        "http://%s:%d",
+        "http://%s:%d/",
         context.getWebAppServerHostAddress(),
         context.getWebAppServerPort());
 
@@ -127,7 +125,7 @@ public abstract class YarnContainerManager extends ContainerManager {
         trackingUrl
     );
 
-    LOG.info("Tracking URL is " + trackingUrl);
+    LOG.info("Application is registered: {}", response);
     containerManagerThread.start();
   }
 

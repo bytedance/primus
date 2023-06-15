@@ -70,6 +70,7 @@ import com.bytedance.primus.apiserver.client.models.Data;
 import com.bytedance.primus.apiserver.records.DataSpec;
 import com.bytedance.primus.apiserver.records.RoleSpec;
 import com.bytedance.primus.apiserver.service.ApiServer;
+import com.bytedance.primus.apiserver.utils.ResourceUtils;
 import com.bytedance.primus.common.child.ChildLauncher;
 import com.bytedance.primus.common.child.ChildLauncherEvent;
 import com.bytedance.primus.common.child.ChildLauncherEventType;
@@ -82,7 +83,6 @@ import com.bytedance.primus.common.util.IntegerUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.BlacklistConfig;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.monitor.MonitorInfoProvider;
-import com.bytedance.primus.utils.ResourceUtils;
 import com.bytedance.primus.utils.timeline.NoopTimelineLogger;
 import com.bytedance.primus.utils.timeline.TimelineLogger;
 import com.bytedance.primus.webapp.CompleteApplicationServlet;
@@ -104,6 +104,7 @@ import java.util.Optional;
 import javax.servlet.http.HttpServlet;
 import lombok.Getter;
 import org.apache.hadoop.http.HttpServer2;
+import org.apache.hadoop.net.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -177,6 +178,7 @@ public class AMContext {
 
   @Getter
   private final HttpServer2 webAppServer;
+  private final InetSocketAddress webAppAddress;
 
   private final TimelineLogger timelineLogger;
   private final EventLoggingListener eventLoggingListener;
@@ -258,6 +260,7 @@ public class AMContext {
 
     LOG.info("Starting Primus WebApp Server");
     webAppServer = startWebAppHttpServer(applicationMeta, this);
+    webAppAddress = NetUtils.getConnectAddress(webAppServer.getConnectorAddress(0));
 
     LOG.info("Registering loggers");
     timelineLogger = new NoopTimelineLogger();
@@ -449,11 +452,11 @@ public class AMContext {
   }
 
   public String getWebAppServerHostAddress() {
-    return webAppServer.getConnectorAddress(0).getAddress().getHostAddress();
+    return webAppAddress.getAddress().getHostAddress();
   }
 
   public int getWebAppServerPort() {
-    return webAppServer.getConnectorAddress(0).getPort();
+    return webAppAddress.getPort();
   }
 
   public InetSocketAddress getRpcAddress() {

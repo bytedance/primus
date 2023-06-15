@@ -19,6 +19,7 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.common.pods;
 
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.DRIVER_API_SERVER_PORT;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.DRIVER_EXECUTOR_TRACKER_SERVICE_PORT;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.KUBERNETES_POD_META_LABEL_OWNER;
@@ -34,7 +35,6 @@ import static com.bytedance.primus.runtime.kubernetesnative.common.constants.Kub
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.HADOOP_USER_NAME_ENV;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.PRIMUS_LOCAL_MOUNTING_DIR_ENV;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesContainerConstants.PRIMUS_REMOTE_STAGING_DIR_ENV;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
 
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
 import com.bytedance.primus.proto.PrimusRuntime.KubernetesNativeConf;

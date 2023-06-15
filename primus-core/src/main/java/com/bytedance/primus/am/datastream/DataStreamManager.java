@@ -19,6 +19,8 @@
 
 package com.bytedance.primus.am.datastream;
 
+import static com.bytedance.primus.common.util.PrimusConstants.DEFAULT_DATA_STREAM;
+
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.am.datastream.env.EnvTaskManager;
@@ -54,7 +56,6 @@ public class DataStreamManager extends AbstractService implements
     EventHandler<DataStreamManagerEvent> {
 
   public static final String ENV_DATA_STREAM = "env";
-  public static final String DEFAULT_DATA_STREAM = "default";
 
   private static final Logger LOG = LoggerFactory.getLogger(DataStreamManager.class);
 

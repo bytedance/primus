@@ -19,17 +19,18 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.client;
 
+import static com.bytedance.primus.common.util.PrimusConstants.LOG4J_PROPERTIES;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_CONF_PATH;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_CORE_TARGET_KEY;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_HOME_ENV_KEY;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_JAR;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_JAR_PATH;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_APP_ID_LABEL_NAME;
-import static com.bytedance.primus.utils.PrimusConstants.LOG4J_PROPERTIES;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF_PATH;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CORE_TARGET_KEY;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_HOME_ENV_KEY;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_JAR;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_JAR_PATH;
 
 import com.bytedance.primus.client.ClientCmdRunner;
 import com.bytedance.primus.common.exceptions.PrimusRuntimeException;
-import com.bytedance.primus.common.util.RuntimeUtils;
+import com.bytedance.primus.common.util.PrimusConfigurationUtils;
+import com.bytedance.primus.common.util.PrimusConstants;
 import com.bytedance.primus.common.util.Sleeper;
 import com.bytedance.primus.common.util.StringUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
@@ -38,8 +39,7 @@ import com.bytedance.primus.runtime.kubernetesnative.common.pods.PrimusDriverPod
 import com.bytedance.primus.runtime.kubernetesnative.common.pods.PrimusPodContext;
 import com.bytedance.primus.runtime.kubernetesnative.common.utils.StorageHelper;
 import com.bytedance.primus.runtime.kubernetesnative.runtime.monitor.MonitorInfoProviderImpl;
-import com.bytedance.primus.utils.ConfigurationUtils;
-import com.bytedance.primus.utils.PrimusConstants;
+import com.bytedance.primus.utils.RuntimeUtils;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Longs;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
@@ -97,7 +97,7 @@ public class KubernetesSubmitCmdRunner implements ClientCmdRunner {
     File defaultConfFile = new File(defaultConfFilePath.toString());
     if (defaultConfFile.exists()) {
       LOG.info("Loading default config from {}", defaultConfFilePath);
-      PrimusConf dataCenterConf = ConfigurationUtils.load(defaultConfFilePath.toString());
+      PrimusConf dataCenterConf = PrimusConfigurationUtils.load(defaultConfFilePath.toString());
       builder.mergeFrom(dataCenterConf);
     } else {
       LOG.warn("Missing default config file at {}", defaultConfFilePath);

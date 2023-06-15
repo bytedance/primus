@@ -26,8 +26,8 @@ import com.bytedance.primus.am.AMCommandParser;
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.am.ApplicationMaster;
 import com.bytedance.primus.common.metrics.PrimusMetrics;
+import com.bytedance.primus.common.util.PrimusConfigurationUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
-import com.bytedance.primus.utils.ConfigurationUtils;
 import com.google.common.base.Strings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +39,7 @@ public class KubernetesApplicationMasterMain {
   public static void main(String[] args) {
     try {
       // Obtain PrimusConf
-      PrimusConf primusConf = ConfigurationUtils.load(
+      PrimusConf primusConf = PrimusConfigurationUtils.load(
           AMCommandParser
               .getCmd(args)
               .getOptionValue(AMCommandParser.CONFIGURATION_PATH)

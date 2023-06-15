@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.webapp;
 
-import static com.bytedance.primus.utils.PrimusConstants.KILLED_THROUGH_AM_DIAG;
+import static com.bytedance.primus.common.util.PrimusConstants.KILLED_THROUGH_AM_DIAG;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.am.ApplicationExitCode;

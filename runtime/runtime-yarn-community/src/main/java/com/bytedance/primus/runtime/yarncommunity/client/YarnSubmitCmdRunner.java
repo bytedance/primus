@@ -19,26 +19,26 @@
 
 package com.bytedance.primus.runtime.yarncommunity.client;
 
-import static com.bytedance.primus.utils.PrimusConstants.HDFS_SCHEME;
-import static com.bytedance.primus.utils.PrimusConstants.LOG4J_PROPERTIES;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_CONF_PATH;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_HOME_ENV_KEY;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_JAR;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_JAR_PATH;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_VERSION_ENV_KEY;
-import static com.bytedance.primus.utils.PrimusConstants.STAGING_DIR_KEY;
+import static com.bytedance.primus.common.util.PrimusConstants.HDFS_SCHEME;
+import static com.bytedance.primus.common.util.PrimusConstants.LOG4J_PROPERTIES;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_CONF;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_CONF_PATH;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_HOME_ENV_KEY;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_JAR;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_JAR_PATH;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_VERSION_ENV_KEY;
+import static com.bytedance.primus.common.util.PrimusConstants.STAGING_DIR_KEY;
 
 import com.bytedance.primus.am.ApplicationExitCode;
 import com.bytedance.primus.client.ClientCmdRunner;
-import com.bytedance.primus.common.util.RuntimeUtils;
+import com.bytedance.primus.common.util.PrimusConfigurationUtils;
+import com.bytedance.primus.common.util.ProtoJsonConverter;
 import com.bytedance.primus.proto.PrimusConfOuterClass;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.runtime.yarncommunity.am.YarnApplicationMasterMain;
 import com.bytedance.primus.runtime.yarncommunity.utils.YarnConvertor;
-import com.bytedance.primus.utils.ConfigurationUtils;
-import com.bytedance.primus.utils.ProtoJsonConverter;
+import com.bytedance.primus.utils.RuntimeUtils;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -184,7 +184,7 @@ public class YarnSubmitCmdRunner implements ClientCmdRunner {
 
   private PrimusConf getMergedPrimusConf(PrimusConf userConf) throws IOException {
     String defaultConfigPath = getConfDir() + "/" + DEFAULT_PRIMUS_CONF_FILENAME;
-    PrimusConf defaultConf = ConfigurationUtils.load(defaultConfigPath);
+    PrimusConf defaultConf = PrimusConfigurationUtils.load(defaultConfigPath);
     return PrimusConf.newBuilder()
         .mergeFrom(defaultConf)
         .mergeFrom(userConf)

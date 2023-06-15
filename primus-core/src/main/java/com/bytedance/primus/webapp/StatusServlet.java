@@ -21,7 +21,7 @@ package com.bytedance.primus.webapp;
 
 import com.bytedance.primus.am.AMContext;
 import com.bytedance.primus.api.records.Task;
-import com.bytedance.primus.utils.ProtoJsonConverter;
+import com.bytedance.primus.common.util.ProtoJsonConverter;
 import com.bytedance.primus.webapp.bundles.RoleBundle;
 import com.bytedance.primus.webapp.bundles.StatusBundle;
 import com.bytedance.primus.webapp.bundles.SummaryBundle;

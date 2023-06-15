@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.executor.worker;
 
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_SUBMIT_TIMESTAMP_ENV_KEY;
 
 import com.bytedance.primus.api.records.ExecutorId;
 import com.bytedance.primus.common.child.Child;
@@ -95,9 +95,9 @@ public class Worker implements Child {
         PrimusMetrics.emitStoreWithAppIdTag(
             "executor.worker_launch.submit_running.interval_ms",
             new HashMap<String, String>() {{
-                put("role", executorContext.getExecutorId().getRoleName());
-              }},
-              (int) (new Date().getTime() - submitTime));
+              put("role", executorContext.getExecutorId().getRoleName());
+            }},
+            (int) (new Date().getTime() - submitTime));
         break;
       case CHILD_INTERRUPTED:
         dispatcher.getEventHandler()

@@ -23,7 +23,6 @@ import com.bytedance.primus.common.model.records.impl.pb.ContainerIdPBImpl;
 import com.google.common.base.Splitter;
 import java.text.NumberFormat;
 import java.util.Iterator;
-import org.apache.hadoop.yarn.api.records.ApplicationSubmissionContext;
 
 /**
  * <p><code>ContainerId</code> represents a globally unique identifier
@@ -94,26 +93,7 @@ public abstract class ContainerId implements Comparable<ContainerId> {
     return id;
   }
 
-  /**
-   * Get the <code>ApplicationAttemptId</code> of the application to which the
-   * <code>Container</code> was assigned.
-   * <p>
-   * Note: If containers are kept alive across application attempts via {@link
-   * ApplicationSubmissionContext#setKeepContainersAcrossApplicationAttempts(boolean)} the
-   * <code>ContainerId</code> does not necessarily contain the current running application
-   * attempt's
-   * <code>ApplicationAttemptId</code> This container can be allocated by previously exited
-   * application attempt and managed by the current running attempt thus have the previous
-   * application attempt's <code>ApplicationAttemptId</code>.
-   * </p>
-   *
-   * @return <code>ApplicationAttemptId</code> of the application to which the
-   * <code>Container</code> was assigned
-   */
-
-
   public abstract ApplicationAttemptId getApplicationAttemptId();
-
 
   protected abstract void setApplicationAttemptId(ApplicationAttemptId atId);
 
@@ -237,9 +217,10 @@ public abstract class ContainerId implements Comparable<ContainerId> {
   }
 
   /**
-   * @return A string representation of containerId. The format is container_e*epoch*_*clusterTimestamp*_*appId*_*attemptId*_*containerId*
-   * when epoch is larger than 0 (e.g. container_e17_1410901177871_0001_01_000005). *epoch* is
-   * increased when RM restarts or fails over. When epoch is 0, epoch is omitted (e.g.
+   * @return A string representation of containerId. The format is
+   * container_e*epoch*_*clusterTimestamp*_*appId*_*attemptId*_*containerId* when epoch is larger
+   * than 0 (e.g. container_e17_1410901177871_0001_01_000005). *epoch* is increased when RM restarts
+   * or fails over. When epoch is 0, epoch is omitted (e.g.
    * container_1410901177871_0001_01_000005).
    */
   @Override

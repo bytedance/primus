@@ -19,7 +19,7 @@
 
 package com.bytedance.primus.client;
 
-import com.bytedance.primus.utils.PrimusConstants;
+import com.bytedance.primus.common.util.PrimusConstants;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

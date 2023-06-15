@@ -19,9 +19,9 @@
 
 package com.bytedance.primus.runtime.kubernetesnative.common.pods;
 
+import static com.bytedance.primus.common.util.PrimusConstants.SYSTEM_USER_ENV_KEY;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_AM_JAVA_MEMORY_XMX;
 import static com.bytedance.primus.runtime.kubernetesnative.common.constants.KubernetesConstants.PRIMUS_AM_JAVA_OPTIONS;
-import static com.bytedance.primus.utils.PrimusConstants.SYSTEM_USER_ENV_KEY;
 
 import com.bytedance.primus.apiserver.proto.UtilsProto.ResourceRequest;
 import com.bytedance.primus.apiserver.proto.UtilsProto.ResourceType;

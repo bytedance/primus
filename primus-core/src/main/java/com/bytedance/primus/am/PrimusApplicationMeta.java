@@ -19,12 +19,12 @@
 
 package com.bytedance.primus.am;
 
-import static com.bytedance.primus.utils.PrimusConstants.PRIMUS_VERSION_ENV_KEY;
+import static com.bytedance.primus.common.util.PrimusConstants.PRIMUS_VERSION_ENV_KEY;
 
 import com.bytedance.primus.common.network.NetworkConfig;
-import com.bytedance.primus.common.util.RuntimeUtils;
 import com.bytedance.primus.proto.PrimusConfOuterClass.PrimusConf;
 import com.bytedance.primus.proto.PrimusRuntime.PrimusUiConf;
+import com.bytedance.primus.utils.RuntimeUtils;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;

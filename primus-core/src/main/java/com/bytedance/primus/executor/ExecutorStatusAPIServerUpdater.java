@@ -19,8 +19,8 @@
 
 package com.bytedance.primus.executor;
 
-import static com.bytedance.primus.utils.PrimusConstants.UPDATE_TO_API_SERVER_RETRY_INTERVAL_MS;
-import static com.bytedance.primus.utils.PrimusConstants.UPDATE_TO_API_SERVER_RETRY_TIMES;
+import static com.bytedance.primus.common.util.PrimusConstants.UPDATE_TO_API_SERVER_RETRY_INTERVAL_MS;
+import static com.bytedance.primus.common.util.PrimusConstants.UPDATE_TO_API_SERVER_RETRY_TIMES;
 
 import com.bytedance.primus.apiserver.client.apis.CoreApi;
 import com.bytedance.primus.apiserver.client.models.Executor;
